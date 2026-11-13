@@ -15,9 +15,13 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
-      - run: pnpm test
+      # Build first so the UI exists: the end-to-end PR test renders real PNGs.
       - run: pnpm build
+      - name: Chromium do Playwright (com dependências do sistema)
+        run: pnpm --filter @zark/server exec playwright-core install --with-deps chromium
+      - run: pnpm test
       - name: Exemplo do apêndice continua válido e canônico
         run: |
           node packages/cli/dist/main.js validate --dir examples/ecommerce/architecture
           node packages/cli/dist/main.js fmt --check --dir examples/ecommerce/architecture
+          node packages/cli/dist/main.js render --check --dir examples/ecommerce/architecture

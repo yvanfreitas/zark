@@ -73,7 +73,7 @@ describe('render hash', () => {
     try {
       const dir = join(root, 'architecture');
       await cp(EXAMPLE, dir, { recursive: true });
-      await mkdir(join(dir, 'rendered'));
+      await mkdir(join(dir, 'rendered'), { recursive: true });
       const p = buildProject(dir, await readTexts(dir));
       await writeFile(join(dir, 'rendered/contexto.png'), embedHash(tinyPng(), 'wrong'));
       await writeFile(join(dir, 'rendered/vtex.png'), embedHash(tinyPng(), renderHash(p, { drawing: 'vtex' })));
