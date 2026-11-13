@@ -1,0 +1,18 @@
+{
+  "name": "zark-monorepo",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.12.0",
+  "scripts": {
+    "build": "pnpm --filter @zark/ui build && pnpm --filter zark build",
+    "test": "vitest run",
+    "typecheck": "tsc -p . && tsc -p packages/ui",
+    "zark": "tsx packages/cli/src/main.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  }
+}

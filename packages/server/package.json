@@ -1,0 +1,16 @@
+{
+  "name": "@zark/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.8",
+    "@zark/core": "workspace:*",
+    "chokidar": "^6.0.0",
+    "hono": "^4.13.18",
+    "playwright-core": "^1.65.0"
+  }
+}

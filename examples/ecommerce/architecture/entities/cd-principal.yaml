@@ -1,0 +1,7 @@
+# yaml-language-server: $schema=https://unpkg.com/zark/schema/entity.json
+
+id: cd-principal
+name: CD Principal
+kind: app
+parent: vtex
+caption: Seller principal

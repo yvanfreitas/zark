@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=https://unpkg.com/zark/schema/entity.json
+
+id: seller-jardins
+name: Jardins
+kind: app
+parent: vtex
+caption: Seller Whitelabel
+
+connections:
+  - id: estoque
+    to: cd-principal
+    label: Oferta de estoque
+  - id: pedidos
+    to: sintese
+    label: Pedidos
+    direction: bidirectional

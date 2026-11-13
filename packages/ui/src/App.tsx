@@ -1,0 +1,243 @@
+import { useEffect } from 'react';
+import { ReactFlowProvider } from '@xyflow/react';
+import { subscribe } from './api';
+import { Canvas } from './canvas/Canvas';
+import { freeId } from './model';
+import { currentDrawing, useStore } from './store';
+import { flowView } from './flow';
+import { FlowPanel } from './panels/FlowPanel';
+import { Inspector } from './panels/Inspector';
+import { LeftPanel } from './panels/LeftPanel';
+import { CommandPalette, ConfirmDialogView, Toasts } from './panels/Overlays';
+import { BottomBar, ChangesPanel, PrDialog, ProblemsPanel } from './panels/Side';
+import { TopBar, useGitStatus } from './panels/TopBar';
+import { Button } from './panels/ui';
+
+const isTyping = (t: EventTarget | null) => t instanceof HTMLElement && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName));
+
+/** Enter on an entity: open its inner drawing, offering to create one. */
+function drillDown(id: string) {
+  const s = useStore.getState();
+  const index = s.index!;
+  const inner = index.drawingsByScope.get(id)?.[0];
+  if (inner) return s.openDrawing(inner.id);
+  const e = index.entities.get(id);
+  if (!e || e.kind === 'actor' || e.kind === 'component') return;
+  s.set({
+    confirm: {
+      title: `Criar o desenho interno de ${e.name}?`,
+      lines: [`Novo desenho com escopo ${e.id}${index.children.get(id)?.length ? `, já com os ${index.children.get(id)!.length} filhos posicionados` : ''}.`],
+      confirmLabel: 'Criar desenho',
+      onConfirm: async () => {
+        const drawingId = freeId(e.id, (x) => index.drawings.has(x));
+        const children = index.children.get(id) ?? [];
+        const r = await s.ops([
+          { op: 'drawing.create', drawing: { id: drawingId, name: e.name, scope: id } },
+          ...(children.length ? [{ op: 'drawing.place', drawing: drawingId, nodes: children.map((c) => ({ id: c })) }] : []),
+        ]);
+        if (r) useStore.getState().openDrawing(drawingId);
+      },
+    },
+  });
+}
+
+function useShortcuts() {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const s = useStore.getState();
+      const mod = e.metaKey || e.ctrlKey;
+      const key = e.key.toLowerCase();
+      if (mod && key === 'k') return e.preventDefault(), s.set({ palette: !s.palette });
+      if (isTyping(e.target) || s.palette || s.confirm || s.prDialog) return;
+      const drawing = currentDrawing(s);
+      const sel = s.selection;
+      const view = s.model && s.index ? flowView(s.model, s.index, s.flow) : undefined;
+
+      if (mod && key === 'z') return e.preventDefault(), void (e.shiftKey ? s.redo() : s.undo());
+      if (mod && key === 'f') return e.preventDefault(), s.set({ palette: true });
+      if (mod && e.shiftKey && key === 'c') return e.preventDefault(), s.select([]), s.requestFocus();
+      if (!mod && e.shiftKey && key === 'c') return e.preventDefault(), s.requestFocus();
+      if (!mod && e.shiftKey && key === 'n') return e.preventDefault(), window.dispatchEvent(new CustomEvent('zark:quick-create'));
+      if (mod && key === 'g') return e.preventDefault(), window.dispatchEvent(new CustomEvent('zark:group'));
+      if (mod && key === 'd' && drawing) {
+        e.preventDefault();
+        const id = freeId(`${drawing.id}-copia`, (x) => !!s.index?.drawings.has(x));
+        void s.ops([
+          { op: 'drawing.create', drawing: { id, name: `${drawing.name} (cópia)`, description: drawing.description, scope: drawing.scope ?? null } },
+          { op: 'drawing.place', drawing: id, nodes: Object.entries(drawing.nodes ?? {}).map(([nid, n]) => ({ id: nid, ...n })) },
+          { op: 'drawing.draw-edges', drawing: id, edges: Object.entries(drawing.edges ?? {}).map(([ref, ed]) => ({ ref, ...ed })) },
+        ]).then((r) => r && s.openDrawing(id));
+        return;
+      }
+
+      if (view) {
+        if (e.key === 'ArrowRight') return e.preventDefault(), s.setFlow({ frame: Math.min(view.frames.length - 1, view.frame + 1), playing: false });
+        if (e.key === 'ArrowLeft') return e.preventDefault(), s.setFlow({ frame: Math.max(0, view.frame - 1), playing: false });
+        if (e.key === ' ') return e.preventDefault(), s.setFlow({ playing: !s.flow!.playing });
+        if (e.key === 'Escape' && !sel.nodes.length && !sel.edges.length) return s.setFlow(null);
+      }
+
+      if (e.key.startsWith('Arrow') && sel.nodes.length && !view) {
+        e.preventDefault();
+        const dx = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0;
+        const dy = e.key === 'ArrowUp' ? -1 : e.key === 'ArrowDown' ? 1 : 0;
+        window.dispatchEvent(new CustomEvent('zark:nudge', { detail: { dx, dy } }));
+        return;
+      }
+      if (e.key === 'Enter' && sel.nodes.length === 1 && s.index?.entities.has(sel.nodes[0])) return e.preventDefault(), drillDown(sel.nodes[0]);
+      if (e.key === 'Escape') {
+        if (sel.nodes.length || sel.edges.length) return s.select([]);
+        return s.up();
+      }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && drawing && (sel.nodes.length || sel.edges.length)) {
+        e.preventDefault();
+        if (e.shiftKey) {
+          // Excluir do modelo: always confirmed, impact shown by the core.
+          if (sel.nodes.length === 1 && s.index?.entities.has(sel.nodes[0])) {
+            const ent = s.index.entities.get(sel.nodes[0])!;
+            void s.deleteWithImpact(`/api/entities/${ent.id}`, ent.name, [ent.file]);
+          } else if (sel.edges.length === 1) {
+            const c = s.index!.conns.get(sel.edges[0])!;
+            void s.deleteWithImpact(`/api/connections/${c.ref}`, `a conexão "${c.conn.label}"`, [c.file]);
+          }
+          return;
+        }
+        // Remover do desenho: the model is untouched.
+        const ops: unknown[] = [];
+        const entities = sel.nodes.filter((n) => drawing.nodes?.[n]);
+        if (entities.length) ops.push({ op: 'remove-nodes', ids: entities });
+        if (sel.edges.length) ops.push({ op: 'remove-edges', refs: sel.edges });
+        for (const n of sel.nodes) {
+          if (n.startsWith('note:')) ops.push({ op: 'remove-note', id: n.slice(5) });
+          if (n.startsWith('group:')) ops.push({ op: 'remove-group', id: n.slice(6) });
+        }
+        if (ops.length) void s.write('POST', `/api/drawings/${drawing.id}/ops`, { ops }, [drawing.file]).then((r) => r && s.select([]));
+      }
+    };
+    const onGroup = () => {
+      const s = useStore.getState();
+      const drawing = currentDrawing(s);
+      const members = s.selection.nodes.filter((n) => drawing?.nodes?.[n]);
+      if (!drawing || !members.length) return;
+      const id = freeId('grupo', (x) => !!drawing.groups?.some((g) => g.id === x));
+      void s.write('POST', `/api/drawings/${drawing.id}/ops`, { ops: [{ op: 'set-group', group: { id, label: 'Grupo', members, style: 'dashed' } }] }, [drawing.file]).then((r) => r && s.select([`group:${id}`]));
+    };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('zark:group', onGroup);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('zark:group', onGroup);
+    };
+  }, []);
+}
+
+function useLiveUpdates() {
+  useEffect(() => {
+    let timer: number | undefined;
+    const refresh = () => {
+      clearTimeout(timer);
+      timer = window.setTimeout(() => void useStore.getState().refresh().catch(() => undefined), 80);
+    };
+    return subscribe(
+      {
+        'model.changed': (e: { origin: string; changes: string[] }) => {
+          refresh();
+          if (e.origin === 'mcp' || e.origin === 'external') {
+            const who = e.origin === 'mcp' ? 'Atualizado pelo MCP' : 'Atualizado no disco';
+            useStore.getState().toast(e.changes.length ? `${who}: ${e.changes.slice(0, 2).join('; ')}${e.changes.length > 2 ? '…' : ''}` : who);
+          }
+        },
+        'problems.changed': refresh,
+      },
+      (connected) => {
+        useStore.getState().setConnected(connected);
+        if (connected) refresh();
+      },
+    );
+  }, []);
+}
+
+function InvalidFilesBanner() {
+  const files = useStore((s) => s.model!.files);
+  const invalid = Object.entries(files).filter(([, f]) => f.error);
+  if (!invalid.length) return null;
+  return (
+    <div role="alert" className="absolute left-3 right-3 top-3 z-10 rounded-lg border border-[var(--danger)]/40 bg-[var(--danger-soft)] px-3 py-2 text-[12.5px] text-[var(--danger)]">
+      {invalid.map(([path, f]) => (
+        <div key={path}>
+          <span className="font-mono">
+            {path}
+            {f.error!.line ? `:${f.error!.line}` : ''}
+          </span>{' '}
+          — {f.error!.message}. O item fica somente leitura até o YAML ser corrigido.
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EmptyState() {
+  const empty = useStore((s) => !s.model!.entities.length);
+  if (!empty) return null;
+  return (
+    <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center">
+      <div className="pointer-events-auto flex flex-col items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 text-center shadow-sm">
+        <div className="text-[15px] font-semibold text-[var(--fg)]">O modelo está vazio</div>
+        <p className="max-w-[300px] text-[13px] text-[var(--muted)]">Dê um duplo clique no canvas para criar uma entidade, ou peça a um agente via MCP.</p>
+        <Button onClick={() => window.dispatchEvent(new CustomEvent('zark:quick-create'))}>Criar primeira entidade</Button>
+      </div>
+    </div>
+  );
+}
+
+export function App() {
+  const model = useStore((s) => s.model);
+  const loadError = useStore((s) => s.loadError);
+  const right = useStore((s) => s.right);
+  const flow = useStore((s) => s.flow);
+  const theme = useStore((s) => s.theme);
+  const git = useGitStatus();
+  useShortcuts();
+  useLiveUpdates();
+  useEffect(() => {
+    void useStore.getState().load();
+  }, []);
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
+
+  if (loadError)
+    return (
+      <div className="grid h-screen place-items-center bg-[var(--canvas)] p-6">
+        <div className="max-w-md rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 text-[14px] text-[var(--fg)]">
+          <div className="mb-2 font-semibold">Não foi possível abrir o projeto</div>
+          <p className="text-[var(--muted)]">{loadError}</p>
+        </div>
+      </div>
+    );
+  if (!model) return <div className="grid h-screen place-items-center bg-[var(--canvas)] text-[var(--muted)]">Carregando…</div>;
+
+  return (
+    <ReactFlowProvider>
+      <div className="flex h-screen flex-col bg-[var(--canvas)] text-[var(--fg)]">
+        <TopBar git={git} />
+        <div className="flex min-h-0 flex-1">
+          <LeftPanel />
+          <main className="relative min-w-0 flex-1" aria-label="Canvas">
+            <InvalidFilesBanner />
+            <EmptyState />
+            <Canvas />
+          </main>
+          <aside className="w-[340px] shrink-0 overflow-y-auto border-l border-[var(--border)] bg-[var(--panel)]" aria-label="Painel direito">
+            {right === 'problems' ? <ProblemsPanel /> : right === 'changes' ? <ChangesPanel git={git} /> : flow ? <FlowPanel /> : <Inspector />}
+          </aside>
+        </div>
+        <BottomBar />
+      </div>
+      <CommandPalette />
+      <ConfirmDialogView />
+      <PrDialog />
+      <Toasts />
+    </ReactFlowProvider>
+  );
+}

@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=https://unpkg.com/zark/schema/entity.json
+
+id: trinio
+name: Trinio
+kind: system
+caption: Checkout
+
+connections:
+  - id: pagamento
+    to: gateway
+    label: Realiza o pagamento

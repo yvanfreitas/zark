@@ -1,0 +1,17 @@
+# Exemplo (seção 15 da spec): copie para o repositório que versiona architecture/.
+name: architecture
+on:
+  pull_request:
+    paths: ["architecture/**"]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - run: npx zark validate
+      - run: npx zark fmt --check
+      - run: npx zark render --check
+      - run: npx zark diff --base origin/main --format markdown >> "$GITHUB_STEP_SUMMARY"
