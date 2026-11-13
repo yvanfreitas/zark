@@ -81,3 +81,7 @@ pnpm zark validate --dir examples/ecommerce/architecture   # CLI direto do códi
 ```
 
 Para trabalhar na UI, rode `pnpm build` (ou `pnpm --filter @zark/ui build`) e `pnpm zark dev --dir examples/ecommerce/architecture`.
+
+## Licença
+
+MIT. Veja [LICENSE](LICENSE).
