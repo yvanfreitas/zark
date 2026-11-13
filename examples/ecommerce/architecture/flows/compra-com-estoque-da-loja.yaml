@@ -1,0 +1,42 @@
+# yaml-language-server: $schema=https://unpkg.com/zark/schema/flow.json
+
+id: compra-com-estoque-da-loja
+name: Compra com estoque da loja
+description: Pedido atendido pelo estoque de um seller whitelabel.
+drawing: contexto
+
+steps:
+  - id: dados-da-compra
+    via: cliente.navega
+    text: Dados da compra
+  - id: redireciona
+    via: deco.checkout
+    text: Redireciona o cliente
+  - id: pagamento
+    via: trinio.pagamento
+    text: Realiza o pagamento
+  - id: cria-pedido
+    via: seller-phg.pedidos
+    text: Cria o pedido
+  - parallel:
+      - - id: pedido-transporte
+          via: sintese.pedido-intelipost
+          text: Cria o pedido de transporte
+      - - id: baixa-erp
+          via: sintese.baixa-estoque
+          text: Atualiza o inventário
+  - alternatives:
+      - name: Coleta agendada
+        steps:
+          - id: solicita-coleta
+            via: intelipost.coleta
+            text: Solicita coleta
+      - name: Sem transportadora disponível
+        steps:
+          - id: avisa-falha
+            via: sintese.pedido-intelipost
+            text: Devolve erro de cotação
+            reply: true
+  - id: atualiza-estoque
+    via: sintese.inventario-phg
+    text: Atualiza o estoque

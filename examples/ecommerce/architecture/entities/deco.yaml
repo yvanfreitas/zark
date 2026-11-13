@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=https://unpkg.com/zark/schema/entity.json
+
+id: deco
+name: deco
+kind: system
+caption: Front
+technologies: [ deco ]
+
+connections:
+  - id: checkout
+    to: trinio
+    label: Redireciona para o checkout

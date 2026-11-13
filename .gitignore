@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.zark/
+*.tsbuildinfo
+test-results/
+packages/cli/schema/

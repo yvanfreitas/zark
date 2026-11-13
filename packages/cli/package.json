@@ -1,0 +1,26 @@
+{
+  "name": "zark",
+  "version": "0.1.0",
+  "description": "Documentação de arquitetura as code: YAML no repo, UI, MCP e CLI sobre os mesmos arquivos",
+  "type": "module",
+  "bin": {
+    "zark": "./dist/main.js"
+  },
+  "files": [
+    "dist",
+    "schema"
+  ],
+  "dependencies": {
+    "@zark/core": "workspace:*",
+    "@zark/server": "workspace:*",
+    "@zark/mcp": "workspace:*",
+    "playwright-core": "^1.65.0"
+  },
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  },
+  "license": "MIT"
+}

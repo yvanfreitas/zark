@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://unpkg.com/zark/schema/entity.json
+
+id: linx
+name: Linx
+kind: system
+caption: ERP
+external: true
+technologies: [ linx ]
+
+connections:
+  - id: inventario
+    to: sintese
+    label: Inventário
