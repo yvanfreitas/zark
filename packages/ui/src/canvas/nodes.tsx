@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Handle, NodeResizer, Position, type NodeProps } from '@xyflow/react';
-import { KIND_LABEL } from '../model';
+import { tr, useT } from '../i18n';
 import { useStore } from '../store';
 import type { EntityData } from './build';
 
@@ -56,12 +56,13 @@ function Indicators({ data, id }: { data: EntityData; id: string }) {
     const inner = s.index?.drawingsByScope.get(id)?.[0];
     if (inner) s.openDrawing(inner.id);
   };
+  const t = useT();
   return (
     <div className="absolute -top-2.5 right-2 flex gap-1">
       {data.severity && (
         <span
           className={`grid size-5 place-items-center rounded-full text-[11px] font-bold text-white ${data.severity === 'error' ? 'bg-[var(--danger)]' : 'bg-[var(--warn)]'}`}
-          title={data.severity === 'error' ? 'Erro de validação' : 'Aviso de validação'}
+          title={data.severity === 'error' ? t('node.errorTitle') : t('node.warningTitle')}
         >
           !
         </span>
@@ -74,8 +75,8 @@ function Indicators({ data, id }: { data: EntityData; id: string }) {
             openInner();
           }}
           className="nodrag grid size-5 place-items-center rounded-full bg-[var(--surface)] text-[var(--muted)] ring-1 ring-[var(--border)] hover:text-[var(--accent)]"
-          title="Abrir desenho interno (Enter)"
-          aria-label={`Abrir desenho interno de ${data.entity.name}`}
+          title={t('node.openInner')}
+          aria-label={t('node.openInnerOf', { name: data.entity.name })}
         >
           <svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true">
             <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="2" fill="none" />
@@ -94,7 +95,9 @@ export const EntityNode = memo(function EntityNode({ id, data, selected }: NodeP
   const opacity = status === 'removed' ? 'opacity-40' : data.dim ? 'opacity-25' : '';
   const ring = selected ? 'ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--canvas)]' : data.inActiveFlow ? 'ring-2 ring-[var(--accent)]/50' : '';
   const nameClass = status === 'deprecated' ? 'line-through' : '';
-  const footer = e.kind === 'actor' ? '' : `${e.external ? 'External ' : ''}${KIND_LABEL[e.kind].toLowerCase()}${data.techName ? `: ${data.techName}` : ''}`;
+  useT(); // re-render on language change
+  const kind = tr(`kind.${e.kind}`).toLowerCase();
+  const footer = e.kind === 'actor' ? '' : `${tr(e.external ? 'node.footerExternal' : 'node.footer', { kind })}${data.techName ? `: ${data.techName}` : ''}`;
 
   if (e.kind === 'actor') {
     return (

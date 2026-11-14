@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { ALLOWED_PARENTS, freeId, KIND_LABEL } from '../model';
+import { ALLOWED_PARENTS, freeId, KINDS } from '../model';
+import { tr, useT } from '../i18n';
 import { currentDrawing, useStore } from '../store';
 import type { Conn, Drawing, Entity, WithFile } from '../types';
 import { Button, Field, inputClass, SectionTitle, Tabs } from './ui';
@@ -32,6 +33,7 @@ function CatalogPicker({ list, value, onChange, label }: { list: 'technologies' 
   const catalog = useStore((s) => s.model!.catalog);
   const items = catalog[list] ?? [];
   const [adding, setAdding] = useState('');
+  const t = useT();
   const add = async () => {
     const name = adding.trim();
     if (!name) return;
@@ -51,7 +53,7 @@ function CatalogPicker({ list, value, onChange, label }: { list: 'technologies' 
         {value.map((id) => (
           <span key={id} className="inline-flex items-center gap-1 rounded-full bg-[var(--chip)] px-2 py-0.5 text-[12px] text-[var(--fg-soft)]">
             {items.find((i) => i.id === id)?.name ?? id}
-            <button type="button" aria-label={`Remover ${id}`} className="text-[var(--muted)] hover:text-[var(--danger)]" onClick={() => onChange(value.filter((v) => v !== id))}>
+            <button type="button" aria-label={t('insp.removeItem', { id })} className="text-[var(--muted)] hover:text-[var(--danger)]" onClick={() => onChange(value.filter((v) => v !== id))}>
               ×
             </button>
           </span>
@@ -63,7 +65,7 @@ function CatalogPicker({ list, value, onChange, label }: { list: 'technologies' 
           void add();
         }}
       >
-        <input list={`dl-${list}`} aria-label={label} className={inputClass} placeholder="Adicionar…" value={adding} onChange={(e) => setAdding(e.target.value)} />
+        <input list={`dl-${list}`} aria-label={label} className={inputClass} placeholder={t('insp.add')} value={adding} onChange={(e) => setAdding(e.target.value)} />
         <datalist id={`dl-${list}`}>
           {items.filter((i) => !value.includes(i.id)).map((i) => (
             <option key={i.id} value={i.name} />
@@ -77,12 +79,13 @@ function CatalogPicker({ list, value, onChange, label }: { list: 'technologies' 
 function FileFooter({ file }: { file: string }) {
   const root = useStore((s) => s.model?.root);
   const abs = root ? `${root.replace(/\\/g, '/')}/${file}` : undefined;
+  const t = useT();
   return (
     <div className="mt-4 flex items-center justify-between gap-2 border-t border-[var(--border)] pt-3">
       <code className="truncate text-[11px] text-[var(--muted)]">{file}</code>
       {abs && (
         <a className="shrink-0 text-[12px] font-medium text-[var(--accent)] hover:underline" href={`vscode://file/${abs}`}>
-          Abrir no editor
+          {t('insp.openEditor')}
         </a>
       )}
     </div>
@@ -95,6 +98,7 @@ function EntityInspector({ entity }: { entity: WithFile<Entity> }) {
   const drawing = useStore(currentDrawing);
   const { write, deleteWithImpact, select, openDrawing } = useStore.getState();
   const [tab, setTab] = useState<'details' | 'connections' | 'usage'>('details');
+  const t = useT();
   const patch = (body: unknown) => write('PATCH', `/api/entities/${entity.id}`, body, [entity.file]);
   const setField = (key: string, v: unknown) => patch(v === '' || v === undefined || (Array.isArray(v) && !v.length) ? { unset: [key] } : { set: { [key]: v } });
   const parents = [...index.entities.values()].filter((e) => ALLOWED_PARENTS[entity.kind].includes(e.kind) && e.id !== entity.id);
@@ -112,12 +116,12 @@ function EntityInspector({ entity }: { entity: WithFile<Entity> }) {
   const connRow = (c: Conn, dir: 'out' | 'in') => (
     <li key={c.ref} className="flex items-center gap-2 rounded-md px-1 py-1 hover:bg-[var(--hover)]">
       <button type="button" className="min-w-0 flex-1 text-left" onClick={() => select([], [c.ref])}>
-        <span className="block truncate text-[13px] text-[var(--fg)]">{c.conn.label || '(sem rótulo)'}</span>
+        <span className="block truncate text-[13px] text-[var(--fg)]">{c.conn.label || t('common.noLabel')}</span>
         <span className="block truncate text-[11px] text-[var(--muted)]">{dir === 'out' ? `→ ${index.name(c.to)}` : `← ${index.name(c.from)}`}</span>
       </button>
-      <label className="flex shrink-0 items-center gap-1 text-[11px] text-[var(--muted)]" title={drawable(c) ? 'Mostrar neste desenho' : 'As pontas não estão neste desenho'}>
+      <label className="flex shrink-0 items-center gap-1 text-[11px] text-[var(--muted)]" title={drawable(c) ? t('insp.showHere') : t('insp.endsMissing')}>
         <input type="checkbox" disabled={!drawable(c)} checked={!!drawing?.edges?.[c.ref]} onChange={(e) => toggle(c, e.target.checked)} className="accent-[var(--accent)]" />
-        neste desenho
+        {t('insp.inThisDrawing')}
       </label>
     </li>
   );
@@ -126,31 +130,31 @@ function EntityInspector({ entity }: { entity: WithFile<Entity> }) {
     <div>
       <div className="mb-3">
         <div className="font-mono text-[10.5px] uppercase tracking-wide text-[var(--muted)]">
-          {entity.external ? 'Externo · ' : ''}
-          {KIND_LABEL[entity.kind]}
+          {entity.external ? t('insp.external') : ''}
+          {t(`kind.${entity.kind}`)}
         </div>
         <div className="text-[16px] font-semibold text-[var(--fg)]">{entity.name}</div>
       </div>
-      <Tabs value={tab} onChange={setTab} items={[['details', 'Detalhes'], ['connections', `Conexões (${outgoing.length + incoming.length})`], ['usage', 'Uso']]} />
+      <Tabs value={tab} onChange={setTab} items={[['details', t('insp.tabDetails')], ['connections', t('insp.tabConnections', { n: outgoing.length + incoming.length })], ['usage', t('insp.tabUsage')]]} />
       {tab === 'details' && (
         <div className="mt-3 flex flex-col gap-3">
-          <Field label="Nome">
-            <CommitInput label="Nome" value={entity.name} onCommit={(v) => v.trim() && setField('name', v.trim())} />
+          <Field label={t('insp.name')}>
+            <CommitInput label={t('insp.name')} value={entity.name} onCommit={(v) => v.trim() && setField('name', v.trim())} />
           </Field>
-          <Field label="Caption">
-            <CommitInput label="Caption" value={entity.caption ?? ''} onCommit={(v) => setField('caption', v.trim())} placeholder="Uma linha sob o nome" />
+          <Field label={t('insp.caption')}>
+            <CommitInput label={t('insp.caption')} value={entity.caption ?? ''} onCommit={(v) => setField('caption', v.trim())} placeholder={t('insp.captionPlaceholder')} />
           </Field>
           <div className="grid grid-cols-2 gap-2">
-            <Field label="Tipo">
+            <Field label={t('common.kind')}>
               <select className={inputClass} value={entity.kind} onChange={(e) => setField('kind', e.target.value)}>
-                {Object.entries(KIND_LABEL).map(([k, l]) => (
+                {KINDS.map((k) => (
                   <option key={k} value={k}>
-                    {l}
+                    {t(`kind.${k}`)}
                   </option>
                 ))}
               </select>
             </Field>
-            <Field label="Status">
+            <Field label={t('insp.status')}>
               <select className={inputClass} value={entity.status ?? 'live'} onChange={(e) => setField('status', e.target.value === 'live' ? '' : e.target.value)}>
                 {['live', 'future', 'deprecated', 'removed'].map((s) => (
                   <option key={s}>{s}</option>
@@ -158,10 +162,10 @@ function EntityInspector({ entity }: { entity: WithFile<Entity> }) {
               </select>
             </Field>
           </div>
-          <Field label="Pai">
+          <Field label={t('insp.parent')}>
             <select className={inputClass} value={entity.parent ?? ''} onChange={(e) => patch({ parent: e.target.value || null })}>
-              {ALLOWED_PARENTS[entity.kind].includes(null) && <option value="">(raiz)</option>}
-              {!ALLOWED_PARENTS[entity.kind].includes(null) && !entity.parent && <option value="">Escolha um pai</option>}
+              {ALLOWED_PARENTS[entity.kind].includes(null) && <option value="">{t('insp.rootOption')}</option>}
+              {!ALLOWED_PARENTS[entity.kind].includes(null) && !entity.parent && <option value="">{t('insp.chooseParent')}</option>}
               {parents.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -171,17 +175,17 @@ function EntityInspector({ entity }: { entity: WithFile<Entity> }) {
           </Field>
           <label className="flex items-center gap-2 text-[13px] text-[var(--fg-soft)]">
             <input type="checkbox" checked={!!entity.external} onChange={(e) => setField('external', e.target.checked || undefined)} className="accent-[var(--accent)]" />
-            Externo (fora do controle do time)
+            {t('insp.externalCheck')}
           </label>
-          <Field label="Tecnologias">
-            <CatalogPicker label="Tecnologias" list="technologies" value={entity.technologies ?? []} onChange={(v) => setField('technologies', v)} />
+          <Field label={t('insp.technologies')}>
+            <CatalogPicker label={t('insp.technologies')} list="technologies" value={entity.technologies ?? []} onChange={(v) => setField('technologies', v)} />
           </Field>
-          <Field label="Tags">
-            <CatalogPicker label="Tags" list="tags" value={entity.tags ?? []} onChange={(v) => setField('tags', v)} />
+          <Field label={t('insp.tags')}>
+            <CatalogPicker label={t('insp.tags')} list="tags" value={entity.tags ?? []} onChange={(v) => setField('tags', v)} />
           </Field>
-          <Field label="Time">
+          <Field label={t('insp.team')}>
             <select className={inputClass} value={entity.owner ?? ''} onChange={(e) => setField('owner', e.target.value)}>
-              <option value="">(nenhum)</option>
+              <option value="">{t('common.none')}</option>
               {(model.catalog.teams ?? []).map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
@@ -189,40 +193,40 @@ function EntityInspector({ entity }: { entity: WithFile<Entity> }) {
               ))}
             </select>
           </Field>
-          <Field label="Links">
+          <Field label={t('insp.links')}>
             <LinksEditor value={entity.links ?? []} onChange={(v) => setField('links', v)} />
           </Field>
-          <Field label="Descrição (markdown)">
-            <CommitInput label="Descrição" multiline value={entity.description ?? ''} onCommit={(v) => setField('description', v.trim() ? v.replace(/\s+$/, '') + '\n' : '')} />
+          <Field label={t('insp.descriptionMd')}>
+            <CommitInput label={t('insp.description')} multiline value={entity.description ?? ''} onCommit={(v) => setField('description', v.trim() ? v.replace(/\s+$/, '') + '\n' : '')} />
           </Field>
           <div className="flex flex-wrap gap-2 pt-1">
             {placed && drawing && (
               <Button variant="subtle" onClick={() => write('POST', `/api/drawings/${drawing.id}/ops`, { ops: [{ op: 'remove-nodes', ids: [entity.id] }] }, [drawing.file])}>
-                Remover do desenho
+                {t('insp.removeFromDrawing')}
               </Button>
             )}
             <Button variant="subtle" onClick={() => useStore.getState().set({ view: 'deps', depsOf: entity.id })}>
-              Ver dependências
+              {t('insp.viewDeps')}
             </Button>
             <Button variant="ghost" className="!text-[var(--danger)]" onClick={() => deleteWithImpact(`/api/entities/${entity.id}`, entity.name, [entity.file])}>
-              Excluir do modelo
+              {t('insp.deleteFromModel')}
             </Button>
           </div>
         </div>
       )}
       {tab === 'connections' && (
         <div className="mt-2">
-          <SectionTitle>Saída</SectionTitle>
+          <SectionTitle>{t('insp.outgoing')}</SectionTitle>
           <ul>{outgoing.map((c) => connRow(c, 'out'))}</ul>
-          {!outgoing.length && <p className="px-1 text-[12px] text-[var(--muted)]">Nenhuma. Arraste da borda da caixa até outra para criar.</p>}
-          <SectionTitle>Entrada</SectionTitle>
+          {!outgoing.length && <p className="px-1 text-[12px] text-[var(--muted)]">{t('insp.noneOutgoing')}</p>}
+          <SectionTitle>{t('insp.incoming')}</SectionTitle>
           <ul>{incoming.map((c) => connRow(c, 'in'))}</ul>
-          {!incoming.length && <p className="px-1 text-[12px] text-[var(--muted)]">Nenhuma.</p>}
+          {!incoming.length && <p className="px-1 text-[12px] text-[var(--muted)]">{t('insp.noneFem')}</p>}
         </div>
       )}
       {tab === 'usage' && (
         <div className="mt-2">
-          <SectionTitle>Desenhos</SectionTitle>
+          <SectionTitle>{t('insp.drawings')}</SectionTitle>
           <ul>
             {(index.entityDrawings.get(entity.id) ?? []).map((d) => (
               <li key={d}>
@@ -232,7 +236,7 @@ function EntityInspector({ entity }: { entity: WithFile<Entity> }) {
               </li>
             ))}
           </ul>
-          <SectionTitle>Fluxos</SectionTitle>
+          <SectionTitle>{t('insp.flows')}</SectionTitle>
           <ul>
             {[...new Set([...outgoing, ...incoming].flatMap((c) => index.connFlows.get(c.ref) ?? []))].map((f) => (
               <li key={f} className="px-1 py-1 text-[13px] text-[var(--fg)]">
@@ -250,6 +254,7 @@ function EntityInspector({ entity }: { entity: WithFile<Entity> }) {
 function LinksEditor({ value, onChange }: { value: { label: string; url: string }[]; onChange: (v: { label: string; url: string }[]) => void }) {
   const [label, setLabel] = useState('');
   const [url, setUrl] = useState('');
+  const t = useT();
   return (
     <div className="flex flex-col gap-1">
       {value.map((l, i) => (
@@ -257,7 +262,7 @@ function LinksEditor({ value, onChange }: { value: { label: string; url: string 
           <a href={l.url} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-[var(--accent)] hover:underline">
             {l.label}
           </a>
-          <button type="button" aria-label={`Remover link ${l.label}`} className="text-[var(--muted)] hover:text-[var(--danger)]" onClick={() => onChange(value.filter((_, j) => j !== i))}>
+          <button type="button" aria-label={t('insp.removeLink', { label: l.label })} className="text-[var(--muted)] hover:text-[var(--danger)]" onClick={() => onChange(value.filter((_, j) => j !== i))}>
             ×
           </button>
         </div>
@@ -272,8 +277,8 @@ function LinksEditor({ value, onChange }: { value: { label: string; url: string 
           setUrl('');
         }}
       >
-        <input className={inputClass} placeholder="Rótulo" value={label} onChange={(e) => setLabel(e.target.value)} aria-label="Rótulo do link" />
-        <input className={inputClass} placeholder="https://" value={url} onChange={(e) => setUrl(e.target.value)} aria-label="URL do link" />
+        <input className={inputClass} placeholder={t('common.label')} value={label} onChange={(e) => setLabel(e.target.value)} aria-label={t('insp.linkLabel')} />
+        <input className={inputClass} placeholder="https://" value={url} onChange={(e) => setUrl(e.target.value)} aria-label={t('insp.linkUrl')} />
         <Button type="submit" variant="subtle" disabled={!label.trim() || !url.trim()}>
           +
         </Button>
@@ -295,33 +300,34 @@ function ConnectionInspector({ conn }: { conn: Conn }) {
   const edgeOp = (set: Record<string, unknown>, unset: string[] = []) =>
     drawing && write('POST', `/api/drawings/${drawing.id}/ops`, { ops: [{ op: 'update-edge', ref: conn.ref, set, unset }] }, [drawing.file]);
   const flow = flowState ? model.flows.find((f) => f.id === flowState.id) : undefined;
+  const t = useT();
 
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <div className="font-mono text-[10.5px] uppercase tracking-wide text-[var(--muted)]">Conexão · {conn.ref}</div>
+        <div className="font-mono text-[10.5px] uppercase tracking-wide text-[var(--muted)]">{t('insp.connectionHeader', { ref: conn.ref })}</div>
         <div className="text-[15px] font-semibold text-[var(--fg)]">
           {index.name(conn.from)} {c.direction === 'bidirectional' ? '↔' : '→'} {index.name(conn.to)}
         </div>
       </div>
       {flow && <AddStepButton refId={conn.ref} flowId={flow.id} />}
-      <Field label="Rótulo">
-        <CommitInput label="Rótulo" value={c.label} onCommit={(v) => setField('label', v.trim())} />
+      <Field label={t('common.label')}>
+        <CommitInput label={t('common.label')} value={c.label} onCommit={(v) => setField('label', v.trim())} />
       </Field>
       <div className="flex items-end gap-2">
-        <Field label="Direção">
+        <Field label={t('common.direction')}>
           <select className={inputClass} value={c.direction ?? 'outgoing'} onChange={(e) => setField('direction', e.target.value === 'outgoing' ? '' : e.target.value)}>
-            <option value="outgoing">Saída</option>
-            <option value="bidirectional">Bidirecional</option>
+            <option value="outgoing">{t('insp.outgoing')}</option>
+            <option value="bidirectional">{t('common.bidirectional')}</option>
           </select>
         </Field>
-        <Button variant="subtle" onClick={() => patch({ reverse: true })} title="Move a conexão para o arquivo da outra ponta">
-          Inverter
+        <Button variant="subtle" onClick={() => patch({ reverse: true })} title={t('insp.reverseTitle')}>
+          {t('insp.reverse')}
         </Button>
       </div>
-      <Field label="Via (fila, tópico)">
+      <Field label={t('insp.via')}>
         <select className={inputClass} value={c.via ?? ''} onChange={(e) => setField('via', e.target.value)}>
-          <option value="">(direto)</option>
+          <option value="">{t('insp.direct')}</option>
           {[...index.entities.values()].filter((e) => e.id !== conn.from && e.id !== conn.to).map((e) => (
             <option key={e.id} value={e.id}>
               {e.name}
@@ -329,45 +335,45 @@ function ConnectionInspector({ conn }: { conn: Conn }) {
           ))}
         </select>
       </Field>
-      <Field label="Tecnologias">
-        <CatalogPicker label="Tecnologias" list="technologies" value={c.technologies ?? []} onChange={(v) => setField('technologies', v)} />
+      <Field label={t('insp.technologies')}>
+        <CatalogPicker label={t('insp.technologies')} list="technologies" value={c.technologies ?? []} onChange={(v) => setField('technologies', v)} />
       </Field>
-      <Field label="Status">
+      <Field label={t('insp.status')}>
         <select className={inputClass} value={c.status ?? 'live'} onChange={(e) => setField('status', e.target.value === 'live' ? '' : e.target.value)}>
           {['live', 'future', 'deprecated', 'removed'].map((s) => (
             <option key={s}>{s}</option>
           ))}
         </select>
       </Field>
-      <Field label="Descrição">
-        <CommitInput label="Descrição" multiline value={c.description ?? ''} onCommit={(v) => setField('description', v.trim() ? v.replace(/\s+$/, '') + '\n' : '')} />
+      <Field label={t('insp.description')}>
+        <CommitInput label={t('insp.description')} multiline value={c.description ?? ''} onCommit={(v) => setField('description', v.trim() ? v.replace(/\s+$/, '') + '\n' : '')} />
       </Field>
       {edge && drawing && (
         <>
-          <SectionTitle>Conector neste desenho</SectionTitle>
+          <SectionTitle>{t('insp.connectorHere')}</SectionTitle>
           <div className="grid grid-cols-3 gap-2">
-            <Field label="Formato">
+            <Field label={t('insp.shape')}>
               <select className={inputClass} value={edge.shape ?? 'straight'} onChange={(e) => edgeOp({ shape: e.target.value })}>
-                <option value="straight">Reto</option>
-                <option value="step">Degrau</option>
-                <option value="curved">Curvo</option>
-                <option value="auto">Automático</option>
+                <option value="straight">{t('insp.shapeStraight')}</option>
+                <option value="step">{t('insp.shapeStep')}</option>
+                <option value="curved">{t('insp.shapeCurved')}</option>
+                <option value="auto">{t('insp.shapeAuto')}</option>
               </select>
             </Field>
             {(['from', 'to'] as const).map((k) => (
-              <Field key={k} label={k === 'from' ? 'Sai por' : 'Chega por'}>
+              <Field key={k} label={k === 'from' ? t('insp.exitsBy') : t('insp.entersBy')}>
                 <select className={inputClass} value={edge[k] ?? ''} onChange={(e) => (e.target.value ? edgeOp({ [k]: e.target.value }) : edgeOp({}, [k]))}>
                   <option value="">auto</option>
                   {['top', 'right', 'bottom', 'left'].map((s) => (
                     <option key={s} value={s}>
-                      {{ top: 'cima', right: 'direita', bottom: 'baixo', left: 'esquerda' }[s]}
+                      {{ top: t('insp.sideTop'), right: t('insp.sideRight'), bottom: t('insp.sideBottom'), left: t('insp.sideLeft') }[s]}
                     </option>
                   ))}
                 </select>
               </Field>
             ))}
           </div>
-          <Field label={`Posição do rótulo (${Math.round((edge.labelAt ?? 0.5) * 100)}%)`}>
+          <Field label={t('insp.labelPosition', { pct: Math.round((edge.labelAt ?? 0.5) * 100) })}>
             <input
               type="range"
               min={0.05}
@@ -388,28 +394,28 @@ function ConnectionInspector({ conn }: { conn: Conn }) {
           </Field>
           {edge.points?.length ? (
             <Button variant="subtle" onClick={() => edgeOp({}, ['points'])}>
-              Limpar pontos intermediários
+              {t('insp.clearPoints')}
             </Button>
           ) : null}
         </>
       )}
-      <SectionTitle>Fluxos que usam</SectionTitle>
+      <SectionTitle>{t('insp.flowsUsing')}</SectionTitle>
       <ul>
         {(index.connFlows.get(conn.ref) ?? []).map((f) => (
           <li key={f} className="px-1 text-[13px] text-[var(--fg)]">
             {model.flows.find((x) => x.id === f)?.name}
           </li>
         ))}
-        {!(index.connFlows.get(conn.ref) ?? []).length && <li className="px-1 text-[12px] text-[var(--muted)]">Nenhum.</li>}
+        {!(index.connFlows.get(conn.ref) ?? []).length && <li className="px-1 text-[12px] text-[var(--muted)]">{t('insp.noneMasc')}</li>}
       </ul>
       <div className="flex flex-wrap gap-2 pt-1">
         {edge && drawing && (
           <Button variant="subtle" onClick={() => write('POST', `/api/drawings/${drawing.id}/ops`, { ops: [{ op: 'remove-edges', refs: [conn.ref] }] }, [drawing.file])}>
-            Remover do desenho
+            {t('insp.removeFromDrawing')}
           </Button>
         )}
-        <Button variant="ghost" className="!text-[var(--danger)]" onClick={() => deleteWithImpact(`/api/connections/${conn.ref}`, `a conexão "${c.label}"`, [conn.file])}>
-          Excluir do modelo
+        <Button variant="ghost" className="!text-[var(--danger)]" onClick={() => deleteWithImpact(`/api/connections/${conn.ref}`, tr('common.theConnection', { label: c.label }), [conn.file])}>
+          {t('insp.deleteFromModel')}
         </Button>
       </div>
       <FileFooter file={conn.file} />
@@ -425,6 +431,7 @@ export function AddStepButton({ refId, flowId }: { refId: string; flowId: string
   const [sense, setSense] = useState<'forward' | 'reply' | 'reverse'>('forward');
   const flow = model.flows.find((f) => f.id === flowId)!;
   const conn = index.conns.get(refId);
+  const t = useT();
   return (
     <form
       className="flex flex-col gap-2 rounded-lg border border-[var(--accent)]/40 bg-[var(--accent-soft)] p-2.5"
@@ -441,23 +448,23 @@ export function AddStepButton({ refId, flowId }: { refId: string; flowId: string
         }
       }}
     >
-      <span className="text-[12px] font-medium text-[var(--accent)]">Adicionar passo em “{flow.name}”</span>
-      <input autoFocus className={inputClass} placeholder="O que acontece neste passo" value={text} onChange={(e) => setText(e.target.value)} aria-label="Texto do passo" />
+      <span className="text-[12px] font-medium text-[var(--accent)]">{t('step.addIn', { flow: flow.name })}</span>
+      <input autoFocus className={inputClass} placeholder={t('step.placeholder')} value={text} onChange={(e) => setText(e.target.value)} aria-label={t('flow.stepText')} />
       {conn && (
-        <select aria-label="Sentido do passo" className={inputClass} value={sense} onChange={(e) => setSense(e.target.value as typeof sense)}>
+        <select aria-label={t('step.sense')} className={inputClass} value={sense} onChange={(e) => setSense(e.target.value as typeof sense)}>
           <option value="forward">
             {index.name(conn.from)} → {index.name(conn.to)}
           </option>
           <option value="reply">
-            {index.name(conn.to)} → {index.name(conn.from)} (resposta)
+            {index.name(conn.to)} → {index.name(conn.from)} {t('step.reply')}
           </option>
           <option value="reverse">
-            {index.name(conn.to)} → {index.name(conn.from)} ({conn.conn.direction === 'bidirectional' ? 'destino inicia' : 'contramão'})
+            {index.name(conn.to)} → {index.name(conn.from)} ({conn.conn.direction === 'bidirectional' ? t('step.targetStarts') : t('step.against')})
           </option>
         </select>
       )}
       <Button type="submit" disabled={!text.trim()}>
-        Adicionar passo
+        {t('step.add')}
       </Button>
     </form>
   );
@@ -476,22 +483,23 @@ function DrawingInspector({ drawing }: { drawing: WithFile<Drawing> }) {
     return a && b && a !== b;
   });
   const ops = (o: unknown[]) => write('POST', `/api/drawings/${drawing.id}/ops`, { ops: o }, [drawing.file]);
+  const t = useT();
 
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <div className="font-mono text-[10.5px] uppercase tracking-wide text-[var(--muted)]">Desenho · {drawing.id}</div>
+        <div className="font-mono text-[10.5px] uppercase tracking-wide text-[var(--muted)]">{t('insp.drawingHeader', { id: drawing.id })}</div>
         <div className="text-[16px] font-semibold text-[var(--fg)]">{drawing.name}</div>
       </div>
-      <Field label="Nome">
-        <CommitInput label="Nome" value={drawing.name} onCommit={(v) => v.trim() && patch({ name: v.trim() })} />
+      <Field label={t('insp.name')}>
+        <CommitInput label={t('insp.name')} value={drawing.name} onCommit={(v) => v.trim() && patch({ name: v.trim() })} />
       </Field>
-      <Field label="Descrição">
-        <CommitInput label="Descrição" multiline value={drawing.description ?? ''} onCommit={(v) => (v.trim() ? patch({ description: v.trim() }) : patch({}, ['description']))} />
+      <Field label={t('insp.description')}>
+        <CommitInput label={t('insp.description')} multiline value={drawing.description ?? ''} onCommit={(v) => (v.trim() ? patch({ description: v.trim() }) : patch({}, ['description']))} />
       </Field>
-      <Field label="Escopo (drill-down)" hint="A entidade cujo interior este desenho detalha">
+      <Field label={t('insp.scope')} hint={t('insp.scopeHint')}>
         <select className={inputClass} value={drawing.scope ?? ''} onChange={(e) => patch({ scope: e.target.value || null })}>
-          <option value="">(raiz)</option>
+          <option value="">{t('insp.rootOption')}</option>
           {[...index.entities.values()].filter((e) => e.kind !== 'actor').map((e) => (
             <option key={e.id} value={e.id}>
               {e.name}
@@ -501,38 +509,38 @@ function DrawingInspector({ drawing }: { drawing: WithFile<Drawing> }) {
       </Field>
       <div className="flex gap-2">
         <Button variant="subtle" onClick={() => write('POST', `/api/drawings/${drawing.id}/layout`, {}, [drawing.file])}>
-          Organizar automaticamente
+          {t('insp.autoLayout')}
         </Button>
         <Button
           variant="subtle"
           onClick={() => {
-            const id = freeId('nota', (x) => !!drawing.notes?.some((n) => n.id === x));
+            const id = freeId(tr('insp.noteId'), (x) => !!drawing.notes?.some((n) => n.id === x));
             const xs = Object.values(drawing.nodes ?? {}).map((n) => n.x);
             const ys = Object.values(drawing.nodes ?? {}).map((n) => n.y);
-            void ops([{ op: 'set-note', note: { id, text: 'Nova nota', x: xs.length ? Math.min(...xs) : 0, y: ys.length ? Math.min(...ys) - 120 : 0, w: 200 } }]);
+            void ops([{ op: 'set-note', note: { id, text: tr('insp.newNoteText'), x: xs.length ? Math.min(...xs) : 0, y: ys.length ? Math.min(...ys) - 120 : 0, w: 200 } }]);
           }}
         >
-          Nova nota
+          {t('insp.newNote')}
         </Button>
       </div>
-      <SectionTitle>Conexões disponíveis ({available.length})</SectionTitle>
+      <SectionTitle>{t('insp.available', { n: available.length })}</SectionTitle>
       <ul className="flex flex-col">
         {available.map((c) => (
           <li key={c.ref} className="flex items-center gap-2 rounded-md px-1 py-1 hover:bg-[var(--hover)]">
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[13px] text-[var(--fg)]">{c.conn.label || '(sem rótulo)'}</span>
+              <span className="block truncate text-[13px] text-[var(--fg)]">{c.conn.label || t('common.noLabel')}</span>
               <span className="block truncate text-[11px] text-[var(--muted)]">
                 {index.name(c.from)} → {index.name(c.to)}
               </span>
             </span>
             <Button variant="subtle" onClick={() => ops([{ op: 'draw-edges', edges: [{ ref: c.ref, shape: 'auto' }] }])}>
-              Traçar
+              {t('insp.draw')}
             </Button>
           </li>
         ))}
-        {!available.length && <li className="px-1 text-[12px] text-[var(--muted)]">Todas as conexões entre as {placed.size} entidades já estão traçadas.</li>}
+        {!available.length && <li className="px-1 text-[12px] text-[var(--muted)]">{t('insp.allDrawn', { n: placed.size })}</li>}
       </ul>
-      <SectionTitle>Fluxos sobre este desenho</SectionTitle>
+      <SectionTitle>{t('insp.flowsOnDrawing')}</SectionTitle>
       <ul>
         {model.flows.filter((f) => f.drawing === drawing.id).map((f) => (
           <li key={f.id} className="px-1 text-[13px] text-[var(--fg)]">
@@ -542,13 +550,13 @@ function DrawingInspector({ drawing }: { drawing: WithFile<Drawing> }) {
       </ul>
       {(drawing.groups ?? []).length > 0 && (
         <>
-          <SectionTitle>Grupos</SectionTitle>
+          <SectionTitle>{t('insp.groups')}</SectionTitle>
           <ul>
             {drawing.groups!.map((g) => (
               <li key={g.id} className="flex items-center justify-between px-1 py-0.5 text-[13px]">
                 <span className="text-[var(--fg)]">{g.label}</span>
                 <button type="button" className="text-[12px] text-[var(--muted)] hover:text-[var(--danger)]" onClick={() => ops([{ op: 'remove-group', id: g.id }])}>
-                  Remover
+                  {t('insp.remove')}
                 </button>
               </li>
             ))}
@@ -563,23 +571,24 @@ function DrawingInspector({ drawing }: { drawing: WithFile<Drawing> }) {
 function GroupInspector({ drawing, id }: { drawing: WithFile<Drawing>; id: string }) {
   const g = drawing.groups?.find((x) => x.id === id);
   const index = useStore((s) => s.index)!;
+  const t = useT();
   if (!g) return null;
   const ops = (o: unknown[]) => useStore.getState().write('POST', `/api/drawings/${drawing.id}/ops`, { ops: o }, [drawing.file]);
   return (
     <div className="flex flex-col gap-3">
-      <div className="font-mono text-[10.5px] uppercase tracking-wide text-[var(--muted)]">Grupo visual</div>
-      <Field label="Rótulo">
-        <CommitInput label="Rótulo" value={g.label} onCommit={(v) => v.trim() && ops([{ op: 'set-group', group: { ...g, label: v.trim() } }])} />
+      <div className="font-mono text-[10.5px] uppercase tracking-wide text-[var(--muted)]">{t('insp.visualGroup')}</div>
+      <Field label={t('common.label')}>
+        <CommitInput label={t('common.label')} value={g.label} onCommit={(v) => v.trim() && ops([{ op: 'set-group', group: { ...g, label: v.trim() } }])} />
       </Field>
-      <Field label="Moldura">
+      <Field label={t('insp.frame')}>
         <select className={inputClass} value={g.style ?? 'dashed'} onChange={(e) => ops([{ op: 'set-group', group: { ...g, style: e.target.value } }])}>
-          <option value="dashed">Tracejada</option>
-          <option value="solid">Sólida</option>
+          <option value="dashed">{t('insp.dashed')}</option>
+          <option value="solid">{t('insp.solid')}</option>
         </select>
       </Field>
-      <p className="text-[12.5px] text-[var(--muted)]">Membros: {g.members.map((m) => index.name(m)).join(', ')}</p>
+      <p className="text-[12.5px] text-[var(--muted)]">{t('insp.members', { names: g.members.map((m) => index.name(m)).join(', ') })}</p>
       <Button variant="ghost" className="!text-[var(--danger)]" onClick={() => ops([{ op: 'remove-group', id: g.id }])}>
-        Remover grupo
+        {t('insp.removeGroup')}
       </Button>
     </div>
   );
@@ -587,16 +596,17 @@ function GroupInspector({ drawing, id }: { drawing: WithFile<Drawing>; id: strin
 
 function NoteInspector({ drawing, id }: { drawing: WithFile<Drawing>; id: string }) {
   const n = drawing.notes?.find((x) => x.id === id);
+  const t = useT();
   if (!n) return null;
   const ops = (o: unknown[]) => useStore.getState().write('POST', `/api/drawings/${drawing.id}/ops`, { ops: o }, [drawing.file]);
   return (
     <div className="flex flex-col gap-3">
-      <div className="font-mono text-[10.5px] uppercase tracking-wide text-[var(--muted)]">Nota</div>
-      <Field label="Texto">
-        <CommitInput label="Texto" multiline value={n.text} onCommit={(v) => v.trim() && ops([{ op: 'set-note', note: { ...n, text: v.trim() } }])} />
+      <div className="font-mono text-[10.5px] uppercase tracking-wide text-[var(--muted)]">{t('insp.note')}</div>
+      <Field label={t('insp.text')}>
+        <CommitInput label={t('insp.text')} multiline value={n.text} onCommit={(v) => v.trim() && ops([{ op: 'set-note', note: { ...n, text: v.trim() } }])} />
       </Field>
       <Button variant="ghost" className="!text-[var(--danger)]" onClick={() => ops([{ op: 'remove-note', id: n.id }])}>
-        Remover nota
+        {t('insp.removeNote')}
       </Button>
     </div>
   );
@@ -606,6 +616,7 @@ function MultiInspector({ ids }: { ids: string[] }) {
   const drawing = useStore(currentDrawing)!;
   const index = useStore((s) => s.index)!;
   const entities = ids.filter((id) => drawing.nodes?.[id]);
+  const t = useT();
   const ops = (o: unknown[]) => useStore.getState().write('POST', `/api/drawings/${drawing.id}/ops`, { ops: o }, [drawing.file]);
   const rects = entities.map((id) => ({ id, ...drawing.nodes![id], ...index.size(id, drawing.nodes![id]) }));
   const g = useStore.getState().model!.config.grid;
@@ -636,24 +647,24 @@ function MultiInspector({ ids }: { ids: string[] }) {
   );
   return (
     <div className="flex flex-col gap-3">
-      <div className="text-[15px] font-semibold text-[var(--fg)]">{entities.length} entidades selecionadas</div>
-      <SectionTitle>Alinhar</SectionTitle>
+      <div className="text-[15px] font-semibold text-[var(--fg)]">{t('insp.selected', { n: entities.length })}</div>
+      <SectionTitle>{t('insp.align')}</SectionTitle>
       <div className="flex flex-wrap gap-2">
-        {action('Esquerda', () => align('left'))}
-        {action('Topo', () => align('top'))}
-        {action('Centro H', () => align('hcenter'))}
-        {action('Centro V', () => align('vcenter'))}
+        {action(t('insp.alignLeft'), () => align('left'))}
+        {action(t('insp.alignTop'), () => align('top'))}
+        {action(t('insp.alignHCenter'), () => align('hcenter'))}
+        {action(t('insp.alignVCenter'), () => align('vcenter'))}
       </div>
-      <SectionTitle>Distribuir</SectionTitle>
+      <SectionTitle>{t('insp.distribute')}</SectionTitle>
       <div className="flex flex-wrap gap-2">
-        {action('Horizontal', () => distribute('x'), entities.length < 3)}
-        {action('Vertical', () => distribute('y'), entities.length < 3)}
+        {action(t('insp.horizontal'), () => distribute('x'), entities.length < 3)}
+        {action(t('insp.vertical'), () => distribute('y'), entities.length < 3)}
       </div>
-      <SectionTitle>Seleção</SectionTitle>
+      <SectionTitle>{t('insp.selection')}</SectionTitle>
       <div className="flex flex-wrap gap-2">
-        {action('Agrupar (⌘G)', () => window.dispatchEvent(new CustomEvent('zark:group')))}
-        {action('Organizar seleção', () => useStore.getState().write('POST', `/api/drawings/${drawing.id}/layout`, { ids: entities }, [drawing.file]))}
-        {action('Remover do desenho', () => ops([{ op: 'remove-nodes', ids: entities }]))}
+        {action(t('insp.groupSel'), () => window.dispatchEvent(new CustomEvent('zark:group')))}
+        {action(t('insp.layoutSel'), () => useStore.getState().write('POST', `/api/drawings/${drawing.id}/layout`, { ids: entities }, [drawing.file]))}
+        {action(t('insp.removeFromDrawing'), () => ops([{ op: 'remove-nodes', ids: entities }]))}
       </div>
     </div>
   );

@@ -83,7 +83,8 @@ export function freeId(base: string, taken: (id: string) => boolean) {
   for (let n = 2; ; n++) if (!taken(`${slug}-${n}`)) return `${slug}-${n}`;
 }
 
-export const KIND_LABEL: Record<string, string> = { actor: 'Ator', system: 'System', app: 'App', store: 'Store', component: 'Component' };
+/** Entity kinds in display order; labels come from i18n (`kind.<kind>`). */
+export const KINDS = ['actor', 'system', 'app', 'store', 'component'] as const;
 export const ALLOWED_PARENTS: Record<string, (string | null)[]> = {
   actor: [null],
   system: [null],

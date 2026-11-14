@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { KIND_LABEL } from '../model';
+import { KINDS } from '../model';
+import { tr, useT } from '../i18n';
 import { useStore } from '../store';
 import type { Conn, Entity, WithFile } from '../types';
 import { inputClass, Tabs } from './ui';
@@ -43,7 +44,7 @@ const cmp = (a: string | number, b: string | number) => (typeof a === 'number' &
 function openOnCanvas(id: string, edge = false) {
   const s = useStore.getState();
   const where = edge ? s.index?.connDrawings.get(id)?.[0] : s.index?.entityDrawings.get(id)?.[0];
-  if (!where) return s.toast('Não aparece em nenhum desenho');
+  if (!where) return s.toast(tr('list.notDrawn'));
   s.openDrawing(where);
   if (edge) s.select([], [id]);
   else {
@@ -61,6 +62,7 @@ function EntitiesTable() {
   const [team, setTeam] = useState('');
   const [noDrawing, setNoDrawing] = useState(false);
   const [noDescription, setNoDescription] = useState(false);
+  const t = useT();
   type Key = 'name' | 'kind' | 'parent' | 'status' | 'owner' | 'drawings';
   const [sort, setSort] = useState<[Key, SortDir]>(['name', 1]);
   const onSort = (k: Key) => setSort(([sk, d]) => [k, sk === k ? ((-d) as SortDir) : 1]);
@@ -89,18 +91,18 @@ function EntitiesTable() {
   return (
     <>
       <div className="flex flex-wrap items-center gap-2 pb-3">
-        <input className={`${inputClass} !w-[220px]`} placeholder="Buscar" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Buscar entidades" />
-        <select className={`${inputClass} !w-auto`} value={kind} onChange={(e) => setKind(e.target.value)} aria-label="Filtrar por tipo">
-          <option value="">Todos os tipos</option>
-          {Object.entries(KIND_LABEL).map(([k, l]) => (
+        <input className={`${inputClass} !w-[220px]`} placeholder={t('list.search')} value={query} onChange={(e) => setQuery(e.target.value)} aria-label={t('list.searchEntities')} />
+        <select className={`${inputClass} !w-auto`} value={kind} onChange={(e) => setKind(e.target.value)} aria-label={t('left.filterKind')}>
+          <option value="">{t('list.allKinds')}</option>
+          {KINDS.map((k) => (
             <option key={k} value={k}>
-              {l}
+              {t(`kind.${k}`)}
             </option>
           ))}
         </select>
-        <select className={`${inputClass} !w-auto`} value={team} onChange={(e) => setTeam(e.target.value)} aria-label="Filtrar por time">
-          <option value="">Todos os times</option>
-          <option value="-">Sem time</option>
+        <select className={`${inputClass} !w-auto`} value={team} onChange={(e) => setTeam(e.target.value)} aria-label={t('list.filterTeam')}>
+          <option value="">{t('list.allTeams')}</option>
+          <option value="-">{t('list.noTeam')}</option>
           {teams.map((t) => (
             <option key={t.id} value={t.id}>
               {t.name}
@@ -109,26 +111,26 @@ function EntitiesTable() {
         </select>
         <label className="flex items-center gap-1.5 text-[12.5px] text-[var(--fg-soft)]">
           <input type="checkbox" className="accent-[var(--accent)]" checked={noDrawing} onChange={(e) => setNoDrawing(e.target.checked)} />
-          Sem desenho
+          {t('list.noDrawing')}
         </label>
         <label className="flex items-center gap-1.5 text-[12.5px] text-[var(--fg-soft)]">
           <input type="checkbox" className="accent-[var(--accent)]" checked={noDescription} onChange={(e) => setNoDescription(e.target.checked)} />
-          Sem descrição
+          {t('list.noDescription')}
         </label>
         <span className="ml-auto text-[12px] text-[var(--muted)]">
-          {rows.length} de {model.entities.length}
+          {t('list.count', { n: rows.length, total: model.entities.length })}
         </span>
       </div>
       <table className="w-full table-fixed border-collapse text-[13px]">
         <thead className="sticky top-0 z-10 bg-[var(--surface)] text-[11.5px] uppercase tracking-wide text-[var(--muted)] shadow-[0_1px_0_var(--border)]">
           <tr>
-            <SortHeader k="name" sort={sort} onSort={onSort} className="w-[20%]">Nome</SortHeader>
-            <th scope="col" className="w-[26%] px-2 py-2 text-left font-medium">Caption</th>
-            <SortHeader k="kind" sort={sort} onSort={onSort} className="w-[10%]">Tipo</SortHeader>
-            <SortHeader k="parent" sort={sort} onSort={onSort} className="w-[12%]">Pai</SortHeader>
-            <SortHeader k="status" sort={sort} onSort={onSort} className="w-[12%]">Status</SortHeader>
-            <SortHeader k="owner" sort={sort} onSort={onSort} className="w-[12%]">Time</SortHeader>
-            <SortHeader k="drawings" sort={sort} onSort={onSort} className="w-[8%]">Desenhos</SortHeader>
+            <SortHeader k="name" sort={sort} onSort={onSort} className="w-[20%]">{t('list.colName')}</SortHeader>
+            <th scope="col" className="w-[26%] px-2 py-2 text-left font-medium">{t('list.colCaption')}</th>
+            <SortHeader k="kind" sort={sort} onSort={onSort} className="w-[10%]">{t('list.colKind')}</SortHeader>
+            <SortHeader k="parent" sort={sort} onSort={onSort} className="w-[12%]">{t('list.colParent')}</SortHeader>
+            <SortHeader k="status" sort={sort} onSort={onSort} className="w-[12%]">{t('list.colStatus')}</SortHeader>
+            <SortHeader k="owner" sort={sort} onSort={onSort} className="w-[12%]">{t('list.colTeam')}</SortHeader>
+            <SortHeader k="drawings" sort={sort} onSort={onSort} className="w-[8%]">{t('list.colDrawings')}</SortHeader>
           </tr>
         </thead>
         <tbody>
@@ -137,19 +139,19 @@ function EntitiesTable() {
             return (
               <tr key={e.id} className="border-b border-[var(--border)] hover:bg-[var(--hover)]">
                 <td className="px-1 py-0.5">
-                  <InlineText label={`Nome de ${e.name}`} value={e.name} onCommit={(v) => v.trim() && patch(e, 'name', v)} />
+                  <InlineText label={t('list.nameOf', { name: e.name })} value={e.name} onCommit={(v) => v.trim() && patch(e, 'name', v)} />
                 </td>
                 <td className="px-1 py-0.5">
-                  <InlineText label={`Caption de ${e.name}`} value={e.caption ?? ''} placeholder="—" onCommit={(v) => patch(e, 'caption', v)} />
+                  <InlineText label={t('list.captionOf', { name: e.name })} value={e.caption ?? ''} placeholder="—" onCommit={(v) => patch(e, 'caption', v)} />
                 </td>
                 <td className="truncate whitespace-nowrap px-2 font-mono text-[11px] uppercase text-[var(--muted)]">
-                  {e.external ? 'ext. ' : ''}
-                  {KIND_LABEL[e.kind]}
+                  {e.external ? t('list.ext') : ''}
+                  {t(`kind.${e.kind}`)}
                 </td>
-                <td className="truncate px-2 text-[var(--fg-soft)]">{e.parent ? index.name(e.parent) : <span className="text-[var(--subtle)]">raiz</span>}</td>
+                <td className="truncate px-2 text-[var(--fg-soft)]">{e.parent ? index.name(e.parent) : <span className="text-[var(--subtle)]">{t('list.root')}</span>}</td>
                 <td className="px-1">
                   <select
-                    aria-label={`Status de ${e.name}`}
+                    aria-label={t('list.statusOf', { name: e.name })}
                     value={e.status ?? 'live'}
                     onChange={(ev) => patch(e, 'status', ev.target.value)}
                     className="w-full rounded border border-transparent bg-transparent px-1 py-1 text-[13px] text-[var(--fg)] hover:border-[var(--border)] focus:border-[var(--accent)] focus:outline-none"
@@ -161,7 +163,7 @@ function EntitiesTable() {
                 </td>
                 <td className="truncate px-2 text-[var(--fg-soft)]">{e.owner ? teams.find((t) => t.id === e.owner)?.name ?? e.owner : <span className="text-[var(--subtle)]">—</span>}</td>
                 <td className="px-2">
-                  <button type="button" onClick={() => openOnCanvas(e.id)} disabled={!drawings} className="text-[var(--accent)] hover:underline disabled:text-[var(--subtle)] disabled:no-underline" title={drawings ? 'Abrir no desenho' : 'Fora de qualquer desenho'}>
+                  <button type="button" onClick={() => openOnCanvas(e.id)} disabled={!drawings} className="text-[var(--accent)] hover:underline disabled:text-[var(--subtle)] disabled:no-underline" title={drawings ? t('list.openInDrawing') : t('list.outsideDrawings')}>
                     {drawings}
                   </button>
                 </td>
@@ -170,7 +172,7 @@ function EntitiesTable() {
           })}
         </tbody>
       </table>
-      {!rows.length && <p className="py-10 text-center text-[13px] text-[var(--muted)]">Nenhuma entidade com esses filtros.</p>}
+      {!rows.length && <p className="py-10 text-center text-[13px] text-[var(--muted)]">{t('list.noEntities')}</p>}
     </>
   );
 }
@@ -181,6 +183,7 @@ function ConnectionsTable() {
   const [query, setQuery] = useState('');
   const [noDrawing, setNoDrawing] = useState(false);
   const [noDescription, setNoDescription] = useState(false);
+  const t = useT();
   type Key = 'from' | 'to' | 'label' | 'direction' | 'drawings' | 'flows';
   const [sort, setSort] = useState<[Key, SortDir]>(['from', 1]);
   const onSort = (k: Key) => setSort(([sk, d]) => [k, sk === k ? ((-d) as SortDir) : 1]);
@@ -199,28 +202,28 @@ function ConnectionsTable() {
   return (
     <>
       <div className="flex flex-wrap items-center gap-2 pb-3">
-        <input className={`${inputClass} !w-[220px]`} placeholder="Buscar" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Buscar conexões" />
+        <input className={`${inputClass} !w-[220px]`} placeholder={t('list.search')} value={query} onChange={(e) => setQuery(e.target.value)} aria-label={t('list.searchConnections')} />
         <label className="flex items-center gap-1.5 text-[12.5px] text-[var(--fg-soft)]">
           <input type="checkbox" className="accent-[var(--accent)]" checked={noDrawing} onChange={(e) => setNoDrawing(e.target.checked)} />
-          Sem desenho
+          {t('list.noDrawing')}
         </label>
         <label className="flex items-center gap-1.5 text-[12.5px] text-[var(--fg-soft)]">
           <input type="checkbox" className="accent-[var(--accent)]" checked={noDescription} onChange={(e) => setNoDescription(e.target.checked)} />
-          Sem descrição
+          {t('list.noDescription')}
         </label>
         <span className="ml-auto text-[12px] text-[var(--muted)]">
-          {rows.length} de {index.conns.size}
+          {t('list.count', { n: rows.length, total: index.conns.size })}
         </span>
       </div>
       <table className="w-full table-fixed border-collapse text-[13px]">
         <thead className="sticky top-0 z-10 bg-[var(--surface)] text-[11.5px] uppercase tracking-wide text-[var(--muted)] shadow-[0_1px_0_var(--border)]">
           <tr>
-            <SortHeader k="from" sort={sort} onSort={onSort} className="w-[16%]">Origem</SortHeader>
-            <SortHeader k="to" sort={sort} onSort={onSort} className="w-[16%]">Destino</SortHeader>
-            <SortHeader k="label" sort={sort} onSort={onSort} className="w-[34%]">Rótulo</SortHeader>
-            <SortHeader k="direction" sort={sort} onSort={onSort} className="w-[14%]">Direção</SortHeader>
-            <SortHeader k="drawings" sort={sort} onSort={onSort} className="w-[10%]">Desenhos</SortHeader>
-            <SortHeader k="flows" sort={sort} onSort={onSort} className="w-[10%]">Fluxos</SortHeader>
+            <SortHeader k="from" sort={sort} onSort={onSort} className="w-[16%]">{t('list.colFrom')}</SortHeader>
+            <SortHeader k="to" sort={sort} onSort={onSort} className="w-[16%]">{t('list.colTo')}</SortHeader>
+            <SortHeader k="label" sort={sort} onSort={onSort} className="w-[34%]">{t('list.colLabel')}</SortHeader>
+            <SortHeader k="direction" sort={sort} onSort={onSort} className="w-[14%]">{t('list.colDirection')}</SortHeader>
+            <SortHeader k="drawings" sort={sort} onSort={onSort} className="w-[10%]">{t('list.colDrawings')}</SortHeader>
+            <SortHeader k="flows" sort={sort} onSort={onSort} className="w-[10%]">{t('list.colFlows')}</SortHeader>
           </tr>
         </thead>
         <tbody>
@@ -231,11 +234,11 @@ function ConnectionsTable() {
                 <td className="truncate px-2 py-1.5 text-[var(--fg)]">{index.name(c.from)}</td>
                 <td className="truncate px-2 text-[var(--fg)]">{index.name(c.to)}</td>
                 <td className="px-1 py-0.5">
-                  <InlineText label={`Rótulo de ${c.ref}`} value={c.conn.label} onCommit={(v) => write('PATCH', `/api/connections/${c.ref}`, { set: { label: v.trim() } }, [c.file])} />
+                  <InlineText label={t('list.labelOf', { ref: c.ref })} value={c.conn.label} onCommit={(v) => write('PATCH', `/api/connections/${c.ref}`, { set: { label: v.trim() } }, [c.file])} />
                 </td>
-                <td className="px-2 text-[var(--fg-soft)]">{c.conn.direction === 'bidirectional' ? 'Bidirecional' : 'Saída'}</td>
+                <td className="px-2 text-[var(--fg-soft)]">{c.conn.direction === 'bidirectional' ? t('common.bidirectional') : t('list.outgoing')}</td>
                 <td className="px-2">
-                  <button type="button" onClick={() => openOnCanvas(c.ref, true)} disabled={!drawings} className="text-[var(--accent)] hover:underline disabled:text-[var(--subtle)] disabled:no-underline" title={drawings ? 'Abrir no desenho' : 'Fora de qualquer desenho'}>
+                  <button type="button" onClick={() => openOnCanvas(c.ref, true)} disabled={!drawings} className="text-[var(--accent)] hover:underline disabled:text-[var(--subtle)] disabled:no-underline" title={drawings ? t('list.openInDrawing') : t('list.outsideDrawings')}>
                     {drawings}
                   </button>
                 </td>
@@ -245,19 +248,20 @@ function ConnectionsTable() {
           })}
         </tbody>
       </table>
-      {!rows.length && <p className="py-10 text-center text-[13px] text-[var(--muted)]">Nenhuma conexão com esses filtros.</p>}
+      {!rows.length && <p className="py-10 text-center text-[13px] text-[var(--muted)]">{t('list.noConnections')}</p>}
     </>
   );
 }
 
 export function ModelList() {
   const [tab, setTab] = useState<'entities' | 'connections'>('entities');
+  const t = useT();
   return (
     <div className="flex h-full flex-col bg-[var(--surface)]">
       <div className="flex shrink-0 items-center gap-4 border-b border-[var(--border)] px-4 py-2.5">
-        <h2 className="text-[14px] font-semibold text-[var(--fg)]">Lista do modelo</h2>
+        <h2 className="text-[14px] font-semibold text-[var(--fg)]">{t('list.title')}</h2>
         <div className="w-[260px]">
-          <Tabs value={tab} onChange={setTab} items={[['entities', 'Entidades'], ['connections', 'Conexões']]} />
+          <Tabs value={tab} onChange={setTab} items={[['entities', t('list.tabEntities')], ['connections', t('list.tabConnections')]]} />
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-auto px-4 pt-3 pb-6">{tab === 'entities' ? <EntitiesTable /> : <ConnectionsTable />}</div>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ALLOWED_PARENTS, freeId, KIND_LABEL, kindsForScope } from '../model';
+import { ALLOWED_PARENTS, freeId, kindsForScope } from '../model';
+import { useT } from '../i18n';
 import { currentDrawing, useStore } from '../store';
 import { Button, Field, inputClass } from './ui';
 
@@ -16,6 +17,7 @@ export function ConnectionPicker({ source, target, onClose }: { source: string; 
   const index = useStore((s) => s.index)!;
   const drawing = useStore(currentDrawing)!;
   const write = useStore((s) => s.write);
+  const t = useT();
   useEscape(onClose);
   const existing = useMemo(() => {
     const a = new Set([source, ...index.descendants(source)]);
@@ -31,7 +33,7 @@ export function ConnectionPicker({ source, target, onClose }: { source: string; 
   };
   const create = async () => {
     const from = index.entities.get(source)!;
-    const id = freeId(label || 'conexao', (x) => !!from.connections?.some((c) => c.id === x));
+    const id = freeId(label || 'connection', (x) => !!from.connections?.some((c) => c.id === x));
     const r = await useStore.getState().ops(
       [
         { op: 'connection.create', from: source, connection: { id, to: target, label: label.trim(), ...(direction === 'bidirectional' ? { direction } : {}) } },
@@ -44,13 +46,13 @@ export function ConnectionPicker({ source, target, onClose }: { source: string; 
 
   return (
     <div className="absolute inset-0 z-40 grid place-items-center bg-black/10" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div role="dialog" aria-label="Seletor de conexão" className="w-[400px] rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-xl">
+      <div role="dialog" aria-label={t('picker.title')} className="w-[400px] rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-xl">
         <h2 className="text-[14px] font-semibold text-[var(--fg)]">
           {index.name(source)} → {index.name(target)}
         </h2>
         {existing.length > 0 && (
           <div className="mt-3">
-            <div className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">Já existem no modelo</div>
+            <div className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">{t('picker.existing')}</div>
             <ul className="flex flex-col gap-1">
               {existing.map((c) => {
                 const drawn = !!drawing.edges?.[c.ref];
@@ -63,12 +65,12 @@ export function ConnectionPicker({ source, target, onClose }: { source: string; 
                       className="flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] hover:bg-[var(--hover)] disabled:opacity-50"
                     >
                       <span className="min-w-0">
-                        <span className="block truncate text-[var(--fg)]">{c.conn.label || '(sem rótulo)'}</span>
+                        <span className="block truncate text-[var(--fg)]">{c.conn.label || t('common.noLabel')}</span>
                         <span className="block truncate font-mono text-[11px] text-[var(--muted)]">
                           {index.name(c.from)} → {index.name(c.to)}
                         </span>
                       </span>
-                      <span className="shrink-0 text-[11px] text-[var(--muted)]">{drawn ? 'já traçada' : 'traçar'}</span>
+                      <span className="shrink-0 text-[11px] text-[var(--muted)]">{drawn ? t('picker.drawn') : t('picker.draw')}</span>
                     </button>
                   </li>
                 );
@@ -83,22 +85,22 @@ export function ConnectionPicker({ source, target, onClose }: { source: string; 
             void create();
           }}
         >
-          <div className="text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">Nova conexão</div>
-          <Field label="Rótulo">
-            <input autoFocus className={inputClass} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Ex.: Cria o pedido" />
+          <div className="text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">{t('picker.new')}</div>
+          <Field label={t('common.label')}>
+            <input autoFocus className={inputClass} value={label} onChange={(e) => setLabel(e.target.value)} placeholder={t('picker.labelPlaceholder')} />
           </Field>
-          <Field label="Direção">
+          <Field label={t('common.direction')}>
             <select className={inputClass} value={direction} onChange={(e) => setDirection(e.target.value as typeof direction)}>
-              <option value="outgoing">Saída ({index.name(source)} → {index.name(target)})</option>
-              <option value="bidirectional">Bidirecional</option>
+              <option value="outgoing">{t('picker.outgoing', { from: index.name(source), to: index.name(target) })}</option>
+              <option value="bidirectional">{t('common.bidirectional')}</option>
             </select>
           </Field>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={onClose}>
-              Cancelar
+              {t('common.cancel')}
             </Button>
             <Button type="submit" disabled={!label.trim()}>
-              Criar e traçar
+              {t('picker.create')}
             </Button>
           </div>
         </form>
@@ -112,6 +114,7 @@ export function QuickCreate({ x, y, left, top, onClose }: { x: number; y: number
   const index = useStore((s) => s.index)!;
   const drawing = useStore(currentDrawing)!;
   const write = useStore((s) => s.write);
+  const t = useT();
   useEscape(onClose);
   const [query, setQuery] = useState('');
   const kinds = kindsForScope(index, drawing.scope);
@@ -144,7 +147,7 @@ export function QuickCreate({ x, y, left, top, onClose }: { x: number; y: number
     <div className="absolute inset-0 z-40" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div
         role="dialog"
-        aria-label="Adicionar entidade"
+        aria-label={t('quick.title')}
         className="absolute w-[300px] rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-xl"
         style={{ left: Math.max(8, left - 150), top: Math.max(8, top - 20) }}
       >
@@ -159,10 +162,10 @@ export function QuickCreate({ x, y, left, top, onClose }: { x: number; y: number
             ref={inputRef}
             autoFocus
             className={inputClass}
-            placeholder="Buscar ou criar entidade"
+            placeholder={t('quick.placeholder')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            aria-label="Nome da entidade"
+            aria-label={t('quick.name')}
           />
         </form>
         {matches.length > 0 && (
@@ -171,7 +174,7 @@ export function QuickCreate({ x, y, left, top, onClose }: { x: number; y: number
               <li key={e.id}>
                 <button type="button" onClick={() => place(e.id)} className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-[var(--hover)]">
                   <span className="truncate text-[var(--fg)]">{e.name}</span>
-                  <span className="font-mono text-[10.5px] uppercase text-[var(--muted)]">{KIND_LABEL[e.kind]}</span>
+                  <span className="font-mono text-[10.5px] uppercase text-[var(--muted)]">{t(`kind.${e.kind}`)}</span>
                 </button>
               </li>
             ))}
@@ -179,15 +182,15 @@ export function QuickCreate({ x, y, left, top, onClose }: { x: number; y: number
         )}
         {q && !exact && (
           <div className="mt-1 flex items-center gap-2 border-t border-[var(--border)] px-1 pt-2">
-            <select className={`${inputClass} !w-auto`} value={kind} onChange={(e) => setKind(e.target.value)} aria-label="Tipo">
+            <select className={`${inputClass} !w-auto`} value={kind} onChange={(e) => setKind(e.target.value)} aria-label={t('common.kind')}>
               {kinds.map((k) => (
                 <option key={k} value={k}>
-                  {KIND_LABEL[k]}
+                  {t(`kind.${k}`)}
                 </option>
               ))}
             </select>
             <Button type="button" onClick={create} className="flex-1">
-              Criar “{query.trim()}”
+              {t('quick.create', { name: query.trim() })}
             </Button>
           </div>
         )}

@@ -15,6 +15,7 @@ import {
   type OnSelectionChangeParams,
 } from '@xyflow/react';
 import { useStore, currentDrawing } from '../store';
+import { tr } from '../i18n';
 import { flowView } from '../flow';
 import { buildGraph, drawingBounds } from './build';
 import { nodeTypes } from './nodes';
@@ -174,7 +175,7 @@ export function Canvas({ mode = 'edit' }: { mode?: 'edit' | 'render' }) {
     rf.fitView({ padding: 0.2, duration: 300, maxZoom: 1.4, nodes: sel.length ? sel.map((id) => ({ id })) : undefined });
   }, [focusRequest, rf]);
 
-  if (!drawing) return <div className="grid h-full place-items-center text-[var(--muted)]">Nenhum desenho. Crie um no painel esquerdo.</div>;
+  if (!drawing) return <div className="grid h-full place-items-center text-[var(--muted)]">{tr('canvas.noDrawing')}</div>;
 
   if (mode === 'render') return <RenderFrame drawing={drawing} index={index} nodes={nodes} edges={edges} setNodes={setNodes} />;
 

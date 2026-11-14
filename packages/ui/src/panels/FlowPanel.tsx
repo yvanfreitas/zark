@@ -3,7 +3,8 @@ import { alternativeBlocks, flowToMermaid } from '@core/flow-text';
 import { api, token } from '../api';
 import { flowView } from '../flow';
 import { useStore } from '../store';
-import type { FlowItem, Step } from '../types';
+import { problemText, tr, useT } from '../i18n';
+import type { FlowItem, Step, Problem } from '../types';
 import { AddStepButton } from './Inspector';
 import { Button, Icon, IconButton, inputClass, Svg } from './ui';
 
@@ -25,6 +26,7 @@ export function FlowPanel() {
   const setFlow = useStore((s) => s.setFlow);
   const view = useMemo(() => flowView(model, index, state), [model, index, state]);
   const [mermaid, setMermaid] = useState<string>();
+  const t = useT();
 
   // Playback timer.
   useEffect(() => {
@@ -38,7 +40,7 @@ export function FlowPanel() {
 
   if (!view) return null;
   const { flow, frames, frame, numberOf } = view;
-  const problems = new Map<string, { code: string; message: string }[]>();
+  const problems = new Map<string, Problem[]>();
   for (const p of model.problems) {
     if (p.ref?.startsWith(`${flow.id}#`)) {
       const id = p.ref.slice(flow.id.length + 1);
@@ -65,7 +67,7 @@ export function FlowPanel() {
   const renderStep = async () => {
     const step = frames[frame]?.[0];
     const s = useStore.getState();
-    s.toast('Gerando PNG…');
+    s.toast(tr('flow.renderingPng'));
     try {
       const r = await api('POST', '/api/render', { flow: flow.id, step: step?.id });
       if (r.ok) window.open(`${r.url}&token=${encodeURIComponent(token)}`, '_blank');
@@ -77,7 +79,7 @@ export function FlowPanel() {
   const copyLink = () => {
     const step = frames[frame]?.[0];
     const url = `${location.origin}/#flow=${flow.id}${step ? `&step=${step.id}` : ''}`;
-    void navigator.clipboard?.writeText(url).then(() => useStore.getState().toast('Link copiado'));
+    void navigator.clipboard?.writeText(url).then(() => useStore.getState().toast(tr('flow.linkCopied')));
   };
 
   return (
@@ -85,37 +87,37 @@ export function FlowPanel() {
       <div className="border-b border-[var(--border)] p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <div className="font-mono text-[10.5px] uppercase tracking-wide text-[var(--muted)]">Fluxo · {index.drawings.get(flow.drawing)?.name}</div>
+            <div className="font-mono text-[10.5px] uppercase tracking-wide text-[var(--muted)]">{t('flow.header', { drawing: index.drawings.get(flow.drawing)?.name ?? flow.drawing })}</div>
             <div className="text-[16px] font-semibold text-[var(--fg)]">{flow.name}</div>
           </div>
-          <IconButton label="Fechar modo fluxo" onClick={exit}>
+          <IconButton label={t('flow.exit')} onClick={exit}>
             <Svg icon={Icon.close} />
           </IconButton>
         </div>
         <div className="mt-3 flex items-center gap-1">
-          <IconButton label="Ir para o início" onClick={() => setFlow({ frame: 0, playing: false })}>
+          <IconButton label={t('flow.first')} onClick={() => setFlow({ frame: 0, playing: false })}>
             <Svg icon={Icon.first} />
           </IconButton>
-          <IconButton label="Anterior (←)" onClick={() => setFlow({ frame: Math.max(0, frame - 1), playing: false })}>
+          <IconButton label={t('flow.prev')} onClick={() => setFlow({ frame: Math.max(0, frame - 1), playing: false })}>
             <Svg icon={Icon.prev} />
           </IconButton>
           <button
             type="button"
             onClick={() => setFlow({ playing: !state.playing, frame: frame >= frames.length - 1 ? 0 : frame })}
             className="grid size-9 place-items-center rounded-full bg-[var(--accent)] text-white hover:bg-[var(--accent-strong)]"
-            aria-label={state.playing ? 'Pausar (espaço)' : 'Reproduzir (espaço)'}
-            title={state.playing ? 'Pausar (espaço)' : 'Reproduzir (espaço)'}
+            aria-label={state.playing ? t('flow.pause') : t('flow.play')}
+            title={state.playing ? t('flow.pause') : t('flow.play')}
           >
             <Svg icon={state.playing ? Icon.pause : Icon.play} />
           </button>
-          <IconButton label="Próximo (→)" onClick={() => setFlow({ frame: Math.min(frames.length - 1, frame + 1), playing: false })}>
+          <IconButton label={t('flow.next')} onClick={() => setFlow({ frame: Math.min(frames.length - 1, frame + 1), playing: false })}>
             <Svg icon={Icon.next} />
           </IconButton>
           <span className="ml-2 font-mono text-[12px] text-[var(--muted)]">
             {frames.length ? frame + 1 : 0}/{frames.length}
           </span>
           <div className="flex-1" />
-          <select data-keep aria-label="Velocidade" className={`${inputClass} !w-[70px]`} value={state.speed} onChange={(e) => setFlow({ speed: Number(e.target.value) })}>
+          <select data-keep aria-label={t('flow.speed')} className={`${inputClass} !w-[70px]`} value={state.speed} onChange={(e) => setFlow({ speed: Number(e.target.value) })}>
             {SPEEDS.map((s) => (
               <option key={s} value={s}>
                 {s}×
@@ -124,7 +126,7 @@ export function FlowPanel() {
           </select>
         </div>
         {blocks.map((b) => (
-          <div key={b.key} className="mt-2 flex flex-wrap gap-1" role="tablist" aria-label="Caminho alternativo">
+          <div key={b.key} className="mt-2 flex flex-wrap gap-1" role="tablist" aria-label={t('flow.altPath')}>
             {b.names.map((n, i) => (
               <button
                 key={n}
@@ -142,7 +144,7 @@ export function FlowPanel() {
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
         {selectedConn && <AddStepButton key={selectedConn} refId={selectedConn} flowId={flow.id} />}
-        {!selectedConn && <p data-edit className="mb-2 px-1 text-[12px] text-[var(--muted)]">Clique numa conexão do canvas para adicionar um passo sobre ela.</p>}
+        {!selectedConn && <p data-edit className="mb-2 px-1 text-[12px] text-[var(--muted)]">{t('flow.clickHint')}</p>}
         <StepList flowId={flow.id} numberOf={numberOf} activeIds={view.activeIds} problems={problems} onJump={(stepId) => {
           const at = frames.findIndex((f) => f.some((s) => s.id === stepId));
           if (at >= 0) setFlow({ frame: at, playing: false });
@@ -153,10 +155,10 @@ export function FlowPanel() {
           Mermaid
         </Button>
         <Button variant="subtle" onClick={renderStep}>
-          PNG do passo
+          {t('flow.stepPng')}
         </Button>
         <Button safe variant="subtle" onClick={copyLink}>
-          Copiar link
+          {t('flow.copyLink')}
         </Button>
       </div>
       {mermaid && (
@@ -166,9 +168,9 @@ export function FlowPanel() {
             <textarea readOnly className={`${inputClass} h-[320px] font-mono text-[12px]`} value={mermaid} />
             <div className="mt-3 flex justify-end gap-2">
               <Button safe variant="ghost" onClick={() => setMermaid(undefined)}>
-                Fechar
+                {t('common.close')}
               </Button>
-              <Button safe onClick={() => void navigator.clipboard?.writeText(mermaid).then(() => useStore.getState().toast('Copiado'))}>Copiar</Button>
+              <Button safe onClick={() => void navigator.clipboard?.writeText(mermaid).then(() => useStore.getState().toast(tr('flow.copied')))}>{t('flow.copy')}</Button>
             </div>
           </div>
         </div>
@@ -187,7 +189,7 @@ function StepList({
   flowId: string;
   numberOf: Map<string, string>;
   activeIds: Set<string>;
-  problems: Map<string, { code: string; message: string }[]>;
+  problems: Map<string, Problem[]>;
   onJump: (id: string) => void;
 }) {
   const index = useStore((s) => s.index)!;
@@ -197,6 +199,7 @@ function StepList({
   const [editing, setEditing] = useState<string>();
   const ops = useStore.getState().ops;
   const drawing = index.drawings.get(flow.drawing);
+  const t = useT();
 
   const updateStep = (id: string, set: Record<string, unknown>, unset: string[] = []) => ops([{ op: 'flow.update-step', flow: flowId, step: id, set, unset }], [flow.file]);
   const removeStep = (id: string) => ops([{ op: 'flow.remove-steps', flow: flowId, steps: [id] }], [flow.file]);
@@ -211,7 +214,7 @@ function StepList({
     const a = items[i];
     const b = items[i + 1];
     if (!a || !b) return;
-    const block: FlowItem = kind === 'parallel' ? { parallel: [[a], [b]] } : { alternatives: [{ name: 'Caminho A', steps: [a] }, { name: 'Caminho B', steps: [b] }] };
+    const block: FlowItem = kind === 'parallel' ? { parallel: [[a], [b]] } : { alternatives: [{ name: tr('flow.pathA'), steps: [a] }, { name: tr('flow.pathB'), steps: [b] }] };
     void save([...items.slice(0, i), block, ...items.slice(i + 2)]);
   };
   const ungroup = (i: number) => {
@@ -226,18 +229,18 @@ function StepList({
     if (codes.includes('E041') && c) {
       out.push(
         <Button key="rev" variant="subtle" onClick={() => useStore.getState().write('PATCH', `/api/connections/${c.ref}`, { reverse: true }, [c.file])}>
-          Inverter a conexão
+          {t('flow.reverseConn')}
         </Button>,
         <Button key="reply" variant="subtle" onClick={() => updateStep(step.id, { reply: true }, ['reverse'])}>
-          Marcar como resposta
+          {t('flow.markReply')}
         </Button>,
       );
     }
-    if (codes.includes('E042')) out.push(<Button key="unrev" variant="subtle" onClick={() => updateStep(step.id, {}, ['reverse'])}>Remover reverse</Button>);
+    if (codes.includes('E042')) out.push(<Button key="unrev" variant="subtle" onClick={() => updateStep(step.id, {}, ['reverse'])}>{t('flow.removeReverse')}</Button>);
     if (codes.includes('E044') && drawing) {
       out.push(
         <Button key="draw" variant="subtle" onClick={() => useStore.getState().write('POST', `/api/drawings/${drawing.id}/ops`, { ops: [{ op: 'draw-edges', edges: [{ ref: step.via, shape: 'auto' }] }] }, [drawing.file])}>
-          Traçar no desenho
+          {t('flow.drawIt')}
         </Button>,
       );
     }
@@ -270,7 +273,7 @@ function StepList({
                 autoFocus
                 className={inputClass}
                 defaultValue={step.text}
-                aria-label="Texto do passo"
+                aria-label={t('flow.stepText')}
                 onBlur={(e) => {
                   setEditing(undefined);
                   if (e.target.value.trim() && e.target.value !== step.text) void updateStep(step.id, { text: e.target.value.trim() });
@@ -283,7 +286,7 @@ function StepList({
             ) : (
               <button type="button" className="block w-full text-left text-[13px] text-[var(--fg)]" onClick={() => onJump(step.id)} onDoubleClick={() => setEditing(step.id)}>
                 {step.text}
-                {step.reply && <span className="ml-1 text-[11px] text-[var(--muted)]">(resposta)</span>}
+                {step.reply && <span className="ml-1 text-[11px] text-[var(--muted)]">{t('flow.reply')}</span>}
               </button>
             )}
             <div className="truncate text-[11px] text-[var(--muted)]">
@@ -291,34 +294,34 @@ function StepList({
             </div>
             {issues.map((p, i) => (
               <div key={i} className={`mt-1 text-[11.5px] ${p.code.startsWith('E') ? 'text-[var(--danger)]' : 'text-[var(--warn-fg)]'}`}>
-                {p.code}: {p.message}
+                {p.code}: {problemText(p)}
               </div>
             ))}
             {fixes(step, issues.map((p) => p.code))}
             <div data-edit className="mt-1 flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11px]">
               <button type="button" className="text-[var(--muted)] hover:text-[var(--fg)]" onClick={() => setEditing(step.id)}>
-                Editar
+                {t('flow.edit')}
               </button>
               <button type="button" className="text-[var(--muted)] hover:text-[var(--fg)]" onClick={() => (step.reply ? updateStep(step.id, {}, ['reply']) : updateStep(step.id, { reply: true }))}>
-                {step.reply ? 'Não é resposta' : 'Resposta'}
+                {step.reply ? t('flow.notReply') : t('flow.replyAction')}
               </button>
               {c?.conn.direction === 'bidirectional' && (
                 <button type="button" className="text-[var(--muted)] hover:text-[var(--fg)]" onClick={() => (step.reverse ? updateStep(step.id, {}, ['reverse']) : updateStep(step.id, { reverse: true }))}>
-                  {step.reverse ? 'Sentido normal' : 'Destino inicia'}
+                  {step.reverse ? t('flow.normalSense') : t('flow.targetStarts')}
                 </button>
               )}
               {topIndex !== undefined && topIndex < items.length - 1 && (
                 <>
-                  <button type="button" className="text-[var(--muted)] hover:text-[var(--fg)]" onClick={() => groupWithNext(topIndex, 'parallel')} title="Agrupa com o próximo item em paralelo">
-                    ∥ próximo
+                  <button type="button" className="text-[var(--muted)] hover:text-[var(--fg)]" onClick={() => groupWithNext(topIndex, 'parallel')} title={t('flow.groupParallelTitle')}>
+                    {t('flow.groupParallel')}
                   </button>
-                  <button type="button" className="text-[var(--muted)] hover:text-[var(--fg)]" onClick={() => groupWithNext(topIndex, 'alternatives')} title="Agrupa com o próximo item como caminhos alternativos">
-                    ou próximo
+                  <button type="button" className="text-[var(--muted)] hover:text-[var(--fg)]" onClick={() => groupWithNext(topIndex, 'alternatives')} title={t('flow.groupAltTitle')}>
+                    {t('flow.groupAlt')}
                   </button>
                 </>
               )}
               <button type="button" className="text-[var(--muted)] hover:text-[var(--danger)]" onClick={() => removeStep(step.id)}>
-                Excluir
+                {t('flow.delete')}
               </button>
             </div>
           </div>
@@ -344,7 +347,7 @@ function StepList({
       if ('via' in item) body = stepRow(item, top ? i : undefined);
       else if ('parallel' in item)
         body = (
-          <Block title="Em paralelo" onUngroup={top ? () => ungroup(i) : undefined}>
+          <Block title={t('flow.inParallel')} onUngroup={top ? () => ungroup(i) : undefined}>
             {item.parallel.map((branch, b) => (
               <div key={b} className="border-l-2 border-[var(--accent)]/40 pl-2">
                 {renderItems(branch, false)}
@@ -354,12 +357,12 @@ function StepList({
         );
       else if ('alternatives' in item)
         body = (
-          <Block title="Alternativas" onUngroup={top ? () => ungroup(i) : undefined}>
+          <Block title={t('flow.alternatives')} onUngroup={top ? () => ungroup(i) : undefined}>
             {item.alternatives.map((alt, a) => (
               <div key={a} className="border-l-2 border-dashed border-[var(--border-strong)] pl-2">
                 {top ? (
                   <input
-                    aria-label="Nome do caminho"
+                    aria-label={t('flow.pathName')}
                     defaultValue={alt.name}
                     key={alt.name}
                     className="w-full rounded bg-transparent px-1 pb-0.5 text-[11.5px] font-medium text-[var(--muted)] hover:bg-[var(--hover)] focus:bg-[var(--input)] focus:text-[var(--fg)] focus:outline-none"
@@ -379,7 +382,7 @@ function StepList({
             ))}
           </Block>
         );
-      else if ('subflow' in item) body = <div className="px-2.5 py-2 text-[13px] text-[var(--fg-soft)]">↳ Subfluxo: {model.flows.find((f) => f.id === item.subflow)?.name ?? item.subflow}</div>;
+      else if ('subflow' in item) body = <div className="px-2.5 py-2 text-[13px] text-[var(--fg-soft)]">{t('flow.subflow', { name: model.flows.find((f) => f.id === item.subflow)?.name ?? item.subflow })}</div>;
       else body = <div className="px-2.5 py-1.5 text-[12.5px] italic text-[var(--muted)]">{item.note}</div>;
       return (
         <div key={i} {...dnd} className="relative">
@@ -388,18 +391,19 @@ function StepList({
       );
     });
 
-  if (!items.length) return <p className="px-1 py-6 text-center text-[13px] text-[var(--muted)]">Fluxo vazio.</p>;
+  if (!items.length) return <p className="px-1 py-6 text-center text-[13px] text-[var(--muted)]">{t('flow.empty')}</p>;
   return <div className="flex flex-col gap-1">{renderItems(items, true)}</div>;
 }
 
 function Block({ title, children, onUngroup }: { title: string; children: ReactNode; onUngroup?: () => void }) {
+  const t = useT();
   return (
     <div className="rounded-lg border border-[var(--border)] p-1.5">
       <div className="flex items-center justify-between px-1 pb-1">
         <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">{title}</span>
         {onUngroup && (
           <button data-edit type="button" className="text-[11px] text-[var(--muted)] hover:text-[var(--fg)]" onClick={onUngroup}>
-            Desagrupar
+            {t('flow.ungroup')}
           </button>
         )}
       </div>

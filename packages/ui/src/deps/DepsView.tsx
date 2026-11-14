@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { applyNodeChanges, ConnectionMode, MarkerType, ReactFlow, ReactFlowProvider, Background, BackgroundVariant, Controls, type Edge, type Node } from '@xyflow/react';
 import type { Index } from '../model';
 import { useStore } from '../store';
+import { tr, useT } from '../i18n';
 import { autoSide, type EdgeData, type EntityData } from '../canvas/build';
 import { nodeTypes } from '../canvas/nodes';
 import { edgeTypes } from '../canvas/ZarkEdge';
@@ -151,7 +152,7 @@ function DepsGraph({ center, levels }: { center: string; levels: number }) {
         // Open the entity where it is drawn; otherwise keep the user here.
         const s = useStore.getState();
         const where = s.index?.entityDrawings.get(node.id)?.[0];
-        if (!where) return s.toast(`${s.index?.name(node.id)} não aparece em nenhum desenho`);
+        if (!where) return s.toast(tr('deps.notDrawn', { name: s.index?.name(node.id) ?? node.id }));
         s.openDrawing(where);
         s.select([node.id]);
         s.requestFocus();
@@ -168,23 +169,24 @@ export function DepsView() {
   const depsOf = useStore((s) => s.depsOf);
   const levels = useStore((s) => s.depsLevels);
   const set = useStore((s) => s.set);
+  const t = useT();
   const entities = [...index.entities.values()].sort((a, b) => a.name.localeCompare(b.name));
   const center = depsOf && index.entities.has(depsOf) ? depsOf : undefined;
   const sub = center ? dependencySubgraph(index, center, levels) : undefined;
   return (
     <div className="flex h-full flex-col">
       <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-2.5">
-        <h2 className="text-[14px] font-semibold text-[var(--fg)]">Dependências</h2>
-        <select aria-label="Entidade central" className={`${inputClass} !w-[240px]`} value={center ?? ''} onChange={(e) => set({ depsOf: e.target.value || undefined })}>
-          <option value="">Escolha uma entidade</option>
+        <h2 className="text-[14px] font-semibold text-[var(--fg)]">{t('deps.title')}</h2>
+        <select aria-label={t('deps.center')} className={`${inputClass} !w-[240px]`} value={center ?? ''} onChange={(e) => set({ depsOf: e.target.value || undefined })}>
+          <option value="">{t('deps.choose')}</option>
           {entities.map((e) => (
             <option key={e.id} value={e.id}>
               {e.name}
             </option>
           ))}
         </select>
-        <div role="radiogroup" aria-label="Níveis" className="flex items-center gap-1 text-[12.5px] text-[var(--muted)]">
-          Níveis
+        <div role="radiogroup" aria-label={t('deps.levels')} className="flex items-center gap-1 text-[12.5px] text-[var(--muted)]">
+          {t('deps.levels')}
           {[1, 2, 3].map((n) => (
             <button
               key={n}
@@ -200,7 +202,7 @@ export function DepsView() {
         </div>
         {sub && (
           <span className="text-[12px] text-[var(--muted)]">
-            {sub.entities.length - 1} entidades e {sub.edges.length} conexões ligadas a {index.name(center!)}. Clique numa caixa para abri-la no desenho.
+            {t('deps.summary', { entities: sub.entities.length - 1, connections: sub.edges.length, name: index.name(center!) })}
           </span>
         )}
       </div>
@@ -210,7 +212,7 @@ export function DepsView() {
             <DepsGraph center={center} levels={levels} />
           </ReactFlowProvider>
         ) : (
-          <div className="grid h-full place-items-center text-[13px] text-[var(--muted)]">Escolha uma entidade para ver o que chega nela e o que sai dela.</div>
+          <div className="grid h-full place-items-center text-[13px] text-[var(--muted)]">{t('deps.empty')}</div>
         )}
       </div>
     </div>

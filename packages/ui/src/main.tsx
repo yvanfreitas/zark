@@ -9,6 +9,7 @@ import { playbackFrames } from '@core/flow-text';
 import { App } from './App';
 import { Canvas } from './canvas/Canvas';
 import { useStore } from './store';
+import { tr } from './i18n';
 
 /**
  * Panel-less route the renderer screenshots: /render/drawing/<id> or
@@ -21,19 +22,21 @@ function RenderView({ kind, id }: { kind: 'drawing' | 'flow'; id: string }) {
   const theme = useStore((s) => s.theme);
   useEffect(() => {
     const params = new URLSearchParams(location.search);
+    // PNGs are committed artifacts: the render route always draws in English.
+    useStore.getState().set({ lang: 'en' });
     void useStore.getState().load().then(() => {
       const s = useStore.getState();
       if (!s.model) return;
       if (kind === 'drawing') {
-        if (!s.model.drawings.some((d) => d.id === id)) return s.set({ loadError: `Desenho "${id}" não existe` });
+        if (!s.model.drawings.some((d) => d.id === id)) return s.set({ loadError: tr('render.noDrawing', { id }) });
         return s.set({ drawingId: id, flow: null });
       }
       const flow = s.model.flows.find((f) => f.id === id);
-      if (!flow) return s.set({ loadError: `Fluxo "${id}" não existe` });
+      if (!flow) return s.set({ loadError: tr('render.noFlow', { id }) });
       const step = params.get('step');
       const frames = playbackFrames(flow.steps, {}, (fid) => s.model!.flows.find((f) => f.id === fid)?.steps);
       const frame = step ? frames.findIndex((fr) => fr.some((x) => x.id === step)) : -1;
-      if (step && frame < 0) return s.set({ loadError: `Passo "${step}" não existe no fluxo ${id}` });
+      if (step && frame < 0) return s.set({ loadError: tr('render.noStep', { step, id }) });
       s.set({ drawingId: flow.drawing, flow: { id, frame, playing: false, speed: 1, choice: {} } });
     });
   }, [kind, id]);

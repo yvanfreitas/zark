@@ -1,4 +1,5 @@
 import { useStore } from './store';
+import { tr } from './i18n';
 
 /** Opens a file picker and imports a Structurizr workspace or IcePanel model (format detected by the server). */
 export function pickAndImport() {
@@ -15,7 +16,7 @@ export function pickAndImport() {
     if (!r?.ok) return;
     const source = r.format === 'structurizr' ? 'Structurizr' : 'IcePanel';
     const warnings = r.warnings ?? [];
-    s.toast(`Importado do ${source}: ${r.changes?.length ?? 0} mudança(s)${warnings.length ? `. Aviso: ${warnings[0]}${warnings.length > 1 ? ` (+${warnings.length - 1})` : ''}` : ''}`, 'success');
+    s.toast(`${tr('import.done', { source, n: r.changes?.length ?? 0 })}${warnings.length ? `${tr('import.warning', { warning: warnings[0] })}${warnings.length > 1 ? ` (+${warnings.length - 1})` : ''}` : ''}`, 'success');
     const first = useStore.getState().model?.drawings.at(-1);
     if (first) s.openDrawing(first.id);
   };
