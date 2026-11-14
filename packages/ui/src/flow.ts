@@ -25,5 +25,6 @@ export function flowView(model: Model, index: Index, state: FlowState | null) {
     activeSteps.set(step.via, list);
   }
   const flowRefs = new Set(frames.flat().map((s) => s.via));
-  return { flow, numbered, numberOf, frames, frame, activeSteps, flowRefs, activeIds: new Set(shown.map((s) => s.id)) };
+  // An empty flow dims nothing, so its first connection can be picked.
+  return { flow, numbered, numberOf, frames, frame, activeSteps, flowRefs: flowRefs.size ? flowRefs : undefined, activeIds: new Set(shown.map((s) => s.id)) };
 }

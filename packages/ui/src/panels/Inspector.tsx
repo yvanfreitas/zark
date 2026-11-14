@@ -416,8 +416,11 @@ function ConnectionInspector({ conn }: { conn: Conn }) {
 /** Flow mode: creates a step pointing at this connection, focused on its text. */
 export function AddStepButton({ refId, flowId }: { refId: string; flowId: string }) {
   const model = useStore((s) => s.model)!;
+  const index = useStore((s) => s.index)!;
   const [text, setText] = useState('');
+  const [sense, setSense] = useState<'forward' | 'reply' | 'reverse'>('forward');
   const flow = model.flows.find((f) => f.id === flowId)!;
+  const conn = index.conns.get(refId);
   return (
     <form
       className="flex flex-col gap-2 rounded-lg border border-[var(--accent)]/40 bg-[var(--accent-soft)] p-2.5"
@@ -426,12 +429,29 @@ export function AddStepButton({ refId, flowId }: { refId: string; flowId: string
         if (!text.trim()) return;
         const taken = (id: string) => JSON.stringify(flow.steps ?? []).includes(`"id":"${id}"`);
         const id = freeId(text, taken);
-        const r = await useStore.getState().ops([{ op: 'flow.add-steps', flow: flowId, steps: [{ id, via: refId, text: text.trim() }] }], [flow.file]);
-        if (r) setText('');
+        const extra = sense === 'reply' ? { reply: true } : sense === 'reverse' ? { reverse: true } : {};
+        const r = await useStore.getState().ops([{ op: 'flow.add-steps', flow: flowId, steps: [{ id, via: refId, text: text.trim(), ...extra }] }], [flow.file]);
+        if (r) {
+          setText('');
+          setSense('forward');
+        }
       }}
     >
       <span className="text-[12px] font-medium text-[var(--accent)]">Adicionar passo em “{flow.name}”</span>
       <input autoFocus className={inputClass} placeholder="O que acontece neste passo" value={text} onChange={(e) => setText(e.target.value)} aria-label="Texto do passo" />
+      {conn && (
+        <select aria-label="Sentido do passo" className={inputClass} value={sense} onChange={(e) => setSense(e.target.value as typeof sense)}>
+          <option value="forward">
+            {index.name(conn.from)} → {index.name(conn.to)}
+          </option>
+          <option value="reply">
+            {index.name(conn.to)} → {index.name(conn.from)} (resposta)
+          </option>
+          <option value="reverse">
+            {index.name(conn.to)} → {index.name(conn.from)} ({conn.conn.direction === 'bidirectional' ? 'destino inicia' : 'contramão'})
+          </option>
+        </select>
+      )}
       <Button type="submit" disabled={!text.trim()}>
         Adicionar passo
       </Button>

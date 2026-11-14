@@ -109,6 +109,13 @@ export const Icon = {
   ),
   swap: <path d="M3 5h10l-3-3M13 11H3l3 3" />,
   grip: <path d="M6 4h.01M10 4h.01M6 8h.01M10 8h.01M6 12h.01M10 12h.01" />,
+  pencil: <path d="M11 2.5 13.5 5 6 12.5H3.5V10z" />,
+  copy: (
+    <>
+      <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
+      <path d="M10.5 5.5V3.5a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2" />
+    </>
+  ),
 };
 
 export function Svg({ icon, size = 16 }: { icon: ReactNode; size?: number }) {
