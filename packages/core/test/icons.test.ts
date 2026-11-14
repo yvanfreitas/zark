@@ -92,7 +92,7 @@ describe('entity icon field', () => {
     const bad = await projectWith({ 'entities/fila.yaml': box('icon: lucide:nao-existe\n') });
     expect(validate(bad).find((x) => x.code === 'W040')?.message).toMatch(/lucide:nao-existe/);
     const set = await projectWith({ 'entities/fila.yaml': box('icon: aws:sqs\n') });
-    expect(validate(set).find((x) => x.code === 'W040')?.message).toMatch(/Conjuntos: lucide, si/);
+    expect(validate(set).find((x) => x.code === 'W040')?.message).toMatch(/Sets: lucide, si/);
     const malformed = await projectWith({ 'entities/fila.yaml': box('icon: database\n') });
     expect(validate(malformed).map((x) => x.code)).toContain('E001');
   });
