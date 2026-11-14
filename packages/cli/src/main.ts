@@ -17,6 +17,7 @@ Comandos:
   build --out dir              Site estático somente leitura
   export <formato> [id] [--out arquivo]  mermaid, json, structurizr, icepanel-yaml
   import [formato] <arquivo> [--yes]     structurizr, icepanel-json, icepanel-yaml (padrão: detecta)
+  migrate [--check]            Atualiza os arquivos para a versão de formato atual
   schema --out dir             Grava os JSON Schemas
 
 Opções globais:

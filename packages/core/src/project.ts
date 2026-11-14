@@ -100,6 +100,13 @@ export function parseFile(path: string, text: string): SourceFile {
     return file;
   }
   const raw = doc.toJS() ?? {};
+  if (kind === 'config' && typeof raw.schema === 'number' && raw.schema !== 1) {
+    file.error = {
+      message: raw.schema > 1 ? `schema ${raw.schema} é mais novo que este Zark (suporta 1). Atualize o Zark` : `schema ${raw.schema} é antigo. Rode "zark migrate"`,
+      line: lineOf(file, ['schema']),
+    };
+    return file;
+  }
   const parsed = SCHEMAS[kind].safeParse(raw);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
