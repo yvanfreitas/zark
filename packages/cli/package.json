@@ -2,27 +2,54 @@
   "name": "zark",
   "version": "0.1.0",
   "description": "Architecture as code: YAML in the repo, with a UI, MCP server and CLI over the same files",
+  "keywords": [
+    "architecture",
+    "c4",
+    "diagrams",
+    "architecture-as-code",
+    "yaml",
+    "mcp",
+    "react-flow",
+    "documentation",
+    "cli"
+  ],
+  "homepage": "https://github.com/yvanfreitas/zark#readme",
+  "bugs": {
+    "url": "https://github.com/yvanfreitas/zark/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yvanfreitas/zark.git",
+    "directory": "packages/cli"
+  },
+  "license": "MIT",
   "type": "module",
   "bin": {
     "zark": "./dist/main.js"
   },
   "files": [
     "dist",
-    "schema"
+    "schema",
+    "README.md",
+    "LICENSE",
+    "ICONS.md"
   ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "prepack": "node build.mjs"
+  },
   "dependencies": {
-    "@zark/core": "workspace:*",
-    "@zark/mcp": "workspace:*",
-    "@zark/server": "workspace:*",
     "lucide-static": "1.72.0",
     "playwright-core": "^1.65.0",
     "simple-icons": "16.37.0"
   },
-  "scripts": {
-    "build": "node build.mjs"
-  },
   "devDependencies": {
-    "esbuild": "^0.28.2"
-  },
-  "license": "MIT"
+    "esbuild": "^0.28.2",
+    "@zark/core": "workspace:*",
+    "@zark/mcp": "workspace:*",
+    "@zark/server": "workspace:*"
+  }
 }

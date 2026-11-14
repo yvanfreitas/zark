@@ -134,3 +134,18 @@ describe('import into an existing project', () => {
     expect(() => planImport('{ broken', 'auto')).toThrow(/Invalid file/);
   });
 });
+
+describe('structurizr: relationships without sourceId', () => {
+  it('takes the owning element as the source', async () => {
+    const ws = {
+      name: 'Hand written',
+      model: {
+        people: [{ id: '1', name: 'User', relationships: [{ id: '10', destinationId: '2', description: 'Uses the app' }] }],
+        softwareSystems: [{ id: '2', name: 'Shop', relationships: [{ id: '11', destinationId: '3', description: 'Charges the card' }] }, { id: '3', name: 'Payments', location: 'External' }],
+      },
+    };
+    const r = await importInto(empty(), JSON.stringify(ws), 'structurizr');
+    expect(r.project.connections.size).toBe(2);
+    expect(r.warnings.join(' | ')).not.toContain('missing end');
+  });
+});

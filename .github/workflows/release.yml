@@ -1,0 +1,53 @@
+# Publishes the CLI to npm when a version tag is pushed (git tag v0.1.1 && git push --tags).
+# Uses npm trusted publishing (OIDC): no npm token is stored in the repository.
+# One-time setup on npmjs.com: package "zark" -> Settings -> Trusted publisher ->
+# GitHub Actions, repository yvanfreitas/zark, workflow release.yml.
+name: release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+  id-token: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - name: Tag matches the package version
+        run: |
+          version=$(node -p "require('./packages/cli/package.json').version")
+          test "v$version" = "$GITHUB_REF_NAME" || { echo "Tag $GITHUB_REF_NAME does not match package version $version"; exit 1; }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm build
+      - name: Playwright Chromium (with system dependencies)
+        run: pnpm --filter @zark/server exec playwright-core install --with-deps chromium
+      - run: pnpm test
+      - name: Smoke-test the tarball
+        run: |
+          cd packages/cli && npm pack --ignore-scripts && cd ../..
+          node scripts/smoke-pack.mjs packages/cli/zark-*.tgz
+      # Trusted publishing needs npm 11.5.1 or newer.
+      - run: npm install -g npm@latest
+      - name: Publish to npm with provenance
+        working-directory: packages/cli
+        run: |
+          version=$(node -p "require('./package.json').version")
+          # The very first version is published by hand (trusted publishing can only be
+          # configured once the package exists); never fail a tag for an existing version.
+          if npm view "zark@$version" version >/dev/null 2>&1; then
+            echo "zark@$version is already on npm; skipping publish."
+          else
+            npm publish --provenance --access public
+          fi
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --generate-notes --title "$GITHUB_REF_NAME"

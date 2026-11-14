@@ -34,3 +34,34 @@ jobs:
           restore-keys: vscode-test-${{ runner.os }}-stable-
       - name: Extension in a real VS Code (xvfb)
         run: xvfb-run -a pnpm --filter zark-vscode test:integration
+
+  # The published package, installed from its tarball in an empty project and
+  # driven the way the README says, on every OS and the oldest supported Node.
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: [24]
+        include:
+          - os: ubuntu-latest
+            node: 22
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Pack the CLI
+        shell: bash
+        run: cd packages/cli && npm pack --ignore-scripts
+      - name: Chromium system libraries (Linux)
+        if: runner.os == 'Linux'
+        run: pnpm --filter @zark/server exec playwright-core install-deps chromium
+      - name: Install the tarball and follow the README
+        shell: bash
+        run: node scripts/smoke-pack.mjs packages/cli/zark-*.tgz

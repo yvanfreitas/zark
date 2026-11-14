@@ -24,8 +24,15 @@ await build({
   logLevel: 'warning',
 });
 
-if (existsSync(ui)) cpSync(ui, here('dist/ui'), { recursive: true });
-else console.warn('Warning: packages/ui/dist does not exist; run "pnpm --filter @zark/ui build" first to embed the UI.');
+// A CLI without the UI would publish a broken `zark dev`: fail instead of warning.
+if (!existsSync(ui)) {
+  console.error('packages/ui/dist does not exist: run "pnpm --filter @zark/ui build" (or "pnpm build") first.');
+  process.exit(1);
+}
+cpSync(ui, here('dist/ui'), { recursive: true });
 
 execFileSync(process.execPath, [here('dist/main.js'), 'schema', '--out', here('schema')], { stdio: 'inherit' });
+
+// The npm page and the tarball show the repo's README, license and icon notices.
+for (const f of ['README.md', 'LICENSE', 'ICONS.md']) cpSync(here(`../../${f}`), here(f));
 console.log('CLI built in packages/cli/dist');

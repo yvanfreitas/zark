@@ -1,4 +1,6 @@
-﻿# Zark
+# Zark
+
+[![npm](https://img.shields.io/npm/v/zark)](https://www.npmjs.com/package/zark) [![ci](https://github.com/yvanfreitas/zark/actions/workflows/ci.yml/badge.svg)](https://github.com/yvanfreitas/zark/actions/workflows/ci.yml) [![license](https://img.shields.io/npm/l/zark)](LICENSE)
 
 Architecture documentation as code. The YAML files in `architecture/` are the only state. The web UI, the MCP server and the CLI read and write those same files, so there is no sync between the tool and the repository. Collaboration happens through pull requests.
 
@@ -18,8 +20,11 @@ The CLI, the MCP server, PR texts and validation messages are in English. The we
 - **User chats with the bot** flow: parallel delivery to history and bot, alternatives for approved or blocked content, a reply step and the answer pushed back over the WebSocket.
 - **History is saved** flow: the history queue, its writer and the dead-letter path.
 
+The example lives in this repository (it is not part of the npm package). From a clone:
+
 ```bash
-zark dev --dir examples/ai-chat/architecture
+git clone https://github.com/yvanfreitas/zark && cd zark
+npx zark dev --dir examples/ai-chat/architecture
 ```
 
 ## Install
@@ -119,6 +124,8 @@ pnpm zark validate --dir examples/ai-chat/architecture   # CLI straight from sou
 ```
 
 To work on the UI, run `pnpm build` (or `pnpm --filter @zark/ui build`) and `pnpm zark dev --dir examples/ai-chat/architecture`.
+
+Releases: see [RELEASING.md](RELEASING.md) (tag `vX.Y.Z`; CI publishes to npm with provenance). `scripts/smoke-pack.mjs` installs the packed tarball in an empty project and follows this README on Linux, macOS and Windows.
 
 UI strings live in `packages/ui/src/i18n-dict.ts` (`en` and `pt`, same keys) and messages from the core (problems, semantic changes, cascade impact) carry a `key` + `params`, rendered in Portuguese by `packages/ui/src/i18n-messages.ts`. `packages/ui/test/i18n.test.ts` fails when a key or placeholder is missing in either language.
 
