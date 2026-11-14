@@ -4,7 +4,7 @@
   "type": "module",
   "packageManager": "pnpm@11.12.0",
   "scripts": {
-    "build": "pnpm --filter @zark/ui build && pnpm --filter zark build",
+    "build": "pnpm --filter @zark/ui build && pnpm --filter zark build && pnpm --filter zark-vscode build",
     "test": "vitest run",
     "typecheck": "tsc -p . && tsc -p packages/ui",
     "zark": "tsx packages/cli/src/main.ts"

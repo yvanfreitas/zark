@@ -1,6 +1,6 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": { "noEmit": true, "allowImportingTsExtensions": true, "types": ["node"] },
-  "include": ["packages/core", "packages/server", "packages/mcp", "packages/cli"],
+  "include": ["packages/core", "packages/server", "packages/mcp", "packages/cli", "packages/vscode"],
   "exclude": ["**/node_modules", "**/dist"]
 }

@@ -39,7 +39,7 @@ O Chromium usado para gerar PNGs é baixado na primeira chamada de render, não 
 
 Todos aceitam `--dir <pasta>` (padrão: `architecture`).
 
-Git e PR usam o `git` e o `gh` já autenticados na máquina. O Zark nunca pede, lê ou guarda token, e nunca faz `push --force`.
+Git e PR usam o `git` e o CLI do provedor já autenticados na máquina: `gh` no GitHub, `glab` no GitLab (aí o PR vira MR). O provedor vem de `git.provider: github | gitlab` no `zark.yaml`; sem isso, um remoto cujo host contém `gitlab` escolhe o GitLab. O Zark nunca pede, lê ou guarda token, e nunca faz `push --force`.
 
 ## MCP
 
@@ -53,7 +53,17 @@ Configuração por stdio em qualquer cliente MCP:
 }
 ```
 
-Com `zark dev` rodando, o mesmo servidor está em `http://127.0.0.1:4317/mcp`, com o token de sessão impresso no terminal (`Authorization: Bearer <token>`). Toda escrita do agente aparece na UI em tempo real. `open_pr` só cria o PR numa segunda chamada com `confirm: true`.
+Com `zark dev` rodando, o mesmo servidor está em `http://127.0.0.1:4317/mcp`, com o token de sessão impresso no terminal (`Authorization: Bearer <token>`). Toda escrita do agente aparece na UI em tempo real. `open_pr` só cria o PR (ou MR) numa segunda chamada com `confirm: true`.
+
+## Extensão do VS Code
+
+`packages/vscode` adiciona o comando **Zark: Abrir desenho ao lado** (também um botão na barra do editor) para arquivos YAML dentro de `architecture/`. Ele reaproveita um `zark dev` já rodando na pasta (`.zark/server.json`) ou sobe um em porta livre (o `zark` do `node_modules/.bin` do workspace, senão `npx zark`), e abre a UI ao lado:
+
+- `drawings/<id>.yaml` abre aquele desenho;
+- `flows/<id>.yaml` abre o fluxo no modo fluxo;
+- `entities/<id>.yaml` abre o primeiro desenho que posiciona a entidade.
+
+Sem `vsce`: `pnpm --filter zark-vscode build` gera `dist/extension.cjs`. Para usar localmente, aponte o VS Code para a pasta (`code --extensionDevelopmentPath=packages/vscode`) ou copie `packages/vscode` (com `dist/`) para `~/.vscode/extensions/zark-vscode`. `pnpm --filter zark-vscode smoke` carrega o bundle com um `vscode` falso e confere que o comando é registrado.
 
 ## CI
 
@@ -70,6 +80,7 @@ packages/
   mcp/     tools, resources e prompts sobre o core
   ui/      React + React Flow
   cli/     comandos; o build embute server, mcp e a UI
+  vscode/  extensão que abre o desenho ao lado do YAML
 ```
 
 ```sh
