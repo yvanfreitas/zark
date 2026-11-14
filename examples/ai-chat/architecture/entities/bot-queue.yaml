@@ -5,6 +5,7 @@ name: Bot queue
 kind: store
 parent: platform
 caption: Messages for the bot
+icon: lucide:list-ordered
 technologies: [ sqs ]
 tags: [ messaging ]
 

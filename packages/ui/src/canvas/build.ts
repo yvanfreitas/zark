@@ -13,7 +13,8 @@ export interface EntityData extends Record<string, unknown> {
   expanded: boolean;
   dim: boolean;
   techName?: string;
-  techIcon?: string;
+  /** Sanitized SVG shown in the box: the entity icon, else its first technology icon. */
+  iconSvg?: string;
   inActiveFlow: boolean;
   interactive: boolean;
   resizable: boolean;
@@ -72,7 +73,19 @@ export function autoSide(a: { x: number; y: number; w: number; h: number }, b: {
   return dy >= 0 ? ['bottom', 'top'] : ['top', 'bottom'];
 }
 
-export function buildGraph(index: Index, drawing: Drawing, catalog: { technologies?: { id: string; name: string; icon?: string }[] }, opts: BuildOptions) {
+type CatalogTechs = { technologies?: { id: string; name: string; icon?: string }[] };
+
+/** Entity icon wins; else the first of its technologies that has an icon; else none (letter badge). */
+export function entityIconSvg(e: Entity, catalog: CatalogTechs, icons: Record<string, string> = {}): string | undefined {
+  if (e.icon && icons[e.icon]) return icons[e.icon];
+  for (const t of e.technologies ?? []) {
+    const ref = catalog.technologies?.find((x) => x.id === t)?.icon;
+    if (ref && icons[ref]) return icons[ref];
+  }
+  return undefined;
+}
+
+export function buildGraph(index: Index, drawing: Drawing, catalog: CatalogTechs, opts: BuildOptions, icons: Record<string, string> = {}) {
   const placed = drawing.nodes ?? {};
   const ids = Object.keys(placed).filter((id) => index.entities.has(id));
   const rect = (id: string) => ({ x: placed[id].x, y: placed[id].y, ...index.size(id, placed[id]) });
@@ -141,7 +154,7 @@ export function buildGraph(index: Index, drawing: Drawing, catalog: { technologi
         expanded: !!placed[id].expanded,
         dim: dimByFlow || !matchesHighlight(id),
         techName: tech?.name,
-        techIcon: tech?.icon,
+        iconSvg: entityIconSvg(e, catalog, icons),
         inActiveFlow: !!opts.flowRefs && flowEntities.has(id),
         interactive: opts.interactive,
         resizable: opts.interactive && !opts.flowRefs,

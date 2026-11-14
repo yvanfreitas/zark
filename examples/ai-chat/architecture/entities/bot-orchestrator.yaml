@@ -5,6 +5,7 @@ name: Bot orchestrator
 kind: app
 parent: platform
 caption: Builds the prompt and replies
+icon: lucide:bot
 technologies: [ lambda ]
 tags: [ ai ]
 owner: ai-team

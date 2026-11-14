@@ -5,6 +5,7 @@ name: Messages topic
 kind: store
 parent: platform
 caption: Fans out every message
+icon: lucide:radio-tower
 technologies: [ sns ]
 tags: [ messaging ]
 

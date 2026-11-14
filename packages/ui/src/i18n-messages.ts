@@ -7,6 +7,7 @@ const list = (v: unknown, max = 12) => {
   const all = Array.isArray(v) ? v : [];
   return `${all.slice(0, max).join(', ')}${all.length > max ? ', ...' : ''}`;
 };
+const iconSets = (v: unknown) => (Array.isArray(v) && v.length ? `. Conjuntos: ${list(v)} (pacotes próprios em zark.yaml icons.packs)` : '');
 const plural = (n: unknown, one: string, many: string) => `${n} ${Number(n) === 1 ? one : many}`;
 const andList = (items: string[]) => (items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} e ${items[items.length - 1]}`);
 const root = (v: unknown) => (Array.isArray(v) ? v.map((k) => (k === 'root' ? 'raiz' : k)) : v);
@@ -58,6 +59,8 @@ export const PROBLEM_PT: Record<string, Template> = {
   'W021.alternative': (p) => `alternativa "${p.name}" vazia`,
   'W030.orphan': (p) => `${p.file} não corresponde a nenhum desenho ou fluxo`,
   W030: (p) => `${p.file} desatualizado. Rode "zark render"`,
+  W040: (p) => `ícone "${p.icon}" não existe${iconSets(p.sets)}`,
+  'W040.technology': (p) => `tecnologia ${p.id}: ícone "${p.icon}" não existe${iconSets(p.sets)}`,
 };
 
 export const CHANGE_PT: Record<string, Template> = {

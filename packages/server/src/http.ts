@@ -7,7 +7,7 @@ import { Hono, type Context } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { serve, type ServerType } from '@hono/node-server';
 import { RESPONSE_ALREADY_SENT } from '@hono/node-server/utils/response';
-import { planImport, type ApplyResult, type Op } from '@zark/core';
+import { hasIcon, iconSets, iconSvg, planImport, searchIcons, suggestIcons, type ApplyResult, type Op } from '@zark/core';
 import { GitError } from './git.js';
 import { ProviderError } from './providers.js';
 import type { ZarkService } from './service.js';
@@ -175,6 +175,31 @@ export function createApp(opts: AppOptions) {
 
   // Project
   app.get('/api/validate', (c) => c.json({ problems: store.problems }));
+
+  // Icons: sets, search and SVGs for the picker; suggestions for an entity.
+  app.get('/api/icons/sets', (c) => c.json({ sets: iconSets(store.project) }));
+  app.get('/api/icons', (c) => {
+    const limit = Math.min(200, Number(c.req.query('limit') ?? 60) || 60);
+    return c.json({ icons: searchIcons(store.project, c.req.query('q') ?? '', { set: c.req.query('set') || undefined, limit }).map(({ id, set, title }) => ({ id, set, title })) });
+  });
+  app.get('/api/icons/svg/:id', (c) => {
+    const id = c.req.param('id');
+    if (!/^[a-z0-9-]+:[a-z0-9._-]+$/.test(id)) return c.text('Ícone inválido', 400);
+    const svg = iconSvg(store.project, id);
+    return svg ? c.body(svg, 200, { 'content-type': 'image/svg+xml', 'cache-control': 'private, max-age=3600', 'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'" }) : c.notFound();
+  });
+  app.get('/api/icons/suggest/:entity', (c) => {
+    const p = store.project;
+    const entity = p.entities.get(c.req.param('entity'))?.entity;
+    if (!entity) return c.json({ error: 'Entity does not exist' }, 404);
+    const techs = (p.catalog.technologies ?? []).filter((t) => entity.technologies?.includes(t.id));
+    const ids = suggestIcons(
+      { name: entity.name, caption: entity.caption, description: entity.description, kind: entity.kind, external: entity.external, technologies: techs },
+      (id) => hasIcon(p, id),
+      (p.config.icons?.packs ?? []).map((pk) => pk.id),
+    );
+    return c.json({ icons: ids.map((id) => ({ id, svg: iconSvg(p, id) })) });
+  });
   app.get('/api/diff', async (c) => {
     try {
       return c.json(await service.diff(c.req.query('base')));

@@ -79,8 +79,8 @@ describe('IcePanel LandscapeImportData conformance', () => {
     // No Zark catalog ids where IcePanel expects its own catalog/organization ids.
     const all = [...data.modelObjects, ...data.modelConnections];
     expect(all.filter((o) => 'technologyIds' in o || 'teamIds' in o)).toEqual([]);
-    expect(data.modelObjects.find((o: IceObject) => o.id === 'platform').labels).toEqual({ 'zark:owner': 'platform-team=Platform team' });
-    expect(data.modelObjects.find((o: IceObject) => o.id === 'history').labels).toEqual({ 'zark:technologies': 'dynamodb=Amazon DynamoDB' });
+    expect(data.modelObjects.find((o: IceObject) => o.id === 'platform').labels).toEqual({ 'zark:icon': 'lucide:cloud', 'zark:owner': 'platform-team=Platform team' });
+    expect(data.modelObjects.find((o: IceObject) => o.id === 'history').labels).toEqual({ 'zark:icon': 'lucide:database', 'zark:technologies': 'dynamodb=Amazon DynamoDB' });
   });
 
   it('round trip through IcePanel keeps catalog names via labels', async () => {

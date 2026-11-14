@@ -5,6 +5,7 @@ name: WebSocket API
 kind: app
 parent: platform
 caption: Client connections
+icon: lucide:radio
 technologies: [ api-gateway, websocket ]
 
 connections:

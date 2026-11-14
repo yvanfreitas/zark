@@ -5,6 +5,8 @@ export const Slug = z.string().regex(/^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/, '
 // `<source>.<connection>`
 export const ConnectionRef = z.string().regex(/^[a-z0-9-]{1,64}\.[a-z0-9-]{1,64}$/, 'connection ref: <source>.<connection>');
 
+/** `<set>:<name>`: a bundled set (`lucide`, `si`) or a user pack declared in zark.yaml. */
+export const IconRef = z.string().regex(/^[a-z0-9-]+:[a-z0-9._-]+$/, 'ícone: <conjunto>:<nome>, ex. lucide:database');
 export const Kind = z.enum(['actor', 'system', 'app', 'store', 'component']);
 export const Status = z.enum(['live', 'future', 'deprecated', 'removed']);
 export const Direction = z.enum(['outgoing', 'bidirectional']);
@@ -39,6 +41,7 @@ export const Entity = z.strictObject({
   kind: Kind,
   parent: Slug.nullable().optional(),
   caption: z.string().optional(),
+  icon: IconRef.optional(),
   description: z.string().optional(),
   external: z.boolean().optional(),
   status: Status.optional(),
@@ -157,6 +160,8 @@ export const Config = z.strictObject({
   git: z.strictObject({ baseBranch: z.string().optional(), branchPrefix: z.string().optional(), provider: z.enum(['github', 'gitlab']).optional() }).optional(),
   rules: z.record(z.string().regex(/^[EW]\d{3}$/), z.enum(['error', 'warning', 'off'])).optional(),
   mcp: z.strictObject({ prRequiresUi: z.boolean().optional() }).optional(),
+  // User-supplied icon packs: a folder of SVGs, referenced as `<id>:<file name>`.
+  icons: z.strictObject({ packs: z.array(z.strictObject({ id: Slug, dir: z.string().min(1) })).optional() }).optional(),
 });
 
 export type Entity = z.infer<typeof Entity>;
@@ -171,10 +176,10 @@ export type Config = z.infer<typeof Config>;
 
 // Canonical key order (section 9, "canonical format"). Unknown keys keep their place at the end.
 export const KEY_ORDER: Record<string, string[]> = {
-  config: ['schema', 'name', 'defaultDrawing', 'grid', 'render', 'git', 'rules', 'mcp'],
+  config: ['schema', 'name', 'defaultDrawing', 'grid', 'render', 'git', 'rules', 'mcp', 'icons'],
   catalog: ['technologies', 'tags', 'teams'],
   catalogItem: ['id', 'name', 'color', 'icon'],
-  entity: ['id', 'name', 'kind', 'parent', 'caption', 'description', 'external', 'status', 'technologies', 'tags', 'owner', 'links', 'connections'],
+  entity: ['id', 'name', 'kind', 'parent', 'caption', 'icon', 'description', 'external', 'status', 'technologies', 'tags', 'owner', 'links', 'connections'],
   link: ['label', 'url'],
   connection: ['id', 'to', 'label', 'direction', 'description', 'via', 'technologies', 'status', 'tags'],
   drawing: ['id', 'name', 'description', 'scope', 'nodes', 'edges', 'groups', 'notes'],

@@ -57,7 +57,7 @@ export function Canvas({ mode = 'edit' }: { mode?: 'edit' | 'render' }) {
             flowRefs: view?.flowRefs,
             interactive,
             animate: mode === 'edit',
-          })
+          }, model.icons)
         : { nodes: [], edges: [] },
     [drawing, index, model, filters, selection.nodes, view, interactive, mode],
   );

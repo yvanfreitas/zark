@@ -110,6 +110,7 @@ export function fromStructurizr(ws: StructurizrWorkspace, ctx: ImportContext): I
         ...(parent ? { parent } : {}),
         ...(el.description ? { caption: el.description } : {}),
         ...(p['zark:description'] ? { description: p['zark:description'] } : {}),
+        ...(p['zark:icon'] && /^[a-z0-9-]+:[a-z0-9._-]+$/.test(p['zark:icon']) ? { icon: p['zark:icon'] } : {}),
         ...(el.location === 'External' || p['zark:external'] === 'true' ? { external: true } : {}),
         ...(p['zark:status'] ? { status: p['zark:status'] as 'future' } : {}),
         ...(techs.length ? { technologies: techs } : {}),
@@ -233,6 +234,7 @@ export function toStructurizr(project: Project): StructurizrWorkspace {
     properties: props({
       'zark:id': e.id,
       'zark:description': e.description,
+      'zark:icon': e.icon,
       'zark:status': e.status,
       'zark:technologies': e.technologies?.join(','),
       'zark:owner': e.owner,

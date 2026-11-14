@@ -1,6 +1,10 @@
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import {
+  hasIcon,
+  iconSets,
+  searchIcons,
+  suggestIcons,
   allSteps,
   errorsOf,
   flowToMermaid,
@@ -124,6 +128,7 @@ export const GUIDE = `# Zark: modeling rules
 - Flows are steps over connections; reply: true for messages going back.
 - Prefer apply_changes: create, connect, place and draw in a single validated call.
 - After writing, call render and fix overlaps or crossing arrows.
+- Icons: \`icon: <set>:<name>\` on the entity (lucide generic, si brands/languages/frameworks, own packs such as aws). Use search_icons or suggest_icons to choose; without icon the box uses the technology's icon.
 - open_pr is the only action that leaves the machine: first the preview, then confirm: true.
 `;
 
@@ -248,9 +253,20 @@ export function createMcpServer(service: ZarkService): McpServer {
     return { content: [{ type: 'image' as const, data: png.toString('base64'), mimeType: 'image/png' }] };
   });
 
+  tool('search_icons', 'Searches icons by name or keyword in the bundled sets (lucide, si) and the packs from zark.yaml', { query: z.string(), set: z.string().optional(), limit: z.number().int().positive().max(100).optional() }, ({ query, set, limit }) =>
+    json({ sets: iconSets(p()).map((s) => s.id), icons: searchIcons(p(), query, { set, limit: limit ?? 20 }).map(({ id, title }) => ({ id, title })) }));
+
+  tool('suggest_icons', 'Suggested icons for an entity, from its technologies, name and kind', { entity: z.string() }, ({ entity: id }) => {
+    const e = p().entities.get(id)?.entity;
+    if (!e) return json({ ok: false, error: `Entity "${id}" does not exist` });
+    const techs = (p().catalog.technologies ?? []).filter((t) => e.technologies?.includes(t.id));
+    return json({ icons: suggestIcons({ name: e.name, caption: e.caption, description: e.description, kind: e.kind, external: e.external, technologies: techs }, (x) => hasIcon(p(), x), (p().config.icons?.packs ?? []).map((pk) => pk.id)) });
+  });
+
   // ---------- write ----------
   tool('create_entity', 'Creates an entity (and optionally its outgoing connections)', {
-    id: z.string(), name: z.string(), kind: Kind, parent: z.string().nullable().optional(), caption: z.string().optional(), description: z.string().optional(),
+    id: z.string(), name: z.string(), kind: Kind, parent: z.string().nullable().optional(), caption: z.string().optional(),
+    icon: z.string().optional().describe('<set>:<name>, e.g. lucide:database or si:python; use search_icons'), description: z.string().optional(),
     external: z.boolean().optional(), status: Status.optional(), technologies: z.array(z.string()).optional(), tags: z.array(z.string()).optional(), owner: z.string().optional(),
     links: z.array(z.object({ label: z.string(), url: z.string() })).optional(),
     connections: z.array(ConnectionInput).optional(), dryRun,

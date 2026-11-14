@@ -11,6 +11,9 @@ const list = (v: unknown, max = 12) => {
   return all.length ? `${all.slice(0, max).join(', ')}${all.length > max ? ', ...' : ''}` : '';
 };
 /** ". Valid: a, b" when there are valid values to suggest. */
+/** ". Sets: lucide, si (own packs in zark.yaml icons.packs)" when the set is unknown. */
+const iconSets = (v: unknown) => (list(v) ? `. Sets: ${list(v)} (own packs in zark.yaml icons.packs)` : '');
+
 export const validSuffix = (label: string, v: unknown) => (list(v) ? `. ${label}: ${list(v)}` : '');
 
 export const PROBLEM_EN: Record<string, Template> = {
@@ -60,6 +63,8 @@ export const PROBLEM_EN: Record<string, Template> = {
   'W021.alternative': (p) => `alternative "${p.name}" is empty`,
   'W030.orphan': (p) => `${p.file} matches no drawing or flow`,
   W030: (p) => `${p.file} is out of date. Run "zark render"`,
+  W040: (p) => `icon "${p.icon}" does not exist${iconSets(p.sets)}`,
+  'W040.technology': (p) => `technology ${p.id}: icon "${p.icon}" does not exist${iconSets(p.sets)}`,
 };
 
 const plural = (n: unknown, one: string, many: string) => `${n} ${Number(n) === 1 ? one : many}`;

@@ -22,6 +22,8 @@ export interface Model {
   flows: WithFile<Flow>[];
   files: Record<string, { hash: string; kind: string; error?: { message: string; line?: number } }>;
   problems: Problem[];
+  /** SVG of every icon the project uses (entity and technology icons), keyed by reference. */
+  icons?: Record<string, string>;
 }
 
 export interface Conn {

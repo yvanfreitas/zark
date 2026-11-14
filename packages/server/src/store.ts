@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { watch, type FSWatcher } from 'chokidar';
 import {
+  usedIcons,
   applyOps,
   buildProject,
   diffProjects,
@@ -196,6 +197,8 @@ export class ProjectStore extends EventEmitter {
       flows: [...p.flows.values()].map(({ flow, file }) => ({ ...flow, file })),
       files: Object.fromEntries([...p.files.values()].map((f) => [f.path, { hash: f.hash, kind: f.kind, error: f.error }])),
       problems: this.problems,
+      // SVGs of the icons in use, so boxes, the render route and the static site need no fetch.
+      icons: usedIcons(p),
     };
   }
 }

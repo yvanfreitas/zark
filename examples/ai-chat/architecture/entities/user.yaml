@@ -3,6 +3,7 @@
 id: user
 name: User
 kind: actor
+icon: lucide:user
 
 connections:
   - id: uses
