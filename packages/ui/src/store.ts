@@ -5,7 +5,8 @@ import { buildIndex, type Index } from './model';
 import type { Model } from './types';
 
 export type FilterState = 'highlight' | 'hide';
-export type RightPanel = 'inspector' | 'problems' | 'changes' | 'list';
+export type RightPanel = 'inspector' | 'problems' | 'changes';
+export type MainView = 'canvas' | 'list' | 'deps';
 
 export interface Toast {
   id: number;
@@ -41,6 +42,10 @@ interface State {
   saving: 'idle' | 'saving' | 'saved';
   toasts: Toast[];
   right: RightPanel;
+  /** What the central area shows: the drawing, the model list or a dependency view. */
+  view: MainView;
+  depsOf?: string;
+  depsLevels: number;
   leftTab: 'drawings' | 'model' | 'flows';
   filters: Record<string, FilterState>;
   palette: boolean;
@@ -94,6 +99,8 @@ export const useStore = create<State & Actions>((set, get) => ({
   saving: 'idle',
   toasts: [],
   right: 'inspector',
+  view: 'canvas',
+  depsLevels: 1,
   leftTab: 'drawings',
   filters: {},
   palette: false,
@@ -145,6 +152,8 @@ export const useStore = create<State & Actions>((set, get) => ({
 
   openDrawing(id, push = true) {
     const { drawingId, trail } = get();
+    // Opening a drawing always brings the canvas back from the list/deps views.
+    if (get().view !== 'canvas') set({ view: 'canvas' });
     if (id === drawingId) return;
     set({ drawingId: id, trail: push && drawingId ? [...trail, drawingId] : trail, selection: { nodes: [], edges: [] }, flow: null });
     history.replaceState(null, '', `#drawing=${id}`);
@@ -165,7 +174,7 @@ export const useStore = create<State & Actions>((set, get) => ({
     if (target) get().openDrawing(target.id, false);
   },
 
-  select: (nodes, edges = []) => set({ selection: { nodes, edges }, right: get().right === 'list' ? 'list' : 'inspector' }),
+  select: (nodes, edges = []) => set({ selection: { nodes, edges }, right: 'inspector' }),
 
   toast(text, kind = 'info') {
     const id = ++toastId;

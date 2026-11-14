@@ -43,6 +43,7 @@ export function CommandPalette() {
         },
       });
     }
+    for (const e of index.entities.values()) out.push({ label: `Dependências de ${e.name}`, hint: 'Dependências', run: () => (close(), s.set({ view: 'deps', depsOf: e.id })) });
     for (const d of model.drawings) out.push({ label: d.name, hint: 'Desenho', run: () => (close(), s.openDrawing(d.id)) });
     for (const f of model.flows)
       out.push({
@@ -56,6 +57,8 @@ export function CommandPalette() {
       });
     const actions: [string, () => void][] = [
       ['Organizar desenho automaticamente', () => drawing && s.write('POST', `/api/drawings/${drawing.id}/layout`, {}, [drawing.file])],
+      ['Lista do modelo', () => s.set({ view: 'list' })],
+      ['Dependências', () => s.set({ view: 'deps' })],
       ['Mostrar problemas', () => s.set({ right: 'problems' })],
       ['Mostrar alterações', () => s.set({ right: 'changes' })],
       ['Abrir PR', () => s.set({ prDialog: true })],
