@@ -44,7 +44,7 @@
         "zark.cliPath": {
           "type": "string",
           "default": "",
-          "description": "Path to the Zark CLI main.js, run with node. Empty: uses the workspace node_modules/.bin/zark or npx zark. The ZARK_CLI environment variable has the same effect."
+          "description": "Path to the Zark CLI main.js, run with node. Empty: uses the workspace node_modules/.bin/zark or npx @ewcodes/zark. The ZARK_CLI environment variable has the same effect."
         }
       }
     }

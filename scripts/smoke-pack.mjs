@@ -36,7 +36,7 @@ const stop = (child) => {
   }
 };
 
-step('npm i -D zark');
+step('npm i -D @ewcodes/zark');
 run('git', ['init', '-q', '-b', 'main']);
 writeFileSync(join(project, 'package.json'), JSON.stringify({ name: 'smoke', private: true }, null, 2));
 run(npm, ['i', '-D', tarball, '--no-audit', '--no-fund']);

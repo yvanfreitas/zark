@@ -33,7 +33,7 @@ async function readServer(archDir: string): Promise<ServerInfo | undefined> {
 /**
  * Which `zark` to run: the `zark.cliPath` setting or the `ZARK_CLI` env (path
  * to the CLI's main.js, run with node), else the workspace's own
- * node_modules/.bin/zark, else `npx zark`.
+ * node_modules/.bin/zark, else `npx @ewcodes/zark`.
  */
 function zarkCommand(archDir: string): { cmd: string; args: string[] } {
   const cliPath = vscode.workspace.getConfiguration('zark').get<string>('cliPath') || process.env.ZARK_CLI;
@@ -44,7 +44,7 @@ function zarkCommand(archDir: string): { cmd: string; args: string[] } {
     if (existsSync(local)) return { cmd: local, args: [] };
     if (dirname(dir) === dir) break;
   }
-  return { cmd: process.platform === 'win32' ? 'npx.cmd' : 'npx', args: ['--yes', 'zark'] };
+  return { cmd: process.platform === 'win32' ? 'npx.cmd' : 'npx', args: ['--yes', '@ewcodes/zark'] };
 }
 
 /** Reuses a running `zark dev` for this folder or starts one on a free port. */

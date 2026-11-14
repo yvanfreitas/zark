@@ -1,6 +1,6 @@
 # Publishes the CLI to npm when a version tag is pushed (git tag v0.1.1 && git push --tags).
 # Uses npm trusted publishing (OIDC): no npm token is stored in the repository.
-# One-time setup on npmjs.com: package "zark" -> Settings -> Trusted publisher ->
+# One-time setup on npmjs.com: package "@ewcodes/zark" -> Settings -> Trusted publisher ->
 # GitHub Actions, repository yvanfreitas/zark, workflow release.yml.
 name: release
 on:
@@ -33,7 +33,7 @@ jobs:
       - name: Smoke-test the tarball
         run: |
           cd packages/cli && npm pack --ignore-scripts && cd ../..
-          node scripts/smoke-pack.mjs packages/cli/zark-*.tgz
+          node scripts/smoke-pack.mjs packages/cli/ewcodes-zark-*.tgz
       # Trusted publishing needs npm 11.5.1 or newer.
       - run: npm install -g npm@latest
       - name: Publish to npm with provenance
@@ -42,8 +42,8 @@ jobs:
           version=$(node -p "require('./package.json').version")
           # The very first version is published by hand (trusted publishing can only be
           # configured once the package exists); never fail a tag for an existing version.
-          if npm view "zark@$version" version >/dev/null 2>&1; then
-            echo "zark@$version is already on npm; skipping publish."
+          if npm view "@ewcodes/zark@$version" version >/dev/null 2>&1; then
+            echo "@ewcodes/zark@$version is already on npm; skipping publish."
           else
             npm publish --provenance --access public
           fi

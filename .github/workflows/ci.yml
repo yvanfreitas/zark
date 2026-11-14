@@ -64,4 +64,4 @@ jobs:
         run: pnpm --filter @zark/server exec playwright-core install-deps chromium
       - name: Install the tarball and follow the README
         shell: bash
-        run: node scripts/smoke-pack.mjs packages/cli/zark-*.tgz
+        run: node scripts/smoke-pack.mjs packages/cli/ewcodes-zark-*.tgz

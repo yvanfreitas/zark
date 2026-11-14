@@ -1,6 +1,6 @@
 # Zark
 
-[![npm](https://img.shields.io/npm/v/zark)](https://www.npmjs.com/package/zark) [![ci](https://github.com/yvanfreitas/zark/actions/workflows/ci.yml/badge.svg)](https://github.com/yvanfreitas/zark/actions/workflows/ci.yml) [![license](https://img.shields.io/npm/l/zark)](LICENSE)
+[![npm](https://img.shields.io/npm/v/@ewcodes/zark)](https://www.npmjs.com/package/@ewcodes/zark) [![ci](https://github.com/yvanfreitas/zark/actions/workflows/ci.yml/badge.svg)](https://github.com/yvanfreitas/zark/actions/workflows/ci.yml) [![license](https://img.shields.io/npm/l/@ewcodes/zark)](LICENSE)
 
 Architecture documentation as code. The YAML files in `architecture/` are the only state. The web UI, the MCP server and the CLI read and write those same files, so there is no sync between the tool and the repository. Collaboration happens through pull requests.
 
@@ -32,7 +32,7 @@ npx zark dev --dir examples/ai-chat/architecture
 Requires Node 22 or newer.
 
 ```sh
-npm i -D zark          # or: pnpm add -D zark
+npm i -D @ewcodes/zark   # or: pnpm add -D @ewcodes/zark
 npx zark init          # creates architecture/ with zark.yaml, catalog.yaml and an empty drawing
 npx zark dev           # starts the UI, API and MCP at http://127.0.0.1:4317
 ```
@@ -80,7 +80,7 @@ Stdio configuration for any MCP client:
 ```json
 {
   "mcpServers": {
-    "zark": { "command": "npx", "args": ["zark", "mcp", "--dir", "architecture"] }
+    "zark": { "command": "npx", "args": ["@ewcodes/zark", "mcp", "--dir", "architecture"] }
   }
 }
 ```
