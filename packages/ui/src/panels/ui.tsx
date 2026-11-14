@@ -5,7 +5,8 @@ export const inputClass =
 
 type Variant = 'primary' | 'ghost' | 'danger' | 'subtle';
 
-export function Button({ variant = 'primary', className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant }) {
+/** `safe`: works without a server, so it stays in the read-only `zark build` site. */
+export function Button({ variant = 'primary', className = '', safe, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; safe?: boolean }) {
   const styles: Record<Variant, string> = {
     primary: 'bg-[var(--accent)] text-white hover:bg-[var(--accent-strong)]',
     ghost: 'text-[var(--fg-soft)] hover:bg-[var(--hover)]',
@@ -16,6 +17,7 @@ export function Button({ variant = 'primary', className = '', ...props }: Button
     <button
       type="button"
       {...props}
+      data-edit={safe ? undefined : ''}
       className={`inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${styles[variant]} ${className}`}
     />
   );

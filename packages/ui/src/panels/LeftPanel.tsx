@@ -106,7 +106,7 @@ function DrawingsTab() {
                   <span className={`truncate text-[13px] ${active?.id === d.id ? 'font-semibold text-[var(--accent)]' : 'text-[var(--fg)]'}`}>{d.name}</span>
                   <span className="shrink-0 text-[11px] text-[var(--muted)]">{Object.keys(d.nodes ?? {}).length}</span>
                 </button>
-                <div className="flex text-[var(--subtle)]">
+                <div data-edit className="flex text-[var(--subtle)]">
                   <IconButton label={`Renomear ${d.name}`} className="!size-6" onClick={() => setRenaming(d.id)}>
                     <Svg icon={Icon.pencil} size={13} />
                   </IconButton>

@@ -115,7 +115,7 @@ export function FlowPanel() {
             {frames.length ? frame + 1 : 0}/{frames.length}
           </span>
           <div className="flex-1" />
-          <select aria-label="Velocidade" className={`${inputClass} !w-[70px]`} value={state.speed} onChange={(e) => setFlow({ speed: Number(e.target.value) })}>
+          <select data-keep aria-label="Velocidade" className={`${inputClass} !w-[70px]`} value={state.speed} onChange={(e) => setFlow({ speed: Number(e.target.value) })}>
             {SPEEDS.map((s) => (
               <option key={s} value={s}>
                 {s}×
@@ -142,20 +142,20 @@ export function FlowPanel() {
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
         {selectedConn && <AddStepButton key={selectedConn} refId={selectedConn} flowId={flow.id} />}
-        {!selectedConn && <p className="mb-2 px-1 text-[12px] text-[var(--muted)]">Clique numa conexão do canvas para adicionar um passo sobre ela.</p>}
+        {!selectedConn && <p data-edit className="mb-2 px-1 text-[12px] text-[var(--muted)]">Clique numa conexão do canvas para adicionar um passo sobre ela.</p>}
         <StepList flowId={flow.id} numberOf={numberOf} activeIds={view.activeIds} problems={problems} onJump={(stepId) => {
           const at = frames.findIndex((f) => f.some((s) => s.id === stepId));
           if (at >= 0) setFlow({ frame: at, playing: false });
         }} />
       </div>
       <div className="flex flex-wrap gap-2 border-t border-[var(--border)] p-3">
-        <Button variant="subtle" onClick={exportMermaid}>
+        <Button safe variant="subtle" onClick={exportMermaid}>
           Mermaid
         </Button>
         <Button variant="subtle" onClick={renderStep}>
           PNG do passo
         </Button>
-        <Button variant="subtle" onClick={copyLink}>
+        <Button safe variant="subtle" onClick={copyLink}>
           Copiar link
         </Button>
       </div>
@@ -165,10 +165,10 @@ export function FlowPanel() {
             <h2 className="mb-2 text-[14px] font-semibold text-[var(--fg)]">Mermaid sequenceDiagram</h2>
             <textarea readOnly className={`${inputClass} h-[320px] font-mono text-[12px]`} value={mermaid} />
             <div className="mt-3 flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setMermaid(undefined)}>
+              <Button safe variant="ghost" onClick={() => setMermaid(undefined)}>
                 Fechar
               </Button>
-              <Button onClick={() => void navigator.clipboard?.writeText(mermaid).then(() => useStore.getState().toast('Copiado'))}>Copiar</Button>
+              <Button safe onClick={() => void navigator.clipboard?.writeText(mermaid).then(() => useStore.getState().toast('Copiado'))}>Copiar</Button>
             </div>
           </div>
         </div>
@@ -295,7 +295,7 @@ function StepList({
               </div>
             ))}
             {fixes(step, issues.map((p) => p.code))}
-            <div className="mt-1 flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11px]">
+            <div data-edit className="mt-1 flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11px]">
               <button type="button" className="text-[var(--muted)] hover:text-[var(--fg)]" onClick={() => setEditing(step.id)}>
                 Editar
               </button>
@@ -398,7 +398,7 @@ function Block({ title, children, onUngroup }: { title: string; children: ReactN
       <div className="flex items-center justify-between px-1 pb-1">
         <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">{title}</span>
         {onUngroup && (
-          <button type="button" className="text-[11px] text-[var(--muted)] hover:text-[var(--fg)]" onClick={onUngroup}>
+          <button data-edit type="button" className="text-[11px] text-[var(--muted)] hover:text-[var(--fg)]" onClick={onUngroup}>
             Desagrupar
           </button>
         )}
