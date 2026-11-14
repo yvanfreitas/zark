@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, Position, type EdgeProps } from '@xyflow/react';
 import { useStore } from '../store';
 import { useT } from '../i18n';
-import { edgeRoute, pointAt, type Pt, type Side } from '@core/edge-geometry';
+import { edgeEnds, edgeRoute, pointAt, type Pt, type Side } from '@core/edge-geometry';
 import type { EdgeData } from './build';
 
 const SIDE: Record<Position, Side> = { [Position.Top]: 'top', [Position.Right]: 'right', [Position.Bottom]: 'bottom', [Position.Left]: 'left' };
@@ -12,9 +12,12 @@ export const ZarkEdge = memo(function ZarkEdge(props: EdgeProps & { data: EdgeDa
   const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, selected, markerEnd, markerStart } = props;
   const spec = data.spec;
   // Route geometry is shared with the render route and the validator (core edge-geometry).
-  const route = edgeRoute(spec, [sourceX, sourceY], SIDE[sourcePosition], [targetX, targetY], SIDE[targetPosition], data.obstacles, data.shift);
+  // Parallel connectors between the same boxes slide their ends apart (every shape).
+  const sp = SIDE[sourcePosition], tp = SIDE[targetPosition];
+  const route = edgeRoute(spec, [sourceX, sourceY], sp, [targetX, targetY], tp, data.obstacles, data.offsets);
   const curved = (spec.shape ?? 'straight') === 'curved' && !spec.points?.length;
-  const d = curved ? getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition })[0] : pathOf(route);
+  const [[sx, sy], [tx, ty]] = edgeEnds([sourceX, sourceY], sp, [targetX, targetY], tp, data.offsets);
+  const d = curved ? getBezierPath({ sourceX: sx, sourceY: sy, targetX: tx, targetY: ty, sourcePosition, targetPosition })[0] : pathOf(route);
   const label = pointAt(route, data.labelAt ?? spec.labelAt ?? 0.5);
   const t = useT();
   const active = data.active?.length ? data.active : undefined;
