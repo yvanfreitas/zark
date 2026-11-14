@@ -5,7 +5,7 @@ import { crc32 } from 'node:zlib';
 import { allSteps, ancestors, type Problem, type Project } from '@zark/core';
 
 /** Bump when the canvas look changes, so committed PNGs are re-rendered. */
-export const RENDERER_VERSION = '1';
+export const RENDERER_VERSION = '2';
 const KEY = 'zark-hash';
 
 export interface RenderTarget {
@@ -100,7 +100,7 @@ export async function renderedProblems(project: Project): Promise<Problem[]> {
     if (!target) {
       out.push({ code: 'W030', severity: 'warning', file: `rendered/${name}`, message: `${name} não corresponde a nenhum desenho ou fluxo` });
     } else if (stored !== renderHash(project, target)) {
-      out.push({ code: 'W030', severity: 'warning', file: `rendered/${name}`, message: `${name} desatualizado. Rode "zark render"`, ref: target.drawing ?? target.flow });
+      out.push({ code: 'W030', severity: 'warning', file: `rendered/${name}`, message: `${name} desatualizado. Rode "zark render"`, ref: `rendered:${target.drawing ?? target.flow}` });
     }
   }
   return out;

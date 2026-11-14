@@ -61,7 +61,8 @@ export const Node = z.strictObject({
 });
 
 export const Edge = z.strictObject({
-  shape: z.enum(['straight', 'step', 'curved']).optional(),
+  // auto = orthogonal route around other boxes, computed when drawn (never stored as points).
+  shape: z.enum(['straight', 'step', 'curved', 'auto']).optional(),
   from: Side.optional(),
   to: Side.optional(),
   points: z.array(z.tuple([Int, Int])).optional(),

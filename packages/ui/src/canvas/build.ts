@@ -2,6 +2,7 @@ import { MarkerType, type Edge, type Node } from '@xyflow/react';
 import type { Index } from '../model';
 import type { Conn, Drawing, DrawingEdge, Entity, Problem } from '../types';
 import type { FilterState } from '../store';
+import type { Rect } from '@core/route';
 
 export type Side = 'top' | 'right' | 'bottom' | 'left';
 
@@ -29,6 +30,12 @@ export interface EdgeData extends Record<string, unknown> {
   /** Flow mode: this connection carries the active step. */
   active?: { backwards: boolean; text: string; number: string; reply: boolean }[];
   pulse: boolean;
+  /** Boxes an `auto` connector routes around (shared across edges; absolute coords). */
+  obstacles: Rect[];
+  /** Sideways shift of an `auto` connector so parallel ones between the same boxes don't overlap, px. */
+  shift: number;
+  /** Default label position for fanned-out connectors, so their labels don't stack. */
+  labelAt?: number;
   severity?: 'error' | 'warning';
   animate: boolean;
 }
@@ -160,6 +167,8 @@ export function buildGraph(index: Index, drawing: Drawing, catalog: { technologi
   }
 
   const edges: Edge[] = [];
+  // Expanded containers are frames, not walls: connectors may cross them.
+  const obstacles: Rect[] = visible.filter((id) => !placed[id].expanded).map(rect);
   for (const [ref, spec] of Object.entries(drawing.edges ?? {})) {
     const conn = index.conns.get(ref);
     if (!conn) continue;
@@ -194,7 +203,28 @@ export function buildGraph(index: Index, drawing: Drawing, catalog: { technologi
         pulse: pulseFrom.has(a) && !opts.flowRefs,
         severity: severity.get(ref),
         animate: opts.animate,
+        obstacles,
+        shift: 0,
       } satisfies EdgeData,
+    });
+  }
+  // Parallel `auto` connectors between the same two boxes fan out side by side.
+  const pairs = new Map<string, Edge[]>();
+  for (const e of edges) {
+    if ((e.data as EdgeData).spec.shape !== 'auto') continue;
+    const key = [e.source, e.target].sort().join('|');
+    pairs.set(key, [...(pairs.get(key) ?? []), e]);
+  }
+  for (const group of pairs.values()) {
+    group.sort((x, y) => x.id.localeCompare(y.id));
+    group.forEach((e, k) => {
+      const data = e.data as EdgeData;
+      data.shift = (k - (group.length - 1) / 2) * 32;
+      if (group.length > 1) {
+        // Fractions run from the alphabetically first box, whatever each connector's direction.
+        const frac = 0.3 + (0.4 * k) / (group.length - 1);
+        data.labelAt = e.source < e.target ? frac : 1 - frac;
+      }
     });
   }
   return { nodes, edges };

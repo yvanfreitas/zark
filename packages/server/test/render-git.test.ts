@@ -166,5 +166,5 @@ describe('git integration', () => {
     await discard(dir, ['entities/deco.yaml']);
     expect(await readFile(join(dir, 'entities/deco.yaml'), 'utf8')).toBe(await readFile(join(EXAMPLE, 'entities/deco.yaml'), 'utf8'));
     expect((await status(dir, 'main', false)).changed).toEqual([]);
-  });
+  }, 30_000); // spawns git and gh several times; slow on Windows
 });

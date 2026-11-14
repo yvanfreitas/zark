@@ -236,7 +236,7 @@ function StepList({
     if (codes.includes('E042')) out.push(<Button key="unrev" variant="subtle" onClick={() => updateStep(step.id, {}, ['reverse'])}>Remover reverse</Button>);
     if (codes.includes('E044') && drawing) {
       out.push(
-        <Button key="draw" variant="subtle" onClick={() => useStore.getState().write('POST', `/api/drawings/${drawing.id}/ops`, { ops: [{ op: 'draw-edges', edges: [{ ref: step.via, shape: 'straight' }] }] }, [drawing.file])}>
+        <Button key="draw" variant="subtle" onClick={() => useStore.getState().write('POST', `/api/drawings/${drawing.id}/ops`, { ops: [{ op: 'draw-edges', edges: [{ ref: step.via, shape: 'auto' }] }] }, [drawing.file])}>
           Traçar no desenho
         </Button>,
       );

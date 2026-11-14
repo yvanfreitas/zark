@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, Position, type EdgeProps } from '@xyflow/react';
 import { useStore } from '../store';
+import { routeOrthogonal, type Side as RouteSide } from '@core/route';
 import type { EdgeData } from './build';
 
 type Pt = [number, number];
@@ -57,12 +58,33 @@ function pointAt(route: Pt[], f: number): Pt {
   return route[0];
 }
 
+const SIDE: Record<Position, RouteSide> = { [Position.Top]: 'top', [Position.Right]: 'right', [Position.Bottom]: 'bottom', [Position.Left]: 'left' };
+const routeCache = new WeakMap<object, Map<string, Pt[]>>();
+
+/** Orthogonal route around other boxes; falls back to a plain step route. Memoized per geometry. */
+function autoRoute(sx: number, sy: number, sp: Position, tx: number, ty: number, tp: Position, obstacles: EdgeData['obstacles'], shift: number): Pt[] {
+  // Slide each end along its side; the same absolute shift keeps parallel connectors parallel.
+  if (sp === Position.Top || sp === Position.Bottom) sx += shift;
+  else sy += shift;
+  if (tp === Position.Top || tp === Position.Bottom) tx += shift;
+  else ty += shift;
+  let cache = routeCache.get(obstacles);
+  if (!cache) routeCache.set(obstacles, (cache = new Map()));
+  const key = `${sx},${sy},${sp},${tx},${ty},${tp}`;
+  let route = cache.get(key);
+  if (!route) {
+    route = routeOrthogonal([sx, sy], SIDE[sp], [tx, ty], SIDE[tp], obstacles, { margin: 16, stub: 24 }) ?? stepRoute([sx, sy], sp, [tx, ty], tp, []);
+    cache.set(key, route);
+  }
+  return route;
+}
+
 export const ZarkEdge = memo(function ZarkEdge(props: EdgeProps & { data: EdgeData }) {
   const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, selected, markerEnd, markerStart } = props;
   const spec = data.spec;
   const shape = spec.shape ?? 'straight';
   const points = (spec.points ?? []) as Pt[];
-  const at = spec.labelAt ?? 0.5;
+  const at = spec.labelAt ?? data.labelAt ?? 0.5;
   let d: string;
   let label: Pt;
   if (shape === 'curved' && !points.length) {
@@ -70,7 +92,12 @@ export const ZarkEdge = memo(function ZarkEdge(props: EdgeProps & { data: EdgeDa
     d = path;
     label = at === 0.5 ? [lx, ly] : pointAt([[sourceX, sourceY], [targetX, targetY]], at);
   } else {
-    const route: Pt[] = shape === 'step' ? stepRoute([sourceX, sourceY], sourcePosition, [targetX, targetY], targetPosition, points) : [[sourceX, sourceY], ...points, [targetX, targetY]];
+    const route: Pt[] =
+      shape === 'auto'
+        ? autoRoute(sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, data.obstacles, data.shift)
+        : shape === 'step'
+          ? stepRoute([sourceX, sourceY], sourcePosition, [targetX, targetY], targetPosition, points)
+          : [[sourceX, sourceY], ...points, [targetX, targetY]];
     d = pathOf(route);
     label = pointAt(route, at);
   }

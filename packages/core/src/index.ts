@@ -6,3 +6,4 @@ export * from './ops.js';
 export * from './diff.js';
 export * from './layout.js';
 export * from './flow-text.js';
+export * from './route.js';
