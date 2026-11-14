@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { appendFile, cp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { appendFile, cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
@@ -14,6 +14,7 @@ import {
   formatText,
   jsonSchemas,
   loadProject,
+  migrate,
   readTexts,
   toText,
   validate,
@@ -149,6 +150,25 @@ export const commands: Record<string, Command> = {
       return dirty.length ? 1 : 0;
     }
     console.log(dirty.length ? `${dirty.length} arquivo(s) formatado(s)` : 'Nada a formatar');
+  },
+
+  async migrate({ dir, check }) {
+    if (!existsSync(join(dir, 'zark.yaml'))) throw new Error(`Nenhum projeto Zark em ${dir}`);
+    const result = migrate(await readTexts(dir));
+    if (!result.steps.length) {
+      console.log(`Formato já na versão ${result.from}. Nada a migrar`);
+      return 0;
+    }
+    for (const step of result.steps) console.log(`schema ${step}`);
+    if (check) {
+      console.log(`${result.files.size} arquivo(s) seriam alterados. Rode "zark migrate" para aplicar`);
+      return 1;
+    }
+    for (const [path, text] of result.files) {
+      if (text === null) await rm(join(dir, path), { force: true });
+      else await writeAtomic(join(dir, path), text);
+    }
+    console.log(`Migrado do schema ${result.from} para ${result.to} (${result.files.size} arquivo(s))`);
   },
 
   async schema({ out }) {

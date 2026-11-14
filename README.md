@@ -35,6 +35,7 @@ O Chromium usado para gerar PNGs é baixado na primeira chamada de render, não 
 | `zark pr [--yes] [--title t]` | Branch, render, commit de `architecture/`, push e `gh pr create`, com prévia e confirmação |
 | `zark build --out dir` | Site estático somente leitura (desenhos e player de fluxos) |
 | `zark export <formato> [fluxo] [--out arquivo]` | `mermaid` (fluxos), `json` (modelo), `structurizr` (workspace JSON) ou `icepanel-yaml` (modelo do IcePanel) |
+| `zark migrate [--check]` | Atualiza os arquivos para a versão de formato atual (`schema` no `zark.yaml`) |
 | `zark import [formato] <arquivo> [--yes]` | Importa um workspace do Structurizr ou um modelo do IcePanel (JSON/YAML). Sem formato, detecta pelo conteúdo |
 | `zark schema --out dir` | Grava os JSON Schemas dos arquivos |
 

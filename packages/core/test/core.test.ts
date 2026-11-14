@@ -245,3 +245,39 @@ describe('flow text', () => {
     expect(text).toContain('participant seller_phg as PHG');
   });
 });
+
+import { CURRENT_SCHEMA, migrate, MigrationError } from '../src/index.js';
+
+describe('format migration', () => {
+  it('does nothing on a current project', () => {
+    const r = migrate(new Map(base));
+    expect(r.steps).toEqual([]);
+    expect(r.files.size).toBe(0);
+    expect(r.from).toBe(CURRENT_SCHEMA);
+  });
+
+  it('applies the chain of steps and bumps schema', () => {
+    const texts = new Map(base);
+    texts.set('zark.yaml', base.get('zark.yaml')!.replace('schema: 1', 'schema: 0'));
+    const r = migrate(texts, [
+      { from: 0, to: 1, describe: 'renomeia caption', apply: (t) => new Map([['entities/deco.yaml', t.get('entities/deco.yaml')!.replace('caption: Front', 'caption: Frontend')]]) },
+    ]);
+    expect(r.steps).toEqual(['0 -> 1: renomeia caption']);
+    expect(r.files.get('entities/deco.yaml')).toContain('caption: Frontend');
+    expect(r.files.get('zark.yaml')).toContain('schema: 1');
+  });
+
+  it('refuses a newer format and a missing step', () => {
+    const newer = new Map(base);
+    newer.set('zark.yaml', base.get('zark.yaml')!.replace('schema: 1', 'schema: 7'));
+    expect(() => migrate(newer)).toThrow(MigrationError);
+    const older = new Map(base);
+    older.set('zark.yaml', base.get('zark.yaml')!.replace('schema: 1', 'schema: 0'));
+    expect(() => migrate(older, [])).toThrow(/Não há migração do schema 0/);
+  });
+
+  it('explains an unsupported schema when loading', () => {
+    const p = project((t) => t.set('zark.yaml', base.get('zark.yaml')!.replace('schema: 1', 'schema: 2')));
+    expect(validate(p).find((x) => x.code === 'E001')?.message).toMatch(/mais novo que este Zark/);
+  });
+});
