@@ -23,15 +23,6 @@ importers:
 
   packages/cli:
     dependencies:
-      '@zark/core':
-        specifier: workspace:*
-        version: link:../core
-      '@zark/mcp':
-        specifier: workspace:*
-        version: link:../mcp
-      '@zark/server':
-        specifier: workspace:*
-        version: link:../server
       lucide-static:
         specifier: 1.72.0
         version: 1.72.0
@@ -42,6 +33,15 @@ importers:
         specifier: 16.37.0
         version: 16.37.0
     devDependencies:
+      '@zark/core':
+        specifier: workspace:*
+        version: link:../core
+      '@zark/mcp':
+        specifier: workspace:*
+        version: link:../mcp
+      '@zark/server':
+        specifier: workspace:*
+        version: link:../server
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2

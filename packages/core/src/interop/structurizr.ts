@@ -81,7 +81,8 @@ export function fromStructurizr(ws: StructurizrWorkspace, ctx: ImportContext): I
     ids.set(el.id, id);
     parents.set(id, parent);
     elements.push({ el, kind, parent });
-    relationships.push(...(el.relationships ?? []));
+    // Relationships nest inside their source element; take it as sourceId when the file omits it.
+    relationships.push(...(el.relationships ?? []).map((r) => ({ ...r, sourceId: r.sourceId ?? el.id })));
     for (const c of el.containers ?? []) visit(c, splitTags(c.tags).includes('Database') ? 'store' : 'app', id);
     for (const c of el.components ?? []) visit(c, 'component', id);
   };

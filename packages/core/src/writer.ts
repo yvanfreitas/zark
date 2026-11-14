@@ -38,7 +38,8 @@ export function shape(node: unknown, type: Shape): void {
   if (isMap(node)) {
     if (type === 'nodeMap' || type === 'edgeMap') {
       node.items.sort((a, b) => keyOf(a).localeCompare(keyOf(b)));
-      node.flow = false;
+      // Empty stays `nodes: {}` on one line; a block map with no items prints `{}` on its own line.
+      node.flow = node.items.length === 0;
       for (const pair of node.items) shape(pair.value, type === 'nodeMap' ? 'node' : 'edge');
       return;
     }

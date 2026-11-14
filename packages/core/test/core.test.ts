@@ -303,3 +303,13 @@ describe('atomic write', () => {
     await rmFs(dir, { recursive: true, force: true });
   });
 });
+
+describe('canonical empty maps', () => {
+  it('keeps empty nodes/edges on one line, so creating and formatting agree', async () => {
+    const r = await applyOps(project(), [{ op: 'drawing.create', drawing: { id: 'blank', name: 'Blank' } }]);
+    const text = r.files.get('drawings/blank.yaml')!;
+    expect(text).toContain('edges: {}');
+    expect(formatText('drawing', text)).toBe(text);
+    expect(formatText('drawing', text.replace('edges: {}', 'edges:\n  {}'))).toBe(text);
+  });
+});
