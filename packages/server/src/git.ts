@@ -101,7 +101,7 @@ export async function status(dir: string, baseBranch: string, withPr = true, con
 export async function discard(dir: string, files: string[]) {
   const { root, prefix } = await repoInfo(dir);
   for (const file of files) {
-    if (file.includes('..')) throw new GitError(`Caminho inválido: ${file}`);
+    if (file.includes('..')) throw new GitError(`Invalid path: ${file}`);
     const full = prefix ? `${prefix}/${file}` : file;
     const tracked = await tryRun(git(root, 'ls-files', '--error-unmatch', '--', full));
     if (tracked !== undefined) await git(root, 'checkout', 'HEAD', '--', full);
@@ -112,14 +112,14 @@ export async function discard(dir: string, files: string[]) {
 // ---------- PR text ----------
 
 const slugify = (s: string) =>
-  s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'arquitetura';
+  s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'architecture';
 
 const count = (n: number, one: string, many: string) => (n === 1 ? one : `${n} ${many}`);
-const joinPt = (items: string[]) => (items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} e ${items[items.length - 1]}`);
+const joinAnd = (items: string[]) => (items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`);
 
 /** Title from the semantic diff, by template, no LLM (section 13). */
 export function prTitle(changes: Change[], after: Project, before: Project): string {
-  if (!changes.length) return 'Arquitetura: sem mudanças no modelo';
+  if (!changes.length) return 'Architecture: no model changes';
   if (changes.length === 1) return changes[0].text;
   const of = (t: Change['type']) => changes.filter((c) => c.type === t);
   const entityName = (id: string) => after.entities.get(id)?.entity.name ?? before.entities.get(id)?.entity.name ?? id;
@@ -128,30 +128,30 @@ export function prTitle(changes: Change[], after: Project, before: Project): str
   const names = (list: Change[], name: (id: string) => string, many: string) => (list.length <= 2 ? list.map((c) => name(c.ref)) : [`${list.length} ${many}`]);
 
   const adds = [
-    ...names(of('entity.added'), entityName, 'entidades'),
-    ...(of('connection.added').length ? [count(of('connection.added').length, 'uma conexão', 'conexões')] : []),
-    ...names(of('flow.added'), flowName, 'fluxos'),
-    ...names(of('drawing.added'), drawingName, 'desenhos'),
+    ...names(of('entity.added'), entityName, 'entities'),
+    ...(of('connection.added').length ? [count(of('connection.added').length, 'a connection', 'connections')] : []),
+    ...names(of('flow.added'), flowName, 'flows'),
+    ...names(of('drawing.added'), drawingName, 'drawings'),
   ];
   const removes = [
-    ...names(of('entity.removed'), entityName, 'entidades'),
-    ...(of('connection.removed').length ? [count(of('connection.removed').length, 'uma conexão', 'conexões')] : []),
-    ...names(of('flow.removed'), flowName, 'fluxos'),
-    ...names(of('drawing.removed'), drawingName, 'desenhos'),
+    ...names(of('entity.removed'), entityName, 'entities'),
+    ...(of('connection.removed').length ? [count(of('connection.removed').length, 'a connection', 'connections')] : []),
+    ...names(of('flow.removed'), flowName, 'flows'),
+    ...names(of('drawing.removed'), drawingName, 'drawings'),
   ];
   const edits = [...new Set([
     ...[...of('entity.changed'), ...of('entity.moved')].map((c) => entityName(c.ref)),
-    ...(of('connection.changed').length + of('connection.reversed').length ? [count(of('connection.changed').length + of('connection.reversed').length, 'uma conexão', 'conexões')] : []),
+    ...(of('connection.changed').length + of('connection.reversed').length ? [count(of('connection.changed').length + of('connection.reversed').length, 'a connection', 'connections')] : []),
     ...of('flow.steps').map((c) => flowName(c.ref)),
   ])];
   const tweaks = [...new Set([...of('drawing.content'), ...of('drawing.layout')].map((c) => drawingName(c.ref)))];
   const parts = [
-    adds.length && `adiciona ${joinPt(adds)}`,
-    removes.length && `remove ${joinPt(removes)}`,
-    edits.length && `altera ${joinPt(edits)}`,
-    tweaks.length && `ajusta ${joinPt(tweaks)}`,
+    adds.length && `adds ${joinAnd(adds)}`,
+    removes.length && `removes ${joinAnd(removes)}`,
+    edits.length && `changes ${joinAnd(edits)}`,
+    tweaks.length && `adjusts ${joinAnd(tweaks)}`,
   ].filter(Boolean);
-  return `Arquitetura: ${parts.join(', ')}`;
+  return `Architecture: ${parts.join(', ')}`;
 }
 
 export interface PrImage {
@@ -172,23 +172,23 @@ export function prBody(opts: {
 }): string {
   const lines: string[] = [];
   if (opts.context?.trim()) lines.push(opts.context.trim(), '');
-  lines.push('## Resumo');
+  lines.push('## Summary');
   const summary = opts.changes.filter((c) => c.type !== 'flow.steps');
-  lines.push(...(summary.length ? summary.map((c) => `- ${c.text}`) : ['- Sem mudanças no modelo']));
+  lines.push(...(summary.length ? summary.map((c) => `- ${c.text}`) : ['- No model changes']));
   if (opts.images.length) {
-    lines.push('', '## Desenhos');
+    lines.push('', '## Drawings');
     for (const img of opts.images) {
-      const url = opts.imageUrl ?? ((p: string, side: string) => `<${side === 'before' ? 'PNG na base' : 'PNG no commit'}: ${p}>`);
+      const url = opts.imageUrl ?? ((p: string, side: string) => `<${side === 'before' ? 'PNG at base' : 'PNG in commit'}: ${p}>`);
       lines.push(`### ${img.name}`);
-      if (img.hasBefore) lines.push('| Antes | Depois |', '| --- | --- |', `| ![antes](${url(img.path, 'before')}) | ![depois](${url(img.path, 'after')}) |`);
+      if (img.hasBefore) lines.push('| Before | After |', '| --- | --- |', `| ![before](${url(img.path, 'before')}) | ![after](${url(img.path, 'after')}) |`);
       else lines.push(`![${img.name}](${url(img.path, 'after')})`);
     }
   }
-  if (opts.flows.length) lines.push('', '## Fluxos afetados', ...opts.flows.map((c) => `- ${c.text}`));
+  if (opts.flows.length) lines.push('', '## Affected flows', ...opts.flows.map((c) => `- ${c.text}`));
   const errors = errorsOf(opts.problems).length;
   const warnings = warningsOf(opts.problems);
   const byCode = Object.entries(warnings.reduce<Record<string, number>>((acc, p) => ((acc[p.code] = (acc[p.code] ?? 0) + 1), acc), {}));
-  lines.push('', '## Validação', `${errors} erros, ${warnings.length} avisos${byCode.length ? ` (${byCode.map(([c, n]) => `${c} x${n}`).join(', ')})` : ''}`);
+  lines.push('', '## Validation', `${errors} errors, ${warnings.length} warnings${byCode.length ? ` (${byCode.map(([c, n]) => `${c} x${n}`).join(', ')})` : ''}`);
   return lines.join('\n') + '\n';
 }
 
@@ -210,20 +210,20 @@ export async function prPreview(dir: string, project: Project, problems: Problem
   const blockers: string[] = [];
   const st = await status(dir, project.config.git.baseBranch, true, project.config.git.provider);
   const provider = providerFor(st.remote, project.config.git.provider);
-  if (!st.isRepo) blockers.push('A pasta não está num repositório git. Rode "git init" e configure um remoto');
-  if (st.isRepo && !st.remote) blockers.push('Nenhum remoto "origin" configurado. Rode "git remote add origin <url>"');
+  if (!st.isRepo) blockers.push('The folder is not in a git repository. Run "git init" and configure a remote');
+  if (st.isRepo && !st.remote) blockers.push('No "origin" remote configured. Run "git remote add origin <url>"');
   const errors = errorsOf(problems);
-  if (errors.length) blockers.push(`A validação tem ${errors.length} erro(s). Corrija antes de abrir o ${provider.noun} (painel Problemas ou "zark validate")`);
-  if (!(await provider.authOk(dir))) blockers.push(`O ${provider.cli} não está autenticado. Rode "${provider.cli} auth login" no terminal`);
+  if (errors.length) blockers.push(`Validation has ${errors.length} error(s). Fix them before opening the ${provider.noun} (Problems panel or "zark validate")`);
+  if (!(await provider.authOk(dir))) blockers.push(`${provider.cli} is not authenticated. Run "${provider.cli} auth login" in the terminal`);
 
   const base = st.isRepo ? await defaultBase(dir, project.config.git.baseBranch) : project.config.git.baseBranch;
   const before = st.isRepo ? await projectAtRef(dir, base).catch(() => buildProject(dir, new Map())) : buildProject(dir, new Map());
   const changes = diffProjects(before, project);
   const title = opts.title?.trim() || prTitle(changes, project, before);
   const onBase = st.branch === project.config.git.baseBranch || st.branch === 'HEAD';
-  const branch = onBase ? `${project.config.git.branchPrefix}${slugify(title.replace(/^Arquitetura:\s*/, ''))}` : st.branch!;
+  const branch = onBase ? `${project.config.git.branchPrefix}${slugify(title.replace(/^Architecture:\s*/, ''))}` : st.branch!;
   const images = await changedImages(dir, project, before, base);
-  if (!changes.length && !st.changed.length) blockers.push(`Nenhuma alteração em architecture/ para abrir ${provider.noun}`);
+  if (!changes.length && !st.changed.length) blockers.push(`No changes in architecture/ to open a ${provider.noun}`);
   const body = prBody({ context: opts.context, changes, images, flows: changes.filter((c) => c.type.startsWith('flow.')), problems });
   return { ok: !blockers.length, blockers, branch, base, title, body, changes, files: st.changed.map((c) => c.path), images, existingPr: st.pr, provider: st.provider };
 }

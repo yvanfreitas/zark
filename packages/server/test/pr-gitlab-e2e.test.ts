@@ -25,7 +25,7 @@ if (cmd === 'mr create') { console.log('Creating merge request in acme/zark\\n\\
 process.exit(2);
 `;
 
-describe.skipIf(!hasUi)('fase 6 com GitLab: da edição ao MR', () => {
+describe.skipIf(!hasUi)('phase 6 with GitLab: from edit to MR', () => {
   it('opens an MR through glab with raw image URLs pinned to the commit', async () => {
     const tmp = await mkdtemp(join(tmpdir(), 'zark-mr-'));
     const repo = join(tmp, 'repo');
@@ -82,7 +82,7 @@ describe.skipIf(!hasUi)('fase 6 com GitLab: da edição ao MR', () => {
       expect(create[create.indexOf('--target-branch') + 1]).toBe('main');
       expect(create[create.indexOf('--source-branch') + 1]).toBe(mr.branch);
       expect(create).toContain('--yes');
-      expect(body).toContain('## Resumo\n- Entidade adicionada: Spam filter (system, externo)');
+      expect(body).toContain('## Summary\n- Entity added: Spam filter (system, external)');
       expect(body).toContain(`https://gitlab.com/acme/zark/-/raw/${mr.commit}/architecture/rendered/context.png`);
     } finally {
       await running.stop();

@@ -35,14 +35,14 @@ export interface MigrationResult {
 /** Brings every file up to `target`, one step at a time; changes nothing when already current. */
 export function migrate(texts: Map<string, string>, migrations: Migration[] = MIGRATIONS, target = CURRENT_SCHEMA): MigrationResult {
   const from = schemaVersion(texts.get('zark.yaml'));
-  if (from === undefined) throw new MigrationError('zark.yaml não tem o campo schema');
-  if (from > target) throw new MigrationError(`O projeto usa schema ${from}, mais novo que este Zark (suporta ${target}). Atualize o Zark`);
+  if (from === undefined) throw new MigrationError('zark.yaml has no schema field');
+  if (from > target) throw new MigrationError(`The project uses schema ${from}, newer than this Zark (supports ${target}). Upgrade Zark`);
   const working = new Map(texts);
   const files = new Map<string, string | null>();
   const steps: string[] = [];
   for (let v = from; v < target; ) {
     const step = migrations.find((m) => m.from === v);
-    if (!step) throw new MigrationError(`Não há migração do schema ${v} para ${v + 1}`);
+    if (!step) throw new MigrationError(`There is no migration from schema ${v} to ${v + 1}`);
     for (const [path, text] of step.apply(working)) {
       if (text === null) working.delete(path);
       else working.set(path, text);

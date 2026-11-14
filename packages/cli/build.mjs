@@ -24,7 +24,7 @@ await build({
 });
 
 if (existsSync(ui)) cpSync(ui, here('dist/ui'), { recursive: true });
-else console.warn('Aviso: packages/ui/dist não existe; rode "pnpm --filter @zark/ui build" antes para embutir a UI.');
+else console.warn('Warning: packages/ui/dist does not exist; run "pnpm --filter @zark/ui build" first to embed the UI.');
 
 execFileSync(process.execPath, [here('dist/main.js'), 'schema', '--out', here('schema')], { stdio: 'inherit' });
-console.log('CLI gerada em packages/cli/dist');
+console.log('CLI built in packages/cli/dist');

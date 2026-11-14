@@ -1,7 +1,7 @@
 {
   "name": "zark-vscode",
   "displayName": "Zark",
-  "description": "Abre o desenho do Zark ao lado do YAML da arquitetura",
+  "description": "Opens the Zark drawing beside the architecture YAML",
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
@@ -19,7 +19,7 @@
     "commands": [
       {
         "command": "zark.openDrawing",
-        "title": "Zark: Abrir desenho ao lado",
+        "title": "Zark: Open drawing beside",
         "icon": "$(type-hierarchy)"
       }
     ],
@@ -44,7 +44,7 @@
         "zark.cliPath": {
           "type": "string",
           "default": "",
-          "description": "Caminho do main.js da CLI do Zark, executado com node. Vazio: usa node_modules/.bin/zark do workspace ou npx zark. A variável de ambiente ZARK_CLI tem o mesmo efeito."
+          "description": "Path to the Zark CLI main.js, run with node. Empty: uses the workspace node_modules/.bin/zark or npx zark. The ZARK_CLI environment variable has the same effect."
         }
       }
     }

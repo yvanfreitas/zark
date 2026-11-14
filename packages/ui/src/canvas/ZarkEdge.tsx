@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, Position, type EdgeProps } from '@xyflow/react';
 import { useStore } from '../store';
+import { useT } from '../i18n';
 import { routeOrthogonal, type Side as RouteSide } from '@core/route';
 import type { EdgeData } from './build';
 
@@ -101,6 +102,7 @@ export const ZarkEdge = memo(function ZarkEdge(props: EdgeProps & { data: EdgeDa
     d = pathOf(route);
     label = pointAt(route, at);
   }
+  const t = useT();
   const active = data.active?.length ? data.active : undefined;
   const stroke = active ? 'var(--accent)' : data.severity === 'error' ? 'var(--danger)' : selected ? 'var(--accent)' : 'var(--edge)';
   const opacity = data.dim && !active ? 0.18 : 1;
@@ -143,7 +145,7 @@ export const ZarkEdge = memo(function ZarkEdge(props: EdgeProps & { data: EdgeDa
             <span key={i} className="max-w-[260px] rounded-md bg-[var(--accent)] px-2 py-1 text-[11.5px] font-medium leading-tight text-white shadow-md">
               <span className="mr-1.5 font-mono opacity-80">{a.number}</span>
               {a.text}
-              {a.reply && <span className="ml-1 opacity-80">(resposta)</span>}
+              {a.reply && <span className="ml-1 opacity-80">{t('edge.reply')}</span>}
             </span>
           ))}
         </div>

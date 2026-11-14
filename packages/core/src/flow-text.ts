@@ -102,7 +102,7 @@ export function flowToMermaid(
       if ('via' in item) {
         const conn = lookup.connection(item.via);
         if (!conn) {
-          body.push(`${indent}%% conexão inexistente: ${item.via}`);
+          body.push(`${indent}%% missing connection: ${item.via}`);
           continue;
         }
         const ends = stepEnds(item, conn);
@@ -123,10 +123,10 @@ export function flowToMermaid(
         const sub = lookup.subflow?.(item.subflow);
         if (sub && !seen.includes(item.subflow)) {
           body.push(`${indent}rect rgba(128, 128, 128, 0.1)`);
-          body.push(`${indent}  %% subfluxo ${item.subflow}`);
+          body.push(`${indent}  %% subflow ${item.subflow}`);
           emit(sub, indent + '  ', [...seen, item.subflow]);
           body.push(`${indent}end`);
-        } else body.push(`${indent}%% subfluxo ${item.subflow}`);
+        } else body.push(`${indent}%% subflow ${item.subflow}`);
       } else if ('note' in item && participants.length) {
         body.push(`${indent}Note over ${pid(participants[0])}: ${esc(item.note)}`);
       }

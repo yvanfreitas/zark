@@ -25,14 +25,14 @@ if (cmd === 'pr create') { console.log('https://github.com/acme/zark/pull/1'); p
 process.exit(2);
 `;
 
-describe.skipIf(!hasUi)('fase 6: da edição ao PR', () => {
+describe.skipIf(!hasUi)('phase 6: from edit to PR', () => {
   it('opens a PR with title, summary and SHA-pinned images, committing only architecture/', async () => {
     const tmp = await mkdtemp(join(tmpdir(), 'zark-pr-'));
     const repo = join(tmp, 'repo');
     const remote = join(tmp, 'remote.git');
     const dir = join(repo, 'architecture');
     await cp(EXAMPLE, dir, { recursive: true });
-    await writeFile(join(repo, 'app.txt'), 'código da aplicação\n');
+    await writeFile(join(repo, 'app.txt'), 'application code\n');
     const git = (...args: string[]) => execFileSync('git', args, { cwd: repo, encoding: 'utf8' }).trim();
     execFileSync('git', ['init', '--bare', '-b', 'main', remote]);
     git('init', '-b', 'main');
@@ -65,11 +65,11 @@ describe.skipIf(!hasUi)('fase 6: da edição ao PR', () => {
       );
       expect(edit.ok, edit.error).toBe(true);
       // A change outside architecture/ must stay out of the commit.
-      await writeFile(join(repo, 'app.txt'), 'mudança não relacionada\n');
+      await writeFile(join(repo, 'app.txt'), 'unrelated change\n');
 
       const preview = await service.prPreview();
       expect(preview.blockers).toEqual([]);
-      expect(preview.title).toBe('Arquitetura: adiciona Spam filter e uma conexão, ajusta Context');
+      expect(preview.title).toBe('Architecture: adds Spam filter and a connection, adjusts Context');
       expect(preview.branch).toMatch(/^zark\//);
       expect(preview.images.map((i) => i.drawing)).toEqual(['context']);
 
@@ -92,10 +92,10 @@ describe.skipIf(!hasUi)('fase 6: da edição ao PR', () => {
       const body = create[create.indexOf('--body') + 1];
       expect(create[create.indexOf('--title') + 1]).toBe(preview.title);
       expect(create[create.indexOf('--base') + 1]).toBe('main');
-      expect(body).toContain('## Resumo\n- Entidade adicionada: Spam filter (system, externo)');
-      expect(body).toContain('- Nova conexão: Papo app -> Spam filter ("Checks for spam")');
+      expect(body).toContain('## Summary\n- Entity added: Spam filter (system, external)');
+      expect(body).toContain('- New connection: Papo app -> Spam filter ("Checks for spam")');
       expect(body).toContain(`https://github.com/acme/zark/blob/${pr.commit}/architecture/rendered/context.png?raw=true`);
-      expect(body).toMatch(/## Validação\n0 erros/);
+      expect(body).toMatch(/## Validation\n0 errors/);
 
       // The committed PNG is current: `zark render --check` would pass.
       const { renderedProblems } = await import('../src/index.js');

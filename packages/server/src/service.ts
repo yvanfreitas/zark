@@ -68,9 +68,9 @@ export class ZarkService {
    */
   async render(target: RenderTarget, forCommit = this.project.config.render.commit === 'always'): Promise<RenderOutput> {
     const p = this.project;
-    if (target.flow && !p.flows.has(target.flow)) throw new Error(`Fluxo "${target.flow}" não existe`);
-    if (target.drawing && !p.drawings.has(target.drawing)) throw new Error(`Desenho "${target.drawing}" não existe`);
-    if (!target.flow && !target.drawing) throw new Error('Informe drawing ou flow');
+    if (target.flow && !p.flows.has(target.flow)) throw new Error(`Flow "${target.flow}" does not exist`);
+    if (target.drawing && !p.drawings.has(target.drawing)) throw new Error(`Drawing "${target.drawing}" does not exist`);
+    if (!target.flow && !target.drawing) throw new Error('Pass drawing or flow');
     const out = await this.renderer.renderTo(p, target, forCommit ? renderedDir(this.dir) : cacheDir(this.dir));
     this.store.emit('render.done', { target, path: out.path, hash: out.hash });
     if (forCommit) await this.store.refreshProblems();

@@ -1,4 +1,4 @@
-# Exemplo (seção 15 da spec): copie para o repositório que versiona architecture/.
+# Example (spec section 15): copy it into the repository that versions architecture/.
 name: architecture
 on:
   pull_request:

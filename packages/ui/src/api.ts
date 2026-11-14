@@ -1,3 +1,4 @@
+import { tr } from './i18n';
 import type { Model, Problem } from './types';
 
 /** Session token: passed once in the URL by the CLI, kept for the tab. */
@@ -33,6 +34,7 @@ export interface WriteResult {
   hashes?: Record<string, string | null>;
   problems?: Problem[];
   impact?: string[];
+  impactItems?: { key: string; params: Record<string, string | number | string[]> }[];
   conflict?: { file: string };
 }
 
@@ -50,7 +52,7 @@ export async function api<T = any>(method: string, path: string, body?: unknown,
   });
   const text = await res.text();
   const data = text ? JSON.parse(text) : {};
-  if (res.status === 401) throw new ApiError('Sessão inválida. Abra a URL que o "zark dev" imprimiu no terminal.', 401, data);
+  if (res.status === 401) throw new ApiError(tr('api.sessionInvalid'), 401, data);
   if (!res.ok && res.status !== 409 && res.status !== 422) throw new ApiError(data.error ?? `${res.status} ${res.statusText}`, res.status, data);
   return data as T;
 }
@@ -61,7 +63,7 @@ export const readOnly = !token && !location.pathname.startsWith('/render/');
 export const getModel = async (): Promise<Model> => {
   if (!readOnly) return api<Model>('GET', '/api/model');
   const res = await fetch('./model.json');
-  if (!res.ok) throw new Error('Sessão ausente. Abra a URL que o "zark dev" imprimiu no terminal.');
+  if (!res.ok) throw new Error(tr('api.sessionMissing'));
   return res.json();
 };
 

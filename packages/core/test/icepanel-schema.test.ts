@@ -129,7 +129,7 @@ describe('IcePanel LandscapeImportData conformance', () => {
       expect(project.entities.get('container-db')?.entity).toMatchObject({ kind: 'store', parent: 'system-storefront' });
       expect(project.entities.get('component-auth-service')?.entity.parent).toBe('container-api');
       expect(project.entities.get('person-customer')?.entity).toMatchObject({ kind: 'actor', tags: ['external'] });
-      expect(warnings.join('\n')).toMatch(/Domínios/);
+      expect(warnings.join('\n')).toMatch(/IcePanel domains/);
     });
 
     it('verbatim, still imports: "database" is read as store', async () => {

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { playbackFrames } from '@core/flow-text';
 import { api, ApiError, getModel, readOnly, type WriteResult } from './api';
 import { buildIndex, type Index } from './model';
+import { impactText, initialLang, problemText, tr, type Lang } from './i18n';
 import type { Model } from './types';
 
 export type FilterState = 'highlight' | 'hide';
@@ -54,6 +55,7 @@ interface State {
   theme: 'light' | 'dark';
   focusRequest: number;
   readOnly: boolean;
+  lang: Lang;
   /** Committed PNGs out of date with the model (server: GET /api/render/status). */
   renderStatus?: { commitMode: 'pr' | 'always' | 'never'; stale: { file: string; reason: 'outdated' | 'missing' }[] };
 }
@@ -110,6 +112,7 @@ export const useStore = create<State & Actions>((set, get) => ({
   theme: initialTheme(),
   focusRequest: 0,
   readOnly,
+  lang: initialLang(),
 
   async load() {
     try {
@@ -187,7 +190,7 @@ export const useStore = create<State & Actions>((set, get) => ({
 
   async write(method, path, body, files = []) {
     if (get().readOnly) {
-      get().toast('Somente leitura', 'info');
+      get().toast(tr('store.readOnly'), 'info');
       return undefined;
     }
     const { model } = get();
@@ -199,7 +202,7 @@ export const useStore = create<State & Actions>((set, get) => ({
     try {
       const result = await api<WriteResult>(method, path, body, ifMatch ? { 'if-match': ifMatch } : {});
       if (result.conflict) {
-        get().toast(`${result.conflict.file} mudou por fora. A tela foi atualizada; tente de novo.`, 'error');
+        get().toast(tr('store.conflict', { file: result.conflict.file }), 'error');
         await get().refresh();
         set({ saving: 'idle' });
         return undefined;
@@ -209,8 +212,8 @@ export const useStore = create<State & Actions>((set, get) => ({
         return result;
       }
       if (!result.ok) {
-        const detail = result.problems?.map((p) => `${p.code}: ${p.message}`).join(' · ');
-        get().toast(detail ? `Recusado. ${detail}` : result.error ?? 'Operação recusada', 'error');
+        const detail = result.problems?.map((p) => `${p.code}: ${problemText(p)}`).join(' · ');
+        get().toast(detail ? tr('store.refused', { detail }) : result.error ?? tr('store.opRefused'), 'error');
         set({ saving: 'idle' });
         return undefined;
       }
@@ -219,7 +222,7 @@ export const useStore = create<State & Actions>((set, get) => ({
       return result;
     } catch (err) {
       set({ saving: 'idle' });
-      get().toast(err instanceof ApiError ? err.message : `Falha de comunicação: ${(err as Error).message}`, 'error');
+      get().toast(err instanceof ApiError ? err.message : tr('store.network', { error: (err as Error).message }), 'error');
       return undefined;
     }
   },
@@ -231,9 +234,9 @@ export const useStore = create<State & Actions>((set, get) => ({
     if (!first?.impact) return;
     set({
       confirm: {
-        title: `Excluir ${label} do modelo?`,
-        lines: first.impact,
-        confirmLabel: 'Excluir em cascata',
+        title: tr('store.deleteTitle', { label }),
+        lines: first.impactItems ? first.impactItems.map(impactText) : first.impact,
+        confirmLabel: tr('store.cascade'),
         danger: true,
         onConfirm: async () => {
           await get().write('DELETE', `${path}${path.includes('?') ? '&' : '?'}cascade=true`, undefined, files);
@@ -244,12 +247,12 @@ export const useStore = create<State & Actions>((set, get) => ({
 
   async undo() {
     const r = await api('POST', '/api/undo').catch((e) => ({ ok: false, error: e.message }));
-    if (!r.ok) get().toast(r.error, 'info');
+    if (!r.ok) get().toast(r.error === 'Nothing to undo' ? tr('store.nothingUndo') : r.error, 'info');
     else await get().refresh();
   },
   async redo() {
     const r = await api('POST', '/api/redo').catch((e) => ({ ok: false, error: e.message }));
-    if (!r.ok) get().toast(r.error === 'Nada para desfazer' ? 'Nada para refazer' : r.error, 'info');
+    if (!r.ok) get().toast(r.error === 'Nothing to undo' ? tr('store.nothingRedo') : r.error, 'info');
     else await get().refresh();
   },
 

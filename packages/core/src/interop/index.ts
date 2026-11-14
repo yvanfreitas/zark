@@ -23,7 +23,7 @@ export function normalizeFormat(name: string | undefined): ImportFormat | 'auto'
   if (f === 'structurizr' || f === 'structurizr-json') return 'structurizr';
   if (f.startsWith('icepanel')) return 'icepanel';
   if (f === 'auto') return 'auto';
-  throw new Error(`Formato de importação desconhecido: ${name}. Use structurizr, icepanel-json ou icepanel-yaml`);
+  throw new Error(`Unknown import format: ${name}. Use structurizr, icepanel-json or icepanel-yaml`);
 }
 
 /**
@@ -35,13 +35,13 @@ export function planImport(text: string, format: string | undefined, project?: P
   try {
     data = parse(text);
   } catch (err) {
-    throw new Error(`Arquivo inválido: ${(err as Error).message.split('\n')[0]}`);
+    throw new Error(`Invalid file: ${(err as Error).message.split('\n')[0]}`);
   }
   const wanted = normalizeFormat(format);
   const found = detectFormat(data);
   const fmt = wanted === 'auto' ? found : wanted;
-  if (!fmt) throw new Error('Formato não reconhecido: esperava um workspace JSON do Structurizr ou um modelo do IcePanel (modelObjects)');
-  if (found !== fmt) throw new Error(`O arquivo não parece ${fmt === 'structurizr' ? 'um workspace do Structurizr' : 'um modelo do IcePanel'}`);
+  if (!fmt) throw new Error('Unrecognized format: expected a Structurizr workspace JSON or an IcePanel model (modelObjects)');
+  if (found !== fmt) throw new Error(`The file does not look like ${fmt === 'structurizr' ? 'a Structurizr workspace' : 'an IcePanel model'}`);
   const ctx = importContext(project);
   const result = fmt === 'structurizr' ? fromStructurizr(data as never, ctx) : fromIcePanel(data as never, ctx);
   return { ...result, format: fmt };

@@ -6,7 +6,7 @@ export type { Catalog, Connection, Drawing, Entity, Flow, FlowItem, Step, Drawin
 export type WithFile<T> = T & { file: string };
 
 export interface Model {
-  /** Absolute path of the architecture dir (for "Abrir no editor"). */
+  /** Absolute path of the architecture dir (for "Open in editor"). */
   root: string;
   config: {
     name: string;

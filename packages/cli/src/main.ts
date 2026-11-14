@@ -3,25 +3,25 @@ import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
 import { commands } from './commands.js';
 
-const USAGE = `zark <comando> [opções]
+const USAGE = `zark <command> [options]
 
-Comandos:
-  init                         Cria architecture/ com zark.yaml, catalog.yaml e um desenho vazio
-  dev [--port 4317] [--no-open] Sobe servidor, UI e MCP por HTTP
-  mcp                          MCP por stdio
-  validate [--format json]     Lista problemas. Sai com 1 se houver erro
-  fmt [--check]                Reescreve no formato canônico, ou só verifica
-  render [--check] [id...]     Gera PNGs, ou verifica se estão atualizados
+Commands:
+  init                         Creates architecture/ with zark.yaml, catalog.yaml and an empty drawing
+  dev [--port 4317] [--no-open] Starts the server, UI and MCP over HTTP
+  mcp                          MCP over stdio
+  validate [--format json]     Lists problems. Exits with 1 when there are errors
+  fmt [--check]                Rewrites files in canonical format, or only checks
+  render [--check] [id...]     Renders PNGs, or checks they are up to date
   diff [--base ref] [--format text|markdown]
-  pr [--yes] [--title t]       Abre PR com prévia e confirmação
-  build --out dir              Site estático somente leitura
-  export <formato> [id] [--out arquivo]  mermaid, json, structurizr, icepanel-yaml
-  import [formato] <arquivo> [--yes]     structurizr, icepanel-json, icepanel-yaml (padrão: detecta)
-  migrate [--check]            Atualiza os arquivos para a versão de formato atual
-  schema --out dir             Grava os JSON Schemas
+  pr [--yes] [--title t]       Opens a PR with preview and confirmation
+  build --out dir              Read-only static site
+  export <format> [id] [--out file]  mermaid, json, structurizr, icepanel-yaml
+  import [format] <file> [--yes]     structurizr, icepanel-json, icepanel-yaml (default: detect)
+  migrate [--check]            Updates the files to the current format version
+  schema --out dir             Writes the JSON Schemas
 
-Opções globais:
-  --dir <pasta>                Pasta da arquitetura (padrão: architecture)`;
+Global options:
+  --dir <folder>               Architecture folder (default: architecture)`;
 
 async function main() {
   const { values, positionals } = parseArgs({
@@ -48,7 +48,7 @@ async function main() {
   }
   const command = commands[name];
   if (!command) {
-    console.error(`Comando desconhecido: ${name}\n\n${USAGE}`);
+    console.error(`Unknown command: ${name}\n\n${USAGE}`);
     return 2;
   }
   return command({ ...values, dir: resolve(values.dir!), args });

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useStore } from '../store';
+import { changeText, problemText, tr, useT } from '../i18n';
 import type { Problem } from '../types';
 import type { GitStatus } from './TopBar';
 import { Button, Icon, IconButton, inputClass, SectionTitle, Svg } from './ui';
@@ -40,12 +41,13 @@ function focusProblem(p: Problem) {
 
 export function ProblemsPanel() {
   const problems = useStore((s) => s.model!.problems);
+  const t = useT();
   const byFile = new Map<string, Problem[]>();
   for (const p of problems) byFile.set(p.file, [...(byFile.get(p.file) ?? []), p]);
   return (
     <div className="p-4">
-      <PanelHeader title={`Problemas (${problems.length})`} />
-      {!problems.length && <p className="py-8 text-center text-[13px] text-[var(--ok)]">Nenhum problema. O modelo está consistente.</p>}
+      <PanelHeader title={t('problems.title', { n: problems.length })} />
+      {!problems.length && <p className="py-8 text-center text-[13px] text-[var(--ok)]">{t('problems.none')}</p>}
       {[...byFile].map(([file, list]) => (
         <div key={file} className="mb-3">
           <SectionTitle>{file}</SectionTitle>
@@ -55,7 +57,7 @@ export function ProblemsPanel() {
                 <button type="button" onClick={() => focusProblem(p)} className="flex w-full gap-2 rounded-md px-1.5 py-1.5 text-left hover:bg-[var(--hover)]">
                   <span className={`mt-0.5 shrink-0 font-mono text-[11px] font-semibold ${p.severity === 'error' ? 'text-[var(--danger)]' : 'text-[var(--warn-fg)]'}`}>{p.code}</span>
                   <span className="min-w-0 text-[12.5px] text-[var(--fg-soft)]">
-                    {p.message}
+                    {problemText(p)}
                     {p.line && <span className="ml-1 font-mono text-[11px] text-[var(--muted)]">:{p.line}</span>}
                   </span>
                 </button>
@@ -69,10 +71,11 @@ export function ProblemsPanel() {
 }
 
 function PanelHeader({ title }: { title: string }) {
+  const t = useT();
   return (
     <div className="mb-2 flex items-center justify-between">
       <h2 className="text-[15px] font-semibold text-[var(--fg)]">{title}</h2>
-      <IconButton label="Fechar" onClick={() => useStore.getState().set({ right: 'inspector' })}>
+      <IconButton label={t('common.close')} onClick={() => useStore.getState().set({ right: 'inspector' })}>
         <Svg icon={Icon.close} />
       </IconButton>
     </div>
@@ -81,7 +84,8 @@ function PanelHeader({ title }: { title: string }) {
 
 export function ChangesPanel({ git }: { git?: GitStatus }) {
   const model = useStore((s) => s.model);
-  const [diff, setDiff] = useState<{ base: string; changes: { type: string; text: string }[]; error?: string }>();
+  const t = useT();
+  const [diff, setDiff] = useState<{ base: string; changes: { type: string; text: string; key?: string; params?: Record<string, string | number | string[]> }[]; error?: string }>();
   useEffect(() => {
     void api('GET', '/api/diff')
       .then(setDiff)
@@ -90,9 +94,9 @@ export function ChangesPanel({ git }: { git?: GitStatus }) {
   const discard = (path: string) =>
     useStore.getState().set({
       confirm: {
-        title: `Descartar alterações em ${path}?`,
-        lines: ['O arquivo volta ao estado do último commit. Isto não pode ser desfeito.'],
-        confirmLabel: 'Descartar',
+        title: tr('changes.discardTitle', { path }),
+        lines: [tr('changes.discardLine')],
+        confirmLabel: tr('changes.discard'),
         danger: true,
         onConfirm: async () => {
           try {
@@ -106,38 +110,38 @@ export function ChangesPanel({ git }: { git?: GitStatus }) {
     });
   return (
     <div className="p-4">
-      <PanelHeader title="Alterações" />
-      {!git?.isRepo && <p className="text-[13px] text-[var(--muted)]">A pasta não está num repositório git.</p>}
+      <PanelHeader title={t('changes.title')} />
+      {!git?.isRepo && <p className="text-[13px] text-[var(--muted)]">{t('changes.noRepo')}</p>}
       {diff && (
         <>
-          <SectionTitle>Diff semântico {diff.base && <span className="font-mono normal-case">vs {diff.base}</span>}</SectionTitle>
+          <SectionTitle>{t('changes.semantic')} {diff.base && <span className="font-mono normal-case">vs {diff.base}</span>}</SectionTitle>
           {diff.error && <p className="text-[12.5px] text-[var(--danger)]">{diff.error}</p>}
           <ul className="flex flex-col gap-1">
             {diff.changes.map((c, i) => (
               <li key={i} className="rounded-md px-1.5 py-1 text-[13px] text-[var(--fg)]">
-                {c.text}
+                {changeText(c)}
               </li>
             ))}
-            {!diff.changes.length && !diff.error && <li className="px-1.5 text-[12.5px] text-[var(--muted)]">Nenhuma mudança no modelo.</li>}
+            {!diff.changes.length && !diff.error && <li className="px-1.5 text-[12.5px] text-[var(--muted)]">{t('changes.none')}</li>}
           </ul>
         </>
       )}
       {git?.isRepo && (
         <>
-          <SectionTitle>Arquivos alterados ({git.changed.length})</SectionTitle>
+          <SectionTitle>{t('changes.files', { n: git.changed.length })}</SectionTitle>
           <ul>
             {git.changed.map((f) => (
               <li key={f.path} className="flex items-center gap-2 px-1.5 py-1 text-[12.5px]">
                 <span className="w-5 font-mono text-[11px] text-[var(--muted)]">{f.status}</span>
                 <span className="min-w-0 flex-1 truncate font-mono text-[var(--fg-soft)]">{f.path}</span>
                 <button type="button" className="text-[11.5px] text-[var(--muted)] hover:text-[var(--danger)]" onClick={() => discard(f.path)}>
-                  Descartar
+                  {t('changes.discard')}
                 </button>
               </li>
             ))}
           </ul>
           <Button className="mt-4 w-full" onClick={() => useStore.getState().set({ prDialog: true })}>
-            Abrir {git.provider?.noun ?? 'PR'}
+            {t('top.openPr', { noun: git.provider?.noun ?? 'PR' })}
           </Button>
         </>
       )}
@@ -158,7 +162,7 @@ interface Preview {
   provider?: { name: 'github' | 'gitlab'; noun: 'PR' | 'MR' };
 }
 
-/** Preview, then explicit confirmation; nothing leaves the machine before "Criar PR". */
+/** Preview, then explicit confirmation; nothing leaves the machine before "Create PR". */
 export function PrDialog() {
   const open = useStore((s) => s.prDialog);
   const set = useStore((s) => s.set);
@@ -168,6 +172,7 @@ export function PrDialog() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ url: string; updated: boolean }>();
   const [error, setError] = useState<string>();
+  const t = useT();
 
   useEffect(() => {
     if (!open) return;
@@ -199,9 +204,9 @@ export function PrDialog() {
   };
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/30" onMouseDown={(e) => e.target === e.currentTarget && !busy && close()}>
-      <div role="dialog" aria-label="Abrir pull request" className="flex max-h-[88vh] w-[640px] max-w-[94vw] flex-col rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl">
+      <div role="dialog" aria-label={t('pr.dialog')} className="flex max-h-[88vh] w-[640px] max-w-[94vw] flex-col rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl">
         <div className="border-b border-[var(--border)] p-4">
-          <h2 className="text-[15px] font-semibold text-[var(--fg)]">{preview?.existingPr ? `Atualizar ${noun} #${preview.existingPr.number}` : noun === 'MR' ? 'Abrir merge request' : 'Abrir pull request'}</h2>
+          <h2 className="text-[15px] font-semibold text-[var(--fg)]">{preview?.existingPr ? t('pr.update', { noun, number: `${noun === 'MR' ? '!' : '#'}${preview.existingPr.number}` }) : noun === 'MR' ? t('pr.openMr') : t('pr.openPr')}</h2>
           {preview && (
             <p className="mt-0.5 font-mono text-[12px] text-[var(--muted)]">
               {preview.branch} → {preview.base}
@@ -209,11 +214,11 @@ export function PrDialog() {
           )}
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
-          {!preview && !error && <p className="text-[13px] text-[var(--muted)]">Calculando prévia…</p>}
+          {!preview && !error && <p className="text-[13px] text-[var(--muted)]">{t('pr.loading')}</p>}
           {error && <p className="whitespace-pre-wrap rounded-md bg-[var(--danger-soft)] p-3 text-[13px] text-[var(--danger)]">{error}</p>}
           {result && (
             <p className="rounded-md bg-[var(--accent-soft)] p-3 text-[13px] text-[var(--fg)]">
-              {noun} {result.updated ? 'atualizado' : 'criado'}:{' '}
+              {result.updated ? t('pr.updated', { noun }) : t('pr.created', { noun })}{' '}
               <a className="font-medium text-[var(--accent)] underline" href={result.url} target="_blank" rel="noreferrer">
                 {result.url}
               </a>
@@ -229,29 +234,29 @@ export function PrDialog() {
                 </ul>
               )}
               <label className="flex flex-col gap-1">
-                <span className="text-[11.5px] font-medium text-[var(--muted)]">Título</span>
+                <span className="text-[11.5px] font-medium text-[var(--muted)]">{t('pr.titleField')}</span>
                 <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} />
               </label>
               <label className="flex flex-col gap-1">
-                <span className="text-[11.5px] font-medium text-[var(--muted)]">Contexto (entra acima do resumo gerado)</span>
+                <span className="text-[11.5px] font-medium text-[var(--muted)]">{t('pr.context')}</span>
                 <textarea className={`${inputClass} min-h-[64px]`} value={context} onChange={(e) => setContext(e.target.value)} />
               </label>
               <div>
-                <span className="text-[11.5px] font-medium text-[var(--muted)]">Descrição gerada</span>
+                <span className="text-[11.5px] font-medium text-[var(--muted)]">{t('pr.body')}</span>
                 <pre className="mt-1 max-h-[220px] overflow-auto whitespace-pre-wrap rounded-md bg-[var(--panel)] p-3 font-mono text-[11.5px] text-[var(--fg-soft)]">{preview.body}</pre>
               </div>
-              {preview.images.length > 0 && <p className="text-[12.5px] text-[var(--muted)]">Imagens: {preview.images.map((i) => i.name).join(', ')} (renderizadas no commit)</p>}
-              <p className="text-[12.5px] text-[var(--muted)]">Arquivos: {preview.files.length ? preview.files.join(', ') : '(nenhum)'}</p>
+              {preview.images.length > 0 && <p className="text-[12.5px] text-[var(--muted)]">{t('pr.images', { names: preview.images.map((i) => i.name).join(', ') })}</p>}
+              <p className="text-[12.5px] text-[var(--muted)]">{t('pr.files', { files: preview.files.length ? preview.files.join(', ') : t('common.none') })}</p>
             </div>
           )}
         </div>
         <div className="flex justify-end gap-2 border-t border-[var(--border)] p-3">
           <Button variant="ghost" onClick={close} disabled={busy}>
-            {result ? 'Fechar' : 'Cancelar'}
+            {result ? t('common.close') : t('common.cancel')}
           </Button>
           {!result && (
             <Button onClick={create} disabled={!preview?.ok || busy || !title.trim()}>
-              {busy ? 'Criando…' : preview?.existingPr ? `Atualizar ${noun}` : `Criar ${noun}`}
+              {busy ? t('pr.creating') : preview?.existingPr ? t('pr.updateBtn', { noun }) : t('pr.createBtn', { noun })}
             </Button>
           )}
         </div>
@@ -270,6 +275,7 @@ export function BottomBar() {
   const model = useStore((s) => s.model)!;
   const filters = useStore((s) => s.filters);
   const set = useStore((s) => s.set);
+  const t = useT();
   const errors = model.problems.filter((p) => p.severity === 'error').length;
   const warnings = model.problems.length - errors;
   const cycle = (key: string) => {
@@ -284,7 +290,7 @@ export function BottomBar() {
       key={key}
       type="button"
       onClick={() => cycle(key)}
-      title="Neutro → destacar → ocultar"
+      title={t('filters.cycle')}
       className={`shrink-0 rounded-full border px-2 py-0.5 text-[11.5px] transition-colors ${
         filters[key] === 'highlight' ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]' : filters[key] === 'hide' ? 'border-[var(--border)] text-[var(--subtle)] line-through' : 'border-[var(--border)] text-[var(--muted)] hover:text-[var(--fg)]'
       }`}
@@ -298,13 +304,13 @@ export function BottomBar() {
       {['future', 'deprecated', 'removed'].map((s) => chip(`status:${s}`, s))}
       {Object.keys(filters).length > 0 && (
         <button type="button" className="shrink-0 text-[11.5px] text-[var(--muted)] underline" onClick={() => set({ filters: {} })}>
-          Limpar filtros
+          {t('filters.clear')}
         </button>
       )}
       <div className="flex-1" />
       <button type="button" onClick={() => set({ right: 'problems' })} className="flex shrink-0 items-center gap-3 text-[12px]">
-        <span className={errors ? 'text-[var(--danger)]' : 'text-[var(--muted)]'}>{errors} erros</span>
-        <span className={warnings ? 'text-[var(--warn-fg)]' : 'text-[var(--muted)]'}>{warnings} avisos</span>
+        <span className={errors ? 'text-[var(--danger)]' : 'text-[var(--muted)]'}>{t('bottom.errors', { n: errors })}</span>
+        <span className={warnings ? 'text-[var(--warn-fg)]' : 'text-[var(--muted)]'}>{t('bottom.warnings', { n: warnings })}</span>
       </button>
     </footer>
   );

@@ -48,15 +48,15 @@ describe.skipIf(!existsSync(join(UI, 'index.html')))('fase 5: fluxo montado pela
   });
 
   const label = (text: string) => page.locator('.react-flow__edgelabel-renderer span', { hasText: new RegExp(`^${escape(text)}$`) }).first();
-  // A reply step's name ends with "(resposta)", so match the text as a prefix.
+  // A reply step's name ends with "(reply)", so match the text as a prefix.
   const stepButton = (text: string) => page.getByRole('button', { name: new RegExp('^' + escape(text)) });
   const stepRow = (text: string) => page.locator('div.group', { has: stepButton(text) });
 
   async function addStep(connectionLabel: string, text: string, sense?: 'reply' | 'reverse') {
     await label(connectionLabel).click();
-    await page.getByLabel('Texto do passo').fill(text);
-    if (sense) await page.getByLabel('Sentido do passo').selectOption(sense);
-    await page.getByRole('button', { name: 'Adicionar passo', exact: true }).click();
+    await page.getByLabel('Step text').fill(text);
+    if (sense) await page.getByLabel('Step direction').selectOption(sense);
+    await page.getByRole('button', { name: 'Add step', exact: true }).click();
   }
 
   it('builds, saves and plays the flow; refuses a step against the connection', async () => {
@@ -66,11 +66,11 @@ describe.skipIf(!existsSync(join(UI, 'index.html')))('fase 5: fluxo montado pela
     // The example flow runs on the platform drawing; a new flow is created on the open drawing.
     await page.getByRole('button', { name: /^Papo platform/ }).first().click();
     await page.locator('.react-flow__node[data-id="bot-queue"]').waitFor();
-    await page.getByRole('tab', { name: 'Fluxos' }).click();
-    await page.getByRole('button', { name: 'Novo fluxo' }).click();
+    await page.getByRole('tab', { name: 'Flows' }).click();
+    await page.getByRole('button', { name: 'New flow' }).click();
     await page.keyboard.type('Chat built in the UI');
     await page.keyboard.press('Enter');
-    await page.getByText('Clique numa conexão do canvas para adicionar um passo sobre ela.').waitFor();
+    await page.getByText('Click a connection on the canvas to add a step over it.').waitFor();
 
     const steps: [string, string, ('reply' | 'reverse' | undefined)?][] = [
       ['Real-time messages', 'Sends the message'],
@@ -93,12 +93,12 @@ describe.skipIf(!existsSync(join(UI, 'index.html')))('fase 5: fluxo montado pela
       await stepButton(text).last().waitFor();
     }
 
-    await stepRow('Delivers to history').first().getByRole('button', { name: '∥ próximo' }).click();
-    await page.getByText('Em paralelo', { exact: true }).waitFor();
-    await stepRow('Generates the answer').getByRole('button', { name: 'ou próximo' }).click();
-    await page.getByText('Alternativas', { exact: true }).waitFor();
+    await stepRow('Delivers to history').first().getByRole('button', { name: '∥ next' }).click();
+    await page.getByText('In parallel', { exact: true }).waitFor();
+    await stepRow('Generates the answer').getByRole('button', { name: 'or next' }).click();
+    await page.getByText('Alternatives', { exact: true }).waitFor();
 
-    const pathName = page.getByLabel('Nome do caminho');
+    const pathName = page.getByLabel('Path name');
     await pathName.nth(0).fill('Content approved');
     await pathName.nth(0).press('Enter');
     await page.getByRole('tab', { name: 'Content approved' }).waitFor();
@@ -118,14 +118,14 @@ describe.skipIf(!existsSync(join(UI, 'index.html')))('fase 5: fluxo montado pela
     await addStep('Signs in', 'Auth calls the app', 'reverse');
     const toast = page.getByText(/E041/);
     await toast.waitFor();
-    expect(await toast.textContent()).toContain('Inverta a conexão');
+    expect(await toast.textContent()).toContain('Reverse the connection');
     expect(errorsOf(running.service.store.problems)).toEqual([]);
     const after = buildProject(dir, await readTexts(dir)).flows.get('chat-built-in-the-ui')!.flow;
     expect(shape(after.steps)).toEqual(shape(original.steps));
 
     // Playback: the 5th frame shows both parallel steps at once.
-    await page.getByRole('button', { name: 'Ir para o início' }).click();
-    for (let i = 0; i < 4; i++) await page.getByRole('button', { name: 'Próximo (→)' }).click();
+    await page.getByRole('button', { name: 'Go to start' }).click();
+    for (let i = 0; i < 4; i++) await page.getByRole('button', { name: 'Next (→)' }).click();
     const numbers = page.locator('.react-flow__edgelabel-renderer span.font-mono');
     await expect.poll(async () => (await numbers.allTextContents()).sort()).toEqual(['5a', '5b']);
   }, 120_000);
