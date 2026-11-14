@@ -43,7 +43,7 @@ export interface Project {
   files: Map<string, SourceFile>;
   config: Required<Pick<Config, 'schema' | 'name' | 'grid'>> & Config & {
     render: { commit: 'pr' | 'always' | 'never'; scale: number; theme: 'light' | 'dark' };
-    git: { baseBranch: string; branchPrefix: string };
+    git: { baseBranch: string; branchPrefix: string; provider?: 'github' | 'gitlab' };
   };
   catalog: Catalog;
   entities: Map<string, { entity: Entity; file: string }>;
@@ -145,7 +145,7 @@ export function buildProject(dir: string, texts: Map<string, string>): Project {
       ...cfg,
       grid: cfg.grid ?? 8,
       render: { commit: cfg.render?.commit ?? 'pr', scale: cfg.render?.scale ?? 2, theme: cfg.render?.theme ?? 'light' },
-      git: { baseBranch: cfg.git?.baseBranch ?? 'main', branchPrefix: cfg.git?.branchPrefix ?? 'zark/' },
+      git: { baseBranch: cfg.git?.baseBranch ?? 'main', branchPrefix: cfg.git?.branchPrefix ?? 'zark/', provider: cfg.git?.provider },
     },
     catalog: files.get('catalog.yaml')?.data ?? {},
     entities: new Map(),

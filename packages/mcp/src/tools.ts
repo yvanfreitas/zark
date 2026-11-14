@@ -337,11 +337,11 @@ export function createMcpServer(service: ZarkService): McpServer {
   tool('rename_id', 'Troca um id e reescreve todas as referências', { kind: z.enum(['entity', 'connection', 'drawing', 'flow']), from: z.string(), to: z.string(), dryRun }, ({ kind, from, to, dryRun: dry }) =>
     write([{ op: 'rename-id', kind, from, to }], dry));
 
-  tool('open_pr', 'Abre ou atualiza o PR. Sem confirm: true devolve só a prévia', { title: z.string().optional(), context: z.string().optional(), confirm: z.boolean().optional() }, async ({ title, context, confirm }) => {
+  tool('open_pr', 'Abre ou atualiza o PR (GitHub) ou MR (GitLab). Sem confirm: true devolve só a prévia', { title: z.string().optional(), context: z.string().optional(), confirm: z.boolean().optional() }, async ({ title, context, confirm }) => {
     const preview = await service.prPreview({ title, context });
     const summary = { ok: preview.ok, blockers: preview.blockers, branch: preview.branch, base: preview.base, title: preview.title, body: preview.body, files: preview.files, images: preview.images.map((i) => i.path) };
-    if (!confirm) return json({ preview: true, ...summary, hint: preview.ok ? 'Revise e chame open_pr de novo com confirm: true.' : 'Resolva os bloqueios antes de abrir o PR.' });
-    if (p().config.mcp?.prRequiresUi) return json({ ...summary, ok: false, preview: true, hint: 'Este projeto exige confirmação na UI: use o botão "Abrir PR" no zark dev.' });
+    if (!confirm) return json({ preview: true, ...summary, hint: preview.ok ? 'Revise e chame open_pr de novo com confirm: true.' : `Resolva os bloqueios antes de abrir o ${preview.provider.noun}.` });
+    if (p().config.mcp?.prRequiresUi) return json({ ...summary, ok: false, preview: true, hint: `Este projeto exige confirmação na UI: use o botão "Abrir ${preview.provider.noun}" no zark dev.` });
     if (!preview.ok) return json(summary);
     const r = await service.createPr({ title, context });
     return json({ ok: true, url: r.url, branch: r.branch, commit: r.commit, updated: r.updated });

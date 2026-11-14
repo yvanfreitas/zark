@@ -78,7 +78,7 @@ export class ZarkService {
   }
 
   gitStatus() {
-    return status(this.dir, this.project.config.git.baseBranch);
+    return status(this.dir, this.project.config.git.baseBranch, true, this.project.config.git.provider);
   }
 
   async discard(files: string[]) {

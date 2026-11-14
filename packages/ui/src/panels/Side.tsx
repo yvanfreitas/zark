@@ -137,7 +137,7 @@ export function ChangesPanel({ git }: { git?: GitStatus }) {
             ))}
           </ul>
           <Button className="mt-4 w-full" onClick={() => useStore.getState().set({ prDialog: true })}>
-            Abrir PR
+            Abrir {git.provider?.noun ?? 'PR'}
           </Button>
         </>
       )}
@@ -155,6 +155,7 @@ interface Preview {
   files: string[];
   images: { drawing: string; name: string; hasBefore: boolean }[];
   existingPr?: { url: string; number: number; state: string };
+  provider?: { name: 'github' | 'gitlab'; noun: 'PR' | 'MR' };
 }
 
 /** Preview, then explicit confirmation; nothing leaves the machine before "Criar PR". */
@@ -181,6 +182,7 @@ export function PrDialog() {
       .catch((e) => setError(e.message));
   }, [open]);
   if (!open) return null;
+  const noun = preview?.provider?.noun ?? 'PR';
   const close = () => set({ prDialog: false });
   const create = async () => {
     setBusy(true);
@@ -199,7 +201,7 @@ export function PrDialog() {
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/30" onMouseDown={(e) => e.target === e.currentTarget && !busy && close()}>
       <div role="dialog" aria-label="Abrir pull request" className="flex max-h-[88vh] w-[640px] max-w-[94vw] flex-col rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl">
         <div className="border-b border-[var(--border)] p-4">
-          <h2 className="text-[15px] font-semibold text-[var(--fg)]">{preview?.existingPr ? `Atualizar PR #${preview.existingPr.number}` : 'Abrir pull request'}</h2>
+          <h2 className="text-[15px] font-semibold text-[var(--fg)]">{preview?.existingPr ? `Atualizar ${noun} #${preview.existingPr.number}` : noun === 'MR' ? 'Abrir merge request' : 'Abrir pull request'}</h2>
           {preview && (
             <p className="mt-0.5 font-mono text-[12px] text-[var(--muted)]">
               {preview.branch} → {preview.base}
@@ -211,7 +213,7 @@ export function PrDialog() {
           {error && <p className="whitespace-pre-wrap rounded-md bg-[var(--danger-soft)] p-3 text-[13px] text-[var(--danger)]">{error}</p>}
           {result && (
             <p className="rounded-md bg-[var(--accent-soft)] p-3 text-[13px] text-[var(--fg)]">
-              PR {result.updated ? 'atualizado' : 'criado'}:{' '}
+              {noun} {result.updated ? 'atualizado' : 'criado'}:{' '}
               <a className="font-medium text-[var(--accent)] underline" href={result.url} target="_blank" rel="noreferrer">
                 {result.url}
               </a>
@@ -249,7 +251,7 @@ export function PrDialog() {
           </Button>
           {!result && (
             <Button onClick={create} disabled={!preview?.ok || busy || !title.trim()}>
-              {busy ? 'Criando…' : preview?.existingPr ? 'Atualizar PR' : 'Criar PR'}
+              {busy ? 'Criando…' : preview?.existingPr ? `Atualizar ${noun}` : `Criar ${noun}`}
             </Button>
           )}
         </div>

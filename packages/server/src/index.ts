@@ -6,6 +6,7 @@ import { ZarkService } from './service.js';
 import { ProjectStore } from './store.js';
 
 export * from './git.js';
+export * from './providers.js';
 export * from './http.js';
 export * from './render-hash.js';
 export * from './render.js';

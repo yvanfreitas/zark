@@ -13,6 +13,7 @@ import {
   type Problem,
 } from '@zark/core';
 import { renderHash } from './render-hash.js';
+import { providerFor, type PrProvider } from './providers.js';
 
 const exec = promisify(execFile);
 
@@ -32,8 +33,6 @@ const git = (dir: string, ...args: string[]) => run('git', args, dir);
  * The GitHub CLI. `ZARK_GH` (JSON array, e.g. ["node","fake-gh.mjs"]) swaps it
  * for another executable; used by the end-to-end PR test.
  */
-const GH: string[] = process.env.ZARK_GH ? JSON.parse(process.env.ZARK_GH) : ['gh'];
-const gh = (args: string[], dir: string) => run(GH[0], [...GH.slice(1), ...args], dir);
 const tryRun = (p: Promise<string>) => p.catch(() => undefined);
 
 export async function repoInfo(dir: string) {
@@ -73,11 +72,16 @@ export interface GitStatus {
   remote?: string;
   behind?: number;
   pr?: { url: string; number: number; state: string };
+  /** Hosting provider in use (from zark.yaml or the remote host). */
+  provider: { name: 'github' | 'gitlab'; noun: 'PR' | 'MR' };
 }
 
-export async function status(dir: string, baseBranch: string, withPr = true): Promise<GitStatus> {
+export async function status(dir: string, baseBranch: string, withPr = true, configured?: 'github' | 'gitlab'): Promise<GitStatus> {
   const info = await repoInfo(dir).catch(() => undefined);
-  if (!info) return { isRepo: false, baseBranch, changed: [] };
+  if (!info) {
+    const p = providerFor(undefined, configured);
+    return { isRepo: false, baseBranch, changed: [], provider: { name: p.name, noun: p.noun } };
+  }
   const branch = await git(dir, 'rev-parse', '--abbrev-ref', 'HEAD').catch(() => 'HEAD');
   const porcelain = await git(info.root, 'status', '--porcelain', '-uall', '--', info.prefix || '.');
   const changed = porcelain
@@ -87,12 +91,10 @@ export async function status(dir: string, baseBranch: string, withPr = true): Pr
     .map((c) => ({ ...c, path: info.prefix ? c.path.slice(info.prefix.length + 1) : c.path }));
   const remote = await tryRun(git(dir, 'remote', 'get-url', 'origin'));
   const behindText = await tryRun(git(dir, 'rev-list', '--count', 'HEAD..@{u}'));
+  const provider = providerFor(remote, configured);
   let pr: GitStatus['pr'];
-  if (withPr && remote && branch !== baseBranch) {
-    const json = await tryRun(gh(['pr', 'view', '--json', 'url,number,state'], dir));
-    if (json) pr = JSON.parse(json);
-  }
-  return { isRepo: true, branch, baseBranch, changed, remote, behind: behindText ? Number(behindText) : undefined, pr };
+  if (withPr && remote && branch !== baseBranch) pr = await provider.findOpenPr(dir, branch).catch(() => undefined);
+  return { isRepo: true, branch, baseBranch, changed, remote, behind: behindText ? Number(behindText) : undefined, pr, provider: { name: provider.name, noun: provider.noun } };
 }
 
 /** Restores files to HEAD (`git checkout -- <arquivo>`); untracked files are removed. */
@@ -201,17 +203,18 @@ export interface PrPreview {
   files: string[];
   images: PrImage[];
   existingPr?: GitStatus['pr'];
+  provider: GitStatus['provider'];
 }
 
 export async function prPreview(dir: string, project: Project, problems: Problem[], opts: { title?: string; context?: string } = {}): Promise<PrPreview> {
   const blockers: string[] = [];
-  const st = await status(dir, project.config.git.baseBranch);
+  const st = await status(dir, project.config.git.baseBranch, true, project.config.git.provider);
+  const provider = providerFor(st.remote, project.config.git.provider);
   if (!st.isRepo) blockers.push('A pasta não está num repositório git. Rode "git init" e configure um remoto');
   if (st.isRepo && !st.remote) blockers.push('Nenhum remoto "origin" configurado. Rode "git remote add origin <url>"');
   const errors = errorsOf(problems);
-  if (errors.length) blockers.push(`A validação tem ${errors.length} erro(s). Corrija antes de abrir o PR (painel Problemas ou "zark validate")`);
-  const auth = await gh(['auth', 'status'], dir).then(() => true, () => false);
-  if (!auth) blockers.push('O gh não está autenticado. Rode "gh auth login" no terminal');
+  if (errors.length) blockers.push(`A validação tem ${errors.length} erro(s). Corrija antes de abrir o ${provider.noun} (painel Problemas ou "zark validate")`);
+  if (!(await provider.authOk(dir))) blockers.push(`O ${provider.cli} não está autenticado. Rode "${provider.cli} auth login" no terminal`);
 
   const base = st.isRepo ? await defaultBase(dir, project.config.git.baseBranch) : project.config.git.baseBranch;
   const before = st.isRepo ? await projectAtRef(dir, base).catch(() => buildProject(dir, new Map())) : buildProject(dir, new Map());
@@ -220,9 +223,9 @@ export async function prPreview(dir: string, project: Project, problems: Problem
   const onBase = st.branch === project.config.git.baseBranch || st.branch === 'HEAD';
   const branch = onBase ? `${project.config.git.branchPrefix}${slugify(title.replace(/^Arquitetura:\s*/, ''))}` : st.branch!;
   const images = await changedImages(dir, project, before, base);
-  if (!changes.length && !st.changed.length) blockers.push('Nenhuma alteração em architecture/ para abrir PR');
+  if (!changes.length && !st.changed.length) blockers.push(`Nenhuma alteração em architecture/ para abrir ${provider.noun}`);
   const body = prBody({ context: opts.context, changes, images, flows: changes.filter((c) => c.type.startsWith('flow.')), problems });
-  return { ok: !blockers.length, blockers, branch, base, title, body, changes, files: st.changed.map((c) => c.path), images, existingPr: st.pr };
+  return { ok: !blockers.length, blockers, branch, base, title, body, changes, files: st.changed.map((c) => c.path), images, existingPr: st.pr, provider: st.provider };
 }
 
 /** Drawings whose picture differs from the base. */
@@ -250,7 +253,8 @@ export interface PrResult {
 
 /**
  * Branch, render, commit (architecture/ only), push (never --force) and
- * `gh pr create` / `gh pr edit`. `render` writes PNGs for the given drawings.
+ * open or update the PR/MR through the provider (gh or glab). `render`
+ * writes PNGs for the given drawings.
  */
 export async function createPr(
   dir: string,
@@ -276,20 +280,21 @@ export async function createPr(
   const commit = await git(dir, 'rev-parse', 'HEAD');
   await git(dir, 'push', '-u', 'origin', preview.branch);
 
-  const repo = JSON.parse(await gh(['repo', 'view', '--json', 'nameWithOwner'], dir)).nameWithOwner as string;
+  const provider: PrProvider = providerFor(await tryRun(git(dir, 'remote', 'get-url', 'origin')), project.config.git.provider);
+  const repo = await provider.repoSlug(dir);
   const baseSha = await git(dir, 'rev-parse', preview.base).catch(() => commit);
   const full = (p: string) => (prefix ? `${prefix}/${p}` : p);
   // Pinned to SHAs so the images never change if the branch moves on.
-  const imageUrl = (p: string, side: 'before' | 'after') => `https://github.com/${repo}/blob/${side === 'before' ? baseSha : commit}/${full(p)}?raw=true`;
+  const imageUrl = (p: string, side: 'before' | 'after') => provider.blobUrl(repo, side === 'before' ? baseSha : commit, full(p));
   const body = prBody({ context: opts.context, changes: preview.changes, images: preview.images, imageUrl, flows: preview.changes.filter((c) => c.type.startsWith('flow.')), problems });
 
   const existing = preview.existingPr?.state === 'OPEN' ? preview.existingPr : undefined;
   if (existing) {
-    await gh(['pr', 'edit', String(existing.number), '--body', body], dir);
+    await provider.editPr(dir, existing.number, body);
     return { url: existing.url, branch: preview.branch, commit, updated: true };
   }
   const baseBranch = project.config.git.baseBranch;
-  const url = await gh(['pr', 'create', '--title', preview.title, '--body', body, '--base', baseBranch, '--head', preview.branch], dir);
-  return { url: url.split('\n').pop()!, branch: preview.branch, commit, updated: false };
+  const url = await provider.openPr(dir, { title: preview.title, body, base: baseBranch, head: preview.branch });
+  return { url, branch: preview.branch, commit, updated: false };
 }
 
