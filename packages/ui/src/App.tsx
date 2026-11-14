@@ -2,13 +2,14 @@ import { useEffect } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { api, readOnly, subscribe } from './api';
 import { Canvas } from './canvas/Canvas';
-import { freeId } from './model';
 import { currentDrawing, useStore } from './store';
 import { flowView } from './flow';
 import { FlowPanel } from './panels/FlowPanel';
 import { Inspector } from './panels/Inspector';
 import { LeftPanel } from './panels/LeftPanel';
-import { CommandPalette, ConfirmDialogView, Toasts } from './panels/Overlays';
+import { CommandPalette, ConfirmDialogView, ShortcutsDialog, Toasts } from './panels/Overlays';
+import { MenuHost } from './panels/Menu';
+import { deleteSelectionFromModel, drillDown, duplicateDrawing, groupSelection, removeSelectionFromDrawing } from './actions';
 import { BottomBar, ChangesPanel, PrDialog, ProblemsPanel } from './panels/Side';
 import { TopBar, useGitStatus } from './panels/TopBar';
 import { Button } from './panels/ui';
@@ -19,32 +20,6 @@ import { changeText, tr, useT } from './i18n';
 
 const isTyping = (t: EventTarget | null) => t instanceof HTMLElement && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName));
 
-/** Enter on an entity: open its inner drawing, offering to create one. */
-function drillDown(id: string) {
-  const s = useStore.getState();
-  const index = s.index!;
-  const inner = index.drawingsByScope.get(id)?.[0];
-  if (inner) return s.openDrawing(inner.id);
-  const e = index.entities.get(id);
-  if (!e || e.kind === 'actor' || e.kind === 'component') return;
-  s.set({
-    confirm: {
-      title: tr('app.innerTitle', { name: e.name }),
-      lines: [index.children.get(id)?.length ? tr('app.innerLineChildren', { id: e.id, n: index.children.get(id)!.length }) : tr('app.innerLine', { id: e.id })],
-      confirmLabel: tr('app.createDrawing'),
-      onConfirm: async () => {
-        const drawingId = freeId(e.id, (x) => index.drawings.has(x));
-        const children = index.children.get(id) ?? [];
-        const r = await s.ops([
-          { op: 'drawing.create', drawing: { id: drawingId, name: e.name, scope: id } },
-          ...(children.length ? [{ op: 'drawing.place', drawing: drawingId, nodes: children.map((c) => ({ id: c })) }] : []),
-        ]);
-        if (r) useStore.getState().openDrawing(drawingId);
-      },
-    },
-  });
-}
-
 function useShortcuts() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -52,7 +27,12 @@ function useShortcuts() {
       const mod = e.metaKey || e.ctrlKey;
       const key = e.key.toLowerCase();
       if (mod && key === 'k') return e.preventDefault(), s.set({ palette: !s.palette });
-      if (isTyping(e.target) || s.palette || s.confirm || s.prDialog) return;
+      if (isTyping(e.target) || s.palette || s.confirm || s.prDialog || s.menu) return;
+      if (s.help) {
+        if (e.key === 'Escape' || e.key === '?') s.set({ help: false });
+        return;
+      }
+      if (e.key === '?') return e.preventDefault(), s.set({ help: true });
       if (s.view !== 'canvas') {
         if (e.key === 'Escape') s.set({ view: 'canvas' });
         return;
@@ -67,16 +47,9 @@ function useShortcuts() {
       if (!mod && e.shiftKey && key === 'c') return e.preventDefault(), s.requestFocus();
       if (!mod && e.shiftKey && key === 'n') return e.preventDefault(), window.dispatchEvent(new CustomEvent('zark:quick-create'));
       if (mod && key === 'g') return e.preventDefault(), window.dispatchEvent(new CustomEvent('zark:group'));
-      if (mod && key === 'd' && drawing) {
-        e.preventDefault();
-        const id = freeId(`${drawing.id}-copia`, (x) => !!s.index?.drawings.has(x));
-        void s.ops([
-          { op: 'drawing.create', drawing: { id, name: tr('common.copyName', { name: drawing.name }), description: drawing.description, scope: drawing.scope ?? null } },
-          { op: 'drawing.place', drawing: id, nodes: Object.entries(drawing.nodes ?? {}).map(([nid, n]) => ({ id: nid, ...n })) },
-          { op: 'drawing.draw-edges', drawing: id, edges: Object.entries(drawing.edges ?? {}).map(([ref, ed]) => ({ ref, ...ed })) },
-        ]).then((r) => r && s.openDrawing(id));
-        return;
-      }
+      if (mod && key === 'd' && drawing) return e.preventDefault(), duplicateDrawing();
+      // The menu key (or Shift+F10) opens the canvas menu for the selection.
+      if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) return e.preventDefault(), window.dispatchEvent(new CustomEvent('zark:context-menu'));
 
       if (view) {
         if (e.key === 'ArrowRight') return e.preventDefault(), s.setFlow({ frame: Math.min(view.frames.length - 1, view.frame + 1), playing: false });
@@ -99,37 +72,11 @@ function useShortcuts() {
       }
       if ((e.key === 'Delete' || e.key === 'Backspace') && drawing && (sel.nodes.length || sel.edges.length)) {
         e.preventDefault();
-        if (e.shiftKey) {
-          // Delete from model: always confirmed, impact shown by the core.
-          if (sel.nodes.length === 1 && s.index?.entities.has(sel.nodes[0])) {
-            const ent = s.index.entities.get(sel.nodes[0])!;
-            void s.deleteWithImpact(`/api/entities/${ent.id}`, ent.name, [ent.file]);
-          } else if (sel.edges.length === 1) {
-            const c = s.index!.conns.get(sel.edges[0])!;
-            void s.deleteWithImpact(`/api/connections/${c.ref}`, tr('common.theConnection', { label: c.conn.label }), [c.file]);
-          }
-          return;
-        }
-        // Remove from drawing: the model is untouched.
-        const ops: unknown[] = [];
-        const entities = sel.nodes.filter((n) => drawing.nodes?.[n]);
-        if (entities.length) ops.push({ op: 'remove-nodes', ids: entities });
-        if (sel.edges.length) ops.push({ op: 'remove-edges', refs: sel.edges });
-        for (const n of sel.nodes) {
-          if (n.startsWith('note:')) ops.push({ op: 'remove-note', id: n.slice(5) });
-          if (n.startsWith('group:')) ops.push({ op: 'remove-group', id: n.slice(6) });
-        }
-        if (ops.length) void s.write('POST', `/api/drawings/${drawing.id}/ops`, { ops }, [drawing.file]).then((r) => r && s.select([]));
+        if (e.shiftKey) deleteSelectionFromModel();
+        else void removeSelectionFromDrawing();
       }
     };
-    const onGroup = () => {
-      const s = useStore.getState();
-      const drawing = currentDrawing(s);
-      const members = s.selection.nodes.filter((n) => drawing?.nodes?.[n]);
-      if (!drawing || !members.length) return;
-      const id = freeId('grupo', (x) => !!drawing.groups?.some((g) => g.id === x));
-      void s.write('POST', `/api/drawings/${drawing.id}/ops`, { ops: [{ op: 'set-group', group: { id, label: tr('common.group'), members, style: 'dashed' } }] }, [drawing.file]).then((r) => r && s.select([`group:${id}`]));
-    };
+    const onGroup = () => groupSelection();
     window.addEventListener('keydown', onKey);
     window.addEventListener('zark:group', onGroup);
     return () => {
@@ -277,6 +224,8 @@ export function App() {
       <CommandPalette />
       <ConfirmDialogView />
       <PrDialog />
+      <ShortcutsDialog />
+      <MenuHost />
       <Toasts />
     </ReactFlowProvider>
   );

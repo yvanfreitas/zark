@@ -18,8 +18,11 @@
   --accent: #0f766e;
   --accent-strong: #0b5f58;
   --accent-soft: #e6f4f2;
+  /* Text on a solid accent surface (primary buttons); solid danger carries white text in both themes. */
+  --on-accent: #ffffff;
   --danger: #c2372f;
   --danger-soft: #fdf0ef;
+  --danger-solid: #c2372f;
   --warn: #d99a1e;
   --warn-fg: #9a6a0c;
   --warn-soft: #fdf6e7;
@@ -63,8 +66,10 @@
     --accent: #2bb3a5;
     --accent-strong: #4cc7ba;
     --accent-soft: rgba(43, 179, 165, 0.14);
+    --on-accent: #08130f;
     --danger: #e5645b;
     --danger-soft: rgba(229, 100, 91, 0.12);
+    --danger-solid: #b83a32;
     --warn: #e0a83a;
     --warn-fg: #e7bb63;
     --warn-soft: rgba(224, 168, 58, 0.12);
@@ -108,8 +113,10 @@
   --accent: #2bb3a5;
   --accent-strong: #4cc7ba;
   --accent-soft: rgba(43, 179, 165, 0.14);
+  --on-accent: #08130f;
   --danger: #e5645b;
   --danger-soft: rgba(229, 100, 91, 0.12);
+  --danger-solid: #b83a32;
   --warn: #e0a83a;
   --warn-fg: #e7bb63;
   --warn-soft: rgba(224, 168, 58, 0.12);

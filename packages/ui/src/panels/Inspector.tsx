@@ -3,7 +3,9 @@ import { ALLOWED_PARENTS, freeId, KINDS } from '../model';
 import { tr, useT } from '../i18n';
 import { currentDrawing, useStore } from '../store';
 import type { Conn, Drawing, Entity, WithFile } from '../types';
-import { Button, Field, inputClass, SectionTitle, Tabs } from './ui';
+import { Button, Field, Icon, IconButton, inputClass, SectionTitle, Svg, Tabs } from './ui';
+import { openMenuAt } from './Menu';
+import { addNote, autoLayout, groupSelection, openFlow, removeSelectionFromDrawing, selectionMenu } from '../actions';
 import { IconField } from './IconPicker';
 
 /** Text input that commits on blur or Enter, not on every keystroke. */
@@ -77,6 +79,39 @@ function CatalogPicker({ list, value, onChange, label }: { list: 'technologies' 
   );
 }
 
+/** Kicker + title of the selected item, with the same actions the canvas right-click offers. */
+function Header({ kicker, title, small }: { kicker: string; title?: string; small?: boolean }) {
+  const t = useT();
+  return (
+    <div className="flex items-start justify-between gap-2">
+      <div className="min-w-0">
+        <div className="font-mono text-[10.5px] uppercase tracking-wide text-[var(--muted)]">{kicker}</div>
+        {title && <div className={`${small ? 'text-[15px]' : 'text-[16px]'} font-semibold text-[var(--fg)]`}>{title}</div>}
+      </div>
+      <IconButton data-edit className="-mr-1 -mt-1 shrink-0" label={t('menu.more')} aria-haspopup="menu" onClick={(e) => openMenuAt(e.currentTarget, selectionMenu())}>
+        <Svg icon={Icon.more} />
+      </IconButton>
+    </div>
+  );
+}
+
+/** Flow names that open the flow: a list of dead text gave no way to get there. */
+function FlowLinks({ ids, empty }: { ids: string[]; empty: string }) {
+  const flows = useStore((s) => s.model!.flows);
+  return (
+    <ul>
+      {ids.map((f) => (
+        <li key={f}>
+          <button type="button" className="w-full rounded-md px-1 py-1 text-left text-[13px] text-[var(--accent)] hover:bg-[var(--hover)]" onClick={() => openFlow(f)}>
+            {flows.find((x) => x.id === f)?.name ?? f}
+          </button>
+        </li>
+      ))}
+      {!ids.length && <li className="px-1 text-[12px] text-[var(--muted)]">{empty}</li>}
+    </ul>
+  );
+}
+
 function FileFooter({ file }: { file: string }) {
   const root = useStore((s) => s.model?.root);
   const abs = root ? `${root.replace(/\\/g, '/')}/${file}` : undefined;
@@ -130,11 +165,7 @@ function EntityInspector({ entity }: { entity: WithFile<Entity> }) {
   return (
     <div>
       <div className="mb-3">
-        <div className="font-mono text-[10.5px] uppercase tracking-wide text-[var(--muted)]">
-          {entity.external ? t('insp.external') : ''}
-          {t(`kind.${entity.kind}`)}
-        </div>
-        <div className="text-[16px] font-semibold text-[var(--fg)]">{entity.name}</div>
+        <Header kicker={`${entity.external ? t('insp.external') : ''}${t(`kind.${entity.kind}`)}`} title={entity.name} />
       </div>
       <Tabs value={tab} onChange={setTab} items={[['details', t('insp.tabDetails')], ['connections', t('insp.tabConnections', { n: outgoing.length + incoming.length })], ['usage', t('insp.tabUsage')]]} />
       {tab === 'details' && (
@@ -207,19 +238,20 @@ function EntityInspector({ entity }: { entity: WithFile<Entity> }) {
           <Field label={t('insp.descriptionMd')}>
             <CommitInput label={t('insp.description')} multiline value={entity.description ?? ''} onCommit={(v) => setField('description', v.trim() ? v.replace(/\s+$/, '') + '\n' : '')} />
           </Field>
-          <div className="flex flex-wrap gap-2 pt-1">
+          <div className="flex flex-wrap gap-2 border-t border-[var(--border)] pt-3">
             {placed && drawing && (
-              <Button variant="subtle" onClick={() => write('POST', `/api/drawings/${drawing.id}/ops`, { ops: [{ op: 'remove-nodes', ids: [entity.id] }] }, [drawing.file])}>
+              <Button variant="subtle" title={t('insp.removeTitle')} onClick={() => void removeSelectionFromDrawing()}>
                 {t('insp.removeFromDrawing')}
               </Button>
             )}
             <Button variant="subtle" onClick={() => useStore.getState().set({ view: 'deps', depsOf: entity.id })}>
               {t('insp.viewDeps')}
             </Button>
-            <Button variant="ghost" className="!text-[var(--danger)]" onClick={() => deleteWithImpact(`/api/entities/${entity.id}`, entity.name, [entity.file])}>
+            <Button variant="ghost" className="!text-[var(--danger)]" title={t('insp.deleteTitle')} onClick={() => deleteWithImpact(`/api/entities/${entity.id}`, entity.name, [entity.file])}>
               {t('insp.deleteFromModel')}
             </Button>
           </div>
+          <p data-edit className="text-[11.5px] leading-snug text-[var(--muted)]">{t('insp.removeVsDelete')}</p>
         </div>
       )}
       {tab === 'connections' && (
@@ -245,13 +277,7 @@ function EntityInspector({ entity }: { entity: WithFile<Entity> }) {
             ))}
           </ul>
           <SectionTitle>{t('insp.flows')}</SectionTitle>
-          <ul>
-            {[...new Set([...outgoing, ...incoming].flatMap((c) => index.connFlows.get(c.ref) ?? []))].map((f) => (
-              <li key={f} className="px-1 py-1 text-[13px] text-[var(--fg)]">
-                {model.flows.find((x) => x.id === f)?.name}
-              </li>
-            ))}
-          </ul>
+          <FlowLinks ids={[...new Set([...outgoing, ...incoming].flatMap((c) => index.connFlows.get(c.ref) ?? []))]} empty={t('insp.noneMasc')} />
         </div>
       )}
       <FileFooter file={entity.file} />
@@ -312,12 +338,7 @@ function ConnectionInspector({ conn }: { conn: Conn }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <div>
-        <div className="font-mono text-[10.5px] uppercase tracking-wide text-[var(--muted)]">{t('insp.connectionHeader', { ref: conn.ref })}</div>
-        <div className="text-[15px] font-semibold text-[var(--fg)]">
-          {index.name(conn.from)} {c.direction === 'bidirectional' ? '↔' : '→'} {index.name(conn.to)}
-        </div>
-      </div>
+      <Header small kicker={t('insp.connectionHeader', { ref: conn.ref })} title={`${index.name(conn.from)} ${c.direction === 'bidirectional' ? '↔' : '→'} ${index.name(conn.to)}`} />
       {flow && <AddStepButton refId={conn.ref} flowId={flow.id} />}
       <Field label={t('common.label')}>
         <CommitInput label={t('common.label')} value={c.label} onCommit={(v) => setField('label', v.trim())} />
@@ -408,24 +429,18 @@ function ConnectionInspector({ conn }: { conn: Conn }) {
         </>
       )}
       <SectionTitle>{t('insp.flowsUsing')}</SectionTitle>
-      <ul>
-        {(index.connFlows.get(conn.ref) ?? []).map((f) => (
-          <li key={f} className="px-1 text-[13px] text-[var(--fg)]">
-            {model.flows.find((x) => x.id === f)?.name}
-          </li>
-        ))}
-        {!(index.connFlows.get(conn.ref) ?? []).length && <li className="px-1 text-[12px] text-[var(--muted)]">{t('insp.noneMasc')}</li>}
-      </ul>
-      <div className="flex flex-wrap gap-2 pt-1">
+      <FlowLinks ids={index.connFlows.get(conn.ref) ?? []} empty={t('insp.noneMasc')} />
+      <div className="flex flex-wrap gap-2 border-t border-[var(--border)] pt-3">
         {edge && drawing && (
-          <Button variant="subtle" onClick={() => write('POST', `/api/drawings/${drawing.id}/ops`, { ops: [{ op: 'remove-edges', refs: [conn.ref] }] }, [drawing.file])}>
+          <Button variant="subtle" title={t('insp.removeTitle')} onClick={() => void removeSelectionFromDrawing()}>
             {t('insp.removeFromDrawing')}
           </Button>
         )}
-        <Button variant="ghost" className="!text-[var(--danger)]" onClick={() => deleteWithImpact(`/api/connections/${conn.ref}`, tr('common.theConnection', { label: c.label }), [conn.file])}>
+        <Button variant="ghost" className="!text-[var(--danger)]" title={t('insp.deleteTitle')} onClick={() => deleteWithImpact(`/api/connections/${conn.ref}`, tr('common.theConnection', { label: c.label }), [conn.file])}>
           {t('insp.deleteFromModel')}
         </Button>
       </div>
+      <p data-edit className="text-[11.5px] leading-snug text-[var(--muted)]">{t('insp.removeVsDelete')}</p>
       <FileFooter file={conn.file} />
     </div>
   );
@@ -437,6 +452,8 @@ export function AddStepButton({ refId, flowId }: { refId: string; flowId: string
   const index = useStore((s) => s.index)!;
   const [text, setText] = useState('');
   const [sense, setSense] = useState<'forward' | 'reply' | 'reverse'>('forward');
+  // The refusal is shown here, next to the fields that caused it, until they change.
+  const [refused, setRefused] = useState<string[]>();
   const flow = model.flows.find((f) => f.id === flowId)!;
   const conn = index.conns.get(refId);
   const t = useT();
@@ -449,17 +466,26 @@ export function AddStepButton({ refId, flowId }: { refId: string; flowId: string
         const taken = (id: string) => JSON.stringify(flow.steps ?? []).includes(`"id":"${id}"`);
         const id = freeId(text, taken);
         const extra = sense === 'reply' ? { reply: true } : sense === 'reverse' ? { reverse: true } : {};
-        const r = await useStore.getState().ops([{ op: 'flow.add-steps', flow: flowId, steps: [{ id, via: refId, text: text.trim(), ...extra }] }], [flow.file]);
+        const r = await useStore.getState().ops([{ op: 'flow.add-steps', flow: flowId, steps: [{ id, via: refId, text: text.trim(), ...extra }] }], [flow.file], { inline: true });
         if (r) {
           setText('');
           setSense('forward');
-        }
+          setRefused(undefined);
+        } else setRefused(useStore.getState().refusal ?? [tr('store.opRefused')]);
       }}
     >
       <span className="text-[12px] font-medium text-[var(--accent)]">{t('step.addIn', { flow: flow.name })}</span>
       <input autoFocus className={inputClass} placeholder={t('step.placeholder')} value={text} onChange={(e) => setText(e.target.value)} aria-label={t('flow.stepText')} />
       {conn && (
-        <select aria-label={t('step.sense')} className={inputClass} value={sense} onChange={(e) => setSense(e.target.value as typeof sense)}>
+        <select
+          aria-label={t('step.sense')}
+          className={inputClass}
+          value={sense}
+          onChange={(e) => {
+            setSense(e.target.value as typeof sense);
+            setRefused(undefined);
+          }}
+        >
           <option value="forward">
             {index.name(conn.from)} → {index.name(conn.to)}
           </option>
@@ -470,6 +496,21 @@ export function AddStepButton({ refId, flowId }: { refId: string; flowId: string
             {index.name(conn.to)} → {index.name(conn.from)} ({conn.conn.direction === 'bidirectional' ? t('step.targetStarts') : t('step.against')})
           </option>
         </select>
+      )}
+      {refused && (
+        <div role="alert" className="rounded-md border border-[var(--danger)]/50 bg-[var(--surface)] px-2.5 py-2 text-[12px] leading-snug text-[var(--danger)]">
+          <div className="font-semibold">{t('step.refused')}</div>
+          <ul className="mt-1 flex flex-col gap-1">
+            {refused.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+          {sense === 'reverse' && conn?.conn.direction !== 'bidirectional' && (
+            <Button variant="subtle" className="mt-2" onClick={() => (setSense('reply'), setRefused(undefined))}>
+              {t('step.useReply')}
+            </Button>
+          )}
+        </div>
       )}
       <Button type="submit" disabled={!text.trim()}>
         {t('step.add')}
@@ -517,18 +558,10 @@ function DrawingInspector({ drawing }: { drawing: WithFile<Drawing> }) {
         </select>
       </Field>
       <div className="flex gap-2">
-        <Button variant="subtle" onClick={() => write('POST', `/api/drawings/${drawing.id}/layout`, {}, [drawing.file])}>
+        <Button variant="subtle" onClick={() => autoLayout()}>
           {t('insp.autoLayout')}
         </Button>
-        <Button
-          variant="subtle"
-          onClick={() => {
-            const id = freeId(tr('insp.noteId'), (x) => !!drawing.notes?.some((n) => n.id === x));
-            const xs = Object.values(drawing.nodes ?? {}).map((n) => n.x);
-            const ys = Object.values(drawing.nodes ?? {}).map((n) => n.y);
-            void ops([{ op: 'set-note', note: { id, text: tr('insp.newNoteText'), x: xs.length ? Math.min(...xs) : 0, y: ys.length ? Math.min(...ys) - 120 : 0, w: 200 } }]);
-          }}
-        >
+        <Button variant="subtle" onClick={() => addNote()}>
           {t('insp.newNote')}
         </Button>
       </div>
@@ -558,13 +591,7 @@ function DrawingInspector({ drawing }: { drawing: WithFile<Drawing> }) {
         {!available.length && <li className="px-1 text-[12px] text-[var(--muted)]">{t('insp.allDrawn', { n: placed.size })}</li>}
       </ul>
       <SectionTitle>{t('insp.flowsOnDrawing')}</SectionTitle>
-      <ul>
-        {model.flows.filter((f) => f.drawing === drawing.id).map((f) => (
-          <li key={f.id} className="px-1 text-[13px] text-[var(--fg)]">
-            {f.name}
-          </li>
-        ))}
-      </ul>
+      <FlowLinks ids={model.flows.filter((f) => f.drawing === drawing.id).map((f) => f.id)} empty={t('insp.noFlowsHere')} />
       {(drawing.groups ?? []).length > 0 && (
         <>
           <SectionTitle>{t('insp.groups')}</SectionTitle>
@@ -593,7 +620,7 @@ function GroupInspector({ drawing, id }: { drawing: WithFile<Drawing>; id: strin
   const ops = (o: unknown[]) => useStore.getState().write('POST', `/api/drawings/${drawing.id}/ops`, { ops: o }, [drawing.file]);
   return (
     <div className="flex flex-col gap-3">
-      <div className="font-mono text-[10.5px] uppercase tracking-wide text-[var(--muted)]">{t('insp.visualGroup')}</div>
+      <Header kicker={t('insp.visualGroup')} />
       <Field label={t('common.label')}>
         <CommitInput label={t('common.label')} value={g.label} onCommit={(v) => v.trim() && ops([{ op: 'set-group', group: { ...g, label: v.trim() } }])} />
       </Field>
@@ -618,7 +645,7 @@ function NoteInspector({ drawing, id }: { drawing: WithFile<Drawing>; id: string
   const ops = (o: unknown[]) => useStore.getState().write('POST', `/api/drawings/${drawing.id}/ops`, { ops: o }, [drawing.file]);
   return (
     <div className="flex flex-col gap-3">
-      <div className="font-mono text-[10.5px] uppercase tracking-wide text-[var(--muted)]">{t('insp.note')}</div>
+      <Header kicker={t('insp.note')} />
       <Field label={t('insp.text')}>
         <CommitInput label={t('insp.text')} multiline value={n.text} onCommit={(v) => v.trim() && ops([{ op: 'set-note', note: { ...n, text: v.trim() } }])} />
       </Field>
@@ -664,7 +691,7 @@ function MultiInspector({ ids }: { ids: string[] }) {
   );
   return (
     <div className="flex flex-col gap-3">
-      <div className="text-[15px] font-semibold text-[var(--fg)]">{t('insp.selected', { n: entities.length })}</div>
+      <Header small kicker={t('insp.selection')} title={t('insp.selected', { n: entities.length })} />
       <SectionTitle>{t('insp.align')}</SectionTitle>
       <div className="flex flex-wrap gap-2">
         {action(t('insp.alignLeft'), () => align('left'))}
@@ -679,9 +706,9 @@ function MultiInspector({ ids }: { ids: string[] }) {
       </div>
       <SectionTitle>{t('insp.selection')}</SectionTitle>
       <div className="flex flex-wrap gap-2">
-        {action(t('insp.groupSel'), () => window.dispatchEvent(new CustomEvent('zark:group')))}
-        {action(t('insp.layoutSel'), () => useStore.getState().write('POST', `/api/drawings/${drawing.id}/layout`, { ids: entities }, [drawing.file]))}
-        {action(t('insp.removeFromDrawing'), () => ops([{ op: 'remove-nodes', ids: entities }]))}
+        {action(t('insp.groupSel'), groupSelection)}
+        {action(t('insp.layoutSel'), () => autoLayout(entities), entities.length < 2)}
+        {action(t('insp.removeFromDrawing'), () => void removeSelectionFromDrawing())}
       </div>
     </div>
   );

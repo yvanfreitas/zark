@@ -8,17 +8,17 @@ type Variant = 'primary' | 'ghost' | 'danger' | 'subtle';
 /** `safe`: works without a server, so it stays in the read-only `zark build` site. */
 export function Button({ variant = 'primary', className = '', safe, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; safe?: boolean }) {
   const styles: Record<Variant, string> = {
-    primary: 'bg-[var(--accent)] text-white hover:bg-[var(--accent-strong)]',
+    primary: 'bg-[var(--accent)] text-[var(--on-accent)] hover:bg-[var(--accent-strong)]',
     ghost: 'text-[var(--fg-soft)] hover:bg-[var(--hover)]',
     subtle: 'border border-[var(--border)] bg-[var(--surface)] text-[var(--fg-soft)] hover:bg-[var(--hover)]',
-    danger: 'bg-[var(--danger)] text-white hover:brightness-95',
+    danger: 'bg-[var(--danger-solid)] text-white hover:brightness-95',
   };
   return (
     <button
       type="button"
       {...props}
       data-edit={safe ? undefined : ''}
-      className={`inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${styles[variant]} ${className}`}
+      className={`inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${styles[variant]} ${className}`}
     />
   );
 }
@@ -112,6 +112,9 @@ export const Icon = {
   swap: <path d="M3 5h10l-3-3M13 11H3l3 3" />,
   grip: <path d="M6 4h.01M10 4h.01M6 8h.01M10 8h.01M6 12h.01M10 12h.01" />,
   pencil: <path d="M11 2.5 13.5 5 6 12.5H3.5V10z" />,
+  more: <path d="M3.5 8h.01M8 8h.01M12.5 8h.01" strokeWidth="2.4" />,
+  up: <path d="m4 10 4-4 4 4" />,
+  down: <path d="m4 6 4 4 4-4" />,
   copy: (
     <>
       <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />

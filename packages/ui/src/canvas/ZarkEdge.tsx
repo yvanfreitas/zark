@@ -50,6 +50,12 @@ export const ZarkEdge = memo(function ZarkEdge(props: EdgeProps & { data: EdgeDa
                 e.stopPropagation();
                 useStore.getState().select([], [data.ref]);
               }}
+              onContextMenu={(e) => {
+                // The label sits outside the edge's SVG group, so it forwards the right-click.
+                e.preventDefault();
+                e.stopPropagation();
+                window.dispatchEvent(new CustomEvent('zark:edge-menu', { detail: { ref: data.ref, clientX: e.clientX, clientY: e.clientY } }));
+              }}
               className={`cursor-pointer max-w-[220px] truncate rounded-full border px-2.5 py-0.5 text-[11px] leading-5 ${selected ? 'border-[var(--accent)]' : 'border-[var(--border)]'} bg-[var(--surface)] text-[var(--fg-soft)]`}
             >
               {data.label}

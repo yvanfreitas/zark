@@ -3,6 +3,7 @@ import { api, readOnly } from '../api';
 import { currentDrawing, useStore } from '../store';
 import { setLang, tr, useT, type Lang } from '../i18n';
 import { Button, Icon, IconButton, Svg } from './ui';
+import { mod } from '../actions';
 
 export interface GitStatus {
   isRepo: boolean;
@@ -40,7 +41,7 @@ function Breadcrumb() {
   const crumbs: { label: string; drawing?: string }[] = [{ label: t('top.root'), drawing: index.drawingsByScope.get(null)?.[0]?.id }];
   for (const id of chain.slice(0, -1)) crumbs.push({ label: index.name(id), drawing: index.drawingsByScope.get(id)?.[0]?.id });
   return (
-    <nav aria-label={t('top.navDrawings')} className="flex min-w-0 items-center gap-1 text-[13px]">
+    <nav aria-label={t('top.navDrawings')} className="flex min-w-[96px] items-center gap-1 text-[13px]">
       {drawing.scope &&
         crumbs.map((c, i) => (
           <span key={i} className="flex items-center gap-1">
@@ -99,13 +100,13 @@ export function TopBar({ git }: { git?: GitStatus }) {
   const changed = git?.changed.length ?? 0;
 
   return (
-    <header className="flex h-12 shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--surface)] px-3">
+    <header className="flex h-12 shrink-0 items-center gap-3 overflow-hidden whitespace-nowrap border-b border-[var(--border)] bg-[var(--surface)] px-3">
       <div className="flex items-center gap-2 pr-2">
         <svg viewBox="0 0 32 32" width="22" height="22" aria-hidden="true">
           <rect x="3" y="8" width="12" height="16" rx="3" fill="var(--accent)" />
           <rect x="19" y="8" width="10" height="16" rx="3" fill="var(--accent)" opacity="0.55" />
         </svg>
-        <span className="text-[14px] font-semibold text-[var(--fg)]">{model.config.name}</span>
+        <span className="max-w-[160px] truncate text-[14px] font-semibold text-[var(--fg)]">{model.config.name}</span>
       </div>
       <div className="h-5 w-px bg-[var(--border)]" />
       <ViewSwitch />
@@ -114,17 +115,18 @@ export function TopBar({ git }: { git?: GitStatus }) {
       <button
         type="button"
         onClick={() => set({ palette: true })}
-        className="hidden min-w-[220px] items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1.5 text-[12.5px] text-[var(--subtle)] hover:border-[var(--accent)] md:flex"
+        aria-label={t('top.search')}
+        className="hidden min-w-[72px] shrink-[4] basis-[260px] items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1.5 text-[12.5px] text-[var(--muted)] hover:border-[var(--accent)] md:flex"
       >
         <Svg icon={Icon.search} size={14} />
-        <span className="flex-1 text-left">{t('top.search')}</span>
-        <kbd className="font-mono text-[11px]">⌘K</kbd>
+        <span className="min-w-0 flex-1 truncate text-left">{t('top.search')}</span>
+        <kbd className="shrink-0 font-mono text-[11px]">{mod('K')}</kbd>
       </button>
       <div className="flex items-center">
-        <IconButton data-edit label={t('top.undo')} onClick={() => void useStore.getState().undo()}>
+        <IconButton data-edit label={t('top.undo', { keys: mod('Z') })} onClick={() => void useStore.getState().undo()}>
           <Svg icon={Icon.undo} />
         </IconButton>
-        <IconButton data-edit label={t('top.redo')} onClick={() => void useStore.getState().redo()}>
+        <IconButton data-edit label={t('top.redo', { keys: mod('Shift+Z') })} onClick={() => void useStore.getState().redo()}>
           <Svg icon={Icon.redo} />
         </IconButton>
       </div>
@@ -155,6 +157,11 @@ export function TopBar({ git }: { git?: GitStatus }) {
         </a>
       )}
       <LangSwitch />
+      <IconButton label={t('help.title')} aria-keyshortcuts="?" onClick={() => set({ help: true })}>
+        <span aria-hidden="true" className="text-[14px] font-semibold">
+          ?
+        </span>
+      </IconButton>
       <IconButton label={theme === 'dark' ? t('top.themeLight') : t('top.themeDark')} onClick={() => {
         const next = theme === 'dark' ? 'light' : 'dark';
         try {
