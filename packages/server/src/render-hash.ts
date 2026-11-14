@@ -5,7 +5,7 @@ import { crc32 } from 'node:zlib';
 import { allSteps, ancestors, type Problem, type Project } from '@zark/core';
 
 /** Bump when the canvas look changes, so committed PNGs are re-rendered. */
-export const RENDERER_VERSION = '2';
+export const RENDERER_VERSION = '3';
 const KEY = 'zark-hash';
 
 export interface RenderTarget {

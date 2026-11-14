@@ -176,32 +176,7 @@ export function Canvas({ mode = 'edit' }: { mode?: 'edit' | 'render' }) {
 
   if (!drawing) return <div className="grid h-full place-items-center text-[var(--muted)]">Nenhum desenho. Crie um no painel esquerdo.</div>;
 
-  if (mode === 'render') {
-    const b = drawingBounds(index, drawing);
-    const pad = 32;
-    return (
-      <div id="render-root" style={{ width: Math.ceil(b.w + pad * 2), height: Math.ceil(b.h + pad * 2) }} className="bg-[var(--canvas)]">
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          onNodesChange={(changes) => setNodes((cur) => applyNodeChanges(changes, cur))}
-          viewport={{ x: -b.x + pad, y: -b.y + pad, zoom: 1 }}
-          nodesDraggable={false}
-          nodesConnectable={false}
-          elementsSelectable={false}
-          panOnDrag={false}
-          zoomOnScroll={false}
-          zoomOnPinch={false}
-          zoomOnDoubleClick={false}
-          proOptions={{ hideAttribution: true }}
-          connectionMode={ConnectionMode.Loose}
-        />
-        <RenderReady nodes={nodes.length} edges={edges.length} />
-      </div>
-    );
-  }
+  if (mode === 'render') return <RenderFrame drawing={drawing} index={index} nodes={nodes} edges={edges} setNodes={setNodes} />;
 
   return (
     <div ref={wrapper} className="relative h-full w-full">
@@ -259,11 +234,77 @@ export function Canvas({ mode = 'edit' }: { mode?: 'edit' | 'render' }) {
   );
 }
 
+type Grow = { l: number; t: number; r: number; b: number };
+const PAD = 32;
+
+/**
+ * Panel-less frame the renderer screenshots. The model gives boxes, groups,
+ * notes and bend points, but not label widths, so after layout the frame is
+ * measured in the DOM and grown once to fit everything drawn.
+ */
+function RenderFrame({ drawing, index, nodes, edges, setNodes }: {
+  drawing: NonNullable<ReturnType<typeof currentDrawing>>;
+  index: NonNullable<ReturnType<typeof useStore.getState>['index']>;
+  nodes: Node[];
+  edges: ReturnType<typeof buildGraph>['edges'];
+  setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
+}) {
+  const b = drawingBounds(index, drawing);
+  const [grow, setGrow] = useState<Grow | null>(null);
+  const g = grow ?? { l: 0, t: 0, r: 0, b: 0 };
+  return (
+    <div id="render-root" style={{ width: Math.ceil(b.w + PAD * 2 + g.l + g.r), height: Math.ceil(b.h + PAD * 2 + g.t + g.b) }} className="bg-[var(--canvas)]">
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        onNodesChange={(changes) => setNodes((cur) => applyNodeChanges(changes, cur))}
+        viewport={{ x: -b.x + PAD + g.l, y: -b.y + PAD + g.t, zoom: 1 }}
+        nodesDraggable={false}
+        nodesConnectable={false}
+        elementsSelectable={false}
+        panOnDrag={false}
+        zoomOnScroll={false}
+        zoomOnPinch={false}
+        zoomOnDoubleClick={false}
+        proOptions={{ hideAttribution: true }}
+        connectionMode={ConnectionMode.Loose}
+      />
+      <RenderReady nodes={nodes.length} edges={edges.length} measured={grow !== null} onMeasure={setGrow} />
+    </div>
+  );
+}
+
+/** Space each side still needs so every drawn element sits at least PAD inside the frame. */
+function measureOverflow(): Grow {
+  const root = document.getElementById('render-root')!.getBoundingClientRect();
+  const items = document.querySelectorAll('#render-root .react-flow__node, #render-root .react-flow__edge-path, #render-root .react-flow__edgelabel-renderer > div');
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  items.forEach((el) => {
+    const r = el.getBoundingClientRect();
+    if (!r.width && !r.height) return;
+    minX = Math.min(minX, r.left);
+    minY = Math.min(minY, r.top);
+    maxX = Math.max(maxX, r.right);
+    maxY = Math.max(maxY, r.bottom);
+  });
+  if (minX === Infinity) return { l: 0, t: 0, r: 0, b: 0 };
+  const need = (v: number) => Math.max(0, Math.ceil(v));
+  return {
+    l: need(root.left + PAD - minX),
+    t: need(root.top + PAD - minY),
+    r: need(maxX - (root.right - PAD)),
+    b: need(maxY - (root.bottom - PAD)),
+  };
+}
+
 /**
  * Marks the page ready for the renderer once every node and connector is in
- * the DOM and fonts are loaded, plus two frames for layout to settle.
+ * the DOM and fonts are loaded, plus two frames for layout to settle, after
+ * one measuring pass that fits the frame to what was drawn.
  */
-function RenderReady({ nodes, edges }: { nodes: number; edges: number }) {
+function RenderReady({ nodes, edges, measured, onMeasure }: { nodes: number; edges: number; measured: boolean; onMeasure: (g: Grow) => void }) {
   const [ready, setReady] = useState(false);
   useEffect(() => {
     let raf = 0;
@@ -272,7 +313,16 @@ function RenderReady({ nodes, edges }: { nodes: number; edges: number }) {
       const n = document.querySelectorAll('#render-root .react-flow__node').length;
       const e = document.querySelectorAll('#render-root .react-flow__edge').length;
       if (n >= nodes && e >= edges) {
-        void document.fonts.ready.then(() => requestAnimationFrame(() => requestAnimationFrame(() => !cancelled && setReady(true))));
+        void document.fonts.ready.then(() =>
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() => {
+              if (cancelled) return;
+              // First pass measures and grows the frame; the second (after re-render) marks ready.
+              if (!measured) onMeasure(measureOverflow());
+              else setReady(true);
+            }),
+          ),
+        );
         return;
       }
       raf = requestAnimationFrame(check);
@@ -282,6 +332,6 @@ function RenderReady({ nodes, edges }: { nodes: number; edges: number }) {
       cancelled = true;
       cancelAnimationFrame(raf);
     };
-  }, [nodes, edges]);
+  }, [nodes, edges, measured, onMeasure]);
   return <div data-ready={ready ? 'true' : 'false'} hidden />;
 }
