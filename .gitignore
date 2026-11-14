@@ -5,3 +5,4 @@ dist/
 test-results/
 packages/cli/schema/
 .claude/worktrees/
+.vscode-test/

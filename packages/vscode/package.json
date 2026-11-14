@@ -37,14 +37,26 @@
           "when": "resourcePath =~ /[\\\\/]architecture[\\\\/].*\\.yaml$/"
         }
       ]
+    },
+    "configuration": {
+      "title": "Zark",
+      "properties": {
+        "zark.cliPath": {
+          "type": "string",
+          "default": "",
+          "description": "Caminho do main.js da CLI do Zark, executado com node. Vazio: usa node_modules/.bin/zark do workspace ou npx zark. A variável de ambiente ZARK_CLI tem o mesmo efeito."
+        }
+      }
     }
   },
   "scripts": {
     "build": "node build.mjs",
-    "smoke": "node smoke.cjs"
+    "smoke": "node smoke.cjs",
+    "test:integration": "node test/integration/run.mjs"
   },
   "devDependencies": {
     "@types/vscode": "1.90.0",
+    "@vscode/test-electron": "^3.1.0",
     "esbuild": "^0.28.2"
   }
 }

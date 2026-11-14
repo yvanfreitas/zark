@@ -26,3 +26,11 @@ jobs:
           node packages/cli/dist/main.js validate --dir examples/ecommerce/architecture
           node packages/cli/dist/main.js fmt --check --dir examples/ecommerce/architecture
           node packages/cli/dist/main.js render --check --dir examples/ecommerce/architecture
+      - name: Cache do VS Code de teste
+        uses: actions/cache@v4
+        with:
+          path: packages/vscode/.vscode-test
+          key: vscode-test-${{ runner.os }}-stable-${{ github.run_id }}
+          restore-keys: vscode-test-${{ runner.os }}-stable-
+      - name: Extensão num VS Code real (xvfb)
+        run: xvfb-run -a pnpm --filter zark-vscode test:integration

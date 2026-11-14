@@ -1,0 +1,75 @@
+// Runs inside the VS Code extension host. Minimal runner: run() resolves on
+// success and rejects on the first failed check (test-electron then exits 1).
+const assert = require('node:assert/strict');
+const path = require('node:path');
+const vscode = require('vscode');
+
+const log = (...a) => console.log('[zark-integration]', ...a);
+
+async function waitFor(fn, what, timeoutMs = 60_000) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const value = await fn();
+    if (value) return value;
+    if (Date.now() > deadline) throw new Error(`timeout esperando ${what}`);
+    await new Promise((r) => setTimeout(r, 250));
+  }
+}
+
+async function run() {
+  log(`VS Code ${vscode.version}`);
+  const workspace = process.env.ZARK_TEST_WORKSPACE;
+  assert.ok(workspace, 'ZARK_TEST_WORKSPACE ausente');
+
+  const ext = vscode.extensions.getExtension('zark.zark-vscode');
+  assert.ok(ext, 'extensão zark.zark-vscode não carregada');
+  const api = await ext.activate();
+  assert.ok(api && api.panels, 'activate() não devolveu a API');
+  const commands = await vscode.commands.getCommands(true);
+  assert.ok(commands.includes('zark.openDrawing'), 'comando zark.openDrawing não registrado');
+  log('extension activated, command registered');
+
+  const file = path.join(workspace, 'architecture', 'drawings', 'contexto.yaml');
+  const doc = await vscode.workspace.openTextDocument(file);
+  await vscode.window.showTextDocument(doc);
+  await vscode.commands.executeCommand('zark.openDrawing');
+
+  const panel = await waitFor(() => {
+    if (api.lastError()) throw new Error(`a extensão falhou: ${api.lastError()}`);
+    return [...api.panels.values()][0];
+  }, 'o painel do Zark');
+  assert.equal(panel.title, 'Zark: contexto');
+  log(`webview panel "${panel.title}" in column ${panel.viewColumn}`);
+
+  const html = panel.webview.html;
+  const m = /<iframe src="(http:\/\/127\.0\.0\.1:(\d+)\/\?token=([0-9a-f]+)#drawing=contexto)"/.exec(html);
+  assert.ok(m, `iframe para o desenho não encontrado no HTML do webview:\n${html}`);
+  const [, url, port, token] = m;
+  assert.match(html, new RegExp(`frame-src http://127\\.0\\.0\\.1:${port};`), 'CSP não restringe o frame à porta do servidor');
+  log(`iframe ${url.replace(token, '<token>')}`);
+
+  const health = await fetch(`http://127.0.0.1:${port}/api/health`, { headers: { 'x-zark-token': token } });
+  assert.equal(health.status, 200, `/api/health respondeu ${health.status}`);
+  const body = await health.json();
+  assert.equal(path.resolve(body.dir), path.resolve(workspace, 'architecture'));
+  log(`GET /api/health -> ${health.status} (dir ${body.dir})`);
+
+  // The page the iframe loads is the real UI.
+  const page = await fetch(`http://127.0.0.1:${port}/`);
+  assert.equal(page.status, 200);
+  assert.match(await page.text(), /<div id="root">/);
+  const model = await fetch(`http://127.0.0.1:${port}/api/model`, { headers: { 'x-zark-token': token } }).then((r) => r.json());
+  assert.equal(model.entities.length, 13);
+  log(`UI served, model has ${model.entities.length} entities`);
+
+  // Same command on an entity file reuses the server and retargets the panel.
+  await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(path.join(workspace, 'architecture', 'entities', 'gateway.yaml')));
+  await vscode.commands.executeCommand('zark.openDrawing');
+  await waitFor(() => api.panels.size === 1 && /#drawing=vtex"/.test(panel.webview.html), 'o painel apontar para o desenho vtex');
+  assert.ok(panel.webview.html.includes(`127.0.0.1:${port}/`), 'servidor não foi reaproveitado');
+  log('entity gateway.yaml -> same panel, #drawing=vtex, same server');
+
+  log('PASS');
+}
+
+module.exports = { run };
