@@ -7,7 +7,7 @@ import { Hono, type Context } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { serve, type ServerType } from '@hono/node-server';
 import { RESPONSE_ALREADY_SENT } from '@hono/node-server/utils/response';
-import type { ApplyResult, Op } from '@zark/core';
+import { planImport, type ApplyResult, type Op } from '@zark/core';
 import { GitError } from './git.js';
 import type { ZarkService } from './service.js';
 
@@ -153,6 +153,21 @@ export function createApp(opts: AppOptions) {
     const b = await body(c);
     if (opts.readOnly) return c.json({ ok: false, error: 'Somente leitura' }, 403);
     return reply(c, await store.apply(b.ops ?? [], 'ui', { expect: b.expect ?? expectFrom(c), dryRun: b.dryRun }));
+  });
+  // Import a Structurizr workspace or an IcePanel model (format "auto" detects it). Same rules as any write.
+  app.post('/api/import', async (c) => {
+    if (opts.readOnly) return c.json({ ok: false, error: 'Somente leitura' }, 403);
+    const b = await body(c);
+    if (typeof b.content !== 'string' || !b.content.trim()) return c.json({ ok: false, error: 'Envie o conteúdo do arquivo em "content"' }, 400);
+    let plan: ReturnType<typeof planImport>;
+    try {
+      plan = planImport(b.content, b.format, store.project);
+    } catch (err) {
+      return c.json({ ok: false, error: (err as Error).message }, 400);
+    }
+    const res = reply(c, await store.apply(plan.ops, 'ui', { dryRun: b.dryRun }));
+    const json = await res.json();
+    return c.json({ ...json, format: plan.format, warnings: plan.warnings }, res.status as 200);
   });
   app.post('/api/undo', async (c) => c.json(await store.undo('ui')));
   app.post('/api/redo', async (c) => c.json(await store.redo('ui')));

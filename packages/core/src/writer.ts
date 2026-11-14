@@ -163,7 +163,11 @@ export function setKey(doc: Document, mapPath: (string | number)[], key: string 
   const node = doc.createNode(stripUndefined(value));
   shape(node, child);
   map.set(doc.createNode(key), node);
-  if (mapShape === 'nodeMap' || mapShape === 'edgeMap') map.items.sort((a, b) => keyOf(a).localeCompare(keyOf(b)));
+  if (mapShape === 'nodeMap' || mapShape === 'edgeMap') {
+    map.items.sort((a, b) => keyOf(a).localeCompare(keyOf(b)));
+    // A new drawing starts as `nodes: {}`, which re-parses as a flow map; once it has items it is a block map.
+    map.flow = false;
+  }
   else if (KEY_ORDER[mapShape as string]) orderKeys(map, KEY_ORDER[mapShape as string]);
 }
 

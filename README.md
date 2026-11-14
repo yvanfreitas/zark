@@ -34,12 +34,21 @@ O Chromium usado para gerar PNGs é baixado na primeira chamada de render, não 
 | `zark diff [--base ref] [--format text\|markdown]` | Diff semântico contra uma ref git (padrão: `origin/<baseBranch>`) |
 | `zark pr [--yes] [--title t]` | Branch, render, commit de `architecture/`, push e `gh pr create`, com prévia e confirmação |
 | `zark build --out dir` | Site estático somente leitura (desenhos e player de fluxos) |
-| `zark export <mermaid\|json> [fluxo]` | Exporta fluxos como Mermaid `sequenceDiagram` ou o modelo em JSON |
+| `zark export <formato> [fluxo] [--out arquivo]` | `mermaid` (fluxos), `json` (modelo), `structurizr` (workspace JSON) ou `icepanel-yaml` (modelo do IcePanel) |
+| `zark import [formato] <arquivo> [--yes]` | Importa um workspace do Structurizr ou um modelo do IcePanel (JSON/YAML). Sem formato, detecta pelo conteúdo |
 | `zark schema --out dir` | Grava os JSON Schemas dos arquivos |
 
 Todos aceitam `--dir <pasta>` (padrão: `architecture`).
 
 Git e PR usam o `git` e o `gh` já autenticados na máquina. O Zark nunca pede, lê ou guarda token, e nunca faz `push --force`.
+
+## Importar e exportar
+
+A UI (projeto vazio ou paleta de comandos) e a CLI aceitam os mesmos arquivos. A importação passa pela mesma validação de qualquer escrita: se introduzir erro, nada é gravado. Ids que já existem no projeto ganham sufixo (`vtex-2`).
+
+**Structurizr** (workspace JSON): `person` vira `actor`, `softwareSystem` vira `system` (`location: External` vira `external`), `container` vira `app`, ou `store` quando tem a tag `Database`, e `component` vira `component`. Relacionamentos viram conexões na origem; os implícitos (`linkedRelationshipId`) não são duplicados. Views de paisagem, contexto, contêiner e componente viram desenhos com o escopo correspondente; as posições são divididas por 2 (as caixas do Structurizr são maiores) e encaixadas no grid. Views sem posição são organizadas automaticamente. Views dinâmicas e de implantação não são importadas. No export, os campos do Zark que o Structurizr não tem vão em `properties` com prefixo `zark:`, e um export seguido de import reproduz o modelo.
+
+**IcePanel** (`LandscapeImportData`, schema em `https://api.icepanel.io/v1/schemas/LandscapeImportData`): os tipos `actor`, `system`, `app`, `store` e `component` mapeiam um a um. Domínios não existem no Zark, então seus filhos vão para a raiz; grupos do IcePanel são ignorados (no Zark grupos são molduras de cada desenho). O formato não tem diagramas: a importação cria o desenho `icepanel` com os itens da raiz organizados automaticamente. `technologyIds` e `teamIds` são ids do catálogo de cada ferramenta; ao importar, viram itens do `catalog.yaml` com o id como nome, para ajustar depois.
 
 ## MCP
 

@@ -14,6 +14,7 @@ import { TopBar, useGitStatus } from './panels/TopBar';
 import { Button } from './panels/ui';
 import { ModelList } from './panels/ModelList';
 import { DepsView } from './deps/DepsView';
+import { pickAndImport } from './importFile';
 
 const isTyping = (t: EventTarget | null) => t instanceof HTMLElement && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName));
 
@@ -191,8 +192,13 @@ function EmptyState() {
     <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center">
       <div className="pointer-events-auto flex flex-col items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 text-center shadow-sm">
         <div className="text-[15px] font-semibold text-[var(--fg)]">O modelo está vazio</div>
-        <p className="max-w-[300px] text-[13px] text-[var(--muted)]">Dê um duplo clique no canvas para criar uma entidade, ou peça a um agente via MCP.</p>
-        <Button onClick={() => window.dispatchEvent(new CustomEvent('zark:quick-create'))}>Criar primeira entidade</Button>
+        <p className="max-w-[300px] text-[13px] text-[var(--muted)]">Dê um duplo clique no canvas para criar uma entidade, importe do Structurizr ou do IcePanel, ou peça a um agente via MCP.</p>
+        <div className="flex gap-2">
+          <Button onClick={() => window.dispatchEvent(new CustomEvent('zark:quick-create'))}>Criar primeira entidade</Button>
+          <Button variant="subtle" onClick={pickAndImport} title="Workspace JSON do Structurizr ou modelo do IcePanel (JSON/YAML)">
+            Importar
+          </Button>
+        </div>
       </div>
     </div>
   );

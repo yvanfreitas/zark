@@ -1,0 +1,73 @@
+{
+  "name": "Big Bank",
+  "model": {
+    "people": [
+      {
+        "id": "1",
+        "name": "Personal Banking Customer",
+        "description": "A customer of the bank.",
+        "location": "External",
+        "tags": "Element,Person,Customer",
+        "relationships": [
+          { "id": "10", "sourceId": "1", "destinationId": "2", "description": "Views account balances", "tags": "Relationship" },
+          { "id": "11", "sourceId": "1", "destinationId": "4", "description": "Visits", "technology": "HTTPS", "tags": "Relationship" }
+        ]
+      }
+    ],
+    "softwareSystems": [
+      {
+        "id": "2",
+        "name": "Internet Banking System",
+        "description": "Lets customers view their accounts.",
+        "location": "Internal",
+        "tags": "Element,Software System",
+        "containers": [
+          {
+            "id": "4",
+            "name": "Web Application",
+            "technology": "Java and Spring MVC",
+            "tags": "Element,Container",
+            "relationships": [
+              { "id": "12", "sourceId": "4", "destinationId": "5", "description": "Reads from and writes to", "technology": "JDBC", "tags": "Relationship" }
+            ],
+            "components": [{ "id": "6", "name": "Sign In Controller", "technology": "Spring MVC Rest Controller", "tags": "Element,Component" }]
+          },
+          { "id": "5", "name": "Database", "technology": "Oracle", "tags": "Element,Container,Database" }
+        ],
+        "relationships": [{ "id": "13", "sourceId": "2", "destinationId": "3", "description": "Gets account information from", "tags": "Relationship" }]
+      },
+      {
+        "id": "3",
+        "name": "Mainframe Banking System",
+        "description": "Stores all core banking information.",
+        "location": "External",
+        "tags": "Element,Software System,Existing System",
+        "relationships": [{ "id": "14", "sourceId": "3", "destinationId": "2", "description": "Gets account information from", "linkedRelationshipId": "13" }]
+      }
+    ]
+  },
+  "views": {
+    "systemContextViews": [
+      {
+        "key": "SystemContext",
+        "title": "System Context",
+        "softwareSystemId": "2",
+        "elements": [
+          { "id": "1", "x": 300, "y": 100 },
+          { "id": "2", "x": 300, "y": 700 },
+          { "id": "3", "x": 1100, "y": 703 }
+        ],
+        "relationships": [{ "id": "10" }, { "id": "13", "vertices": [{ "x": 900, "y": 600 }], "routing": "Orthogonal", "position": 30 }]
+      }
+    ],
+    "containerViews": [
+      {
+        "key": "Containers",
+        "softwareSystemId": "2",
+        "elements": [{ "id": "1" }, { "id": "4" }, { "id": "5" }, { "id": "3" }],
+        "relationships": [{ "id": "11" }, { "id": "12" }]
+      }
+    ],
+    "dynamicViews": [{ "key": "SignIn", "elements": [] }]
+  }
+}
