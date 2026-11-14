@@ -1,0 +1,35 @@
+{
+  "$id": "https://api.icepanel.io/v1/schemas/TagImport",
+  "additionalProperties": false,
+  "properties": {
+    "color": {
+      "$ref": "https://api.icepanel.io/v1/schemas/TagColor"
+    },
+    "groupId": {
+      "description": "Parent tag group ID",
+      "type": "string"
+    },
+    "id": {
+      "type": "string"
+    },
+    "labels": {
+      "additionalProperties": {
+        "maxLength": 5000,
+        "type": "string"
+      },
+      "maxProperties": 50,
+      "type": "object"
+    },
+    "name": {
+      "maxLength": 4000,
+      "type": "string"
+    }
+  },
+  "required": [
+    "color",
+    "groupId",
+    "id",
+    "name"
+  ],
+  "type": "object"
+}

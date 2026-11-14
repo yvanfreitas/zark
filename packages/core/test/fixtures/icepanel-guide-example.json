@@ -1,0 +1,220 @@
+{
+  "modelObjects": [
+    {
+      "id": "domain-ecommerce",
+      "name": "E-Commerce Platform",
+      "parentId": null,
+      "type": "domain"
+    },
+    {
+      "id": "person-customer",
+      "name": "Customer",
+      "parentId": "domain-ecommerce",
+      "type": "actor",
+      "tagIds": [
+        "tag-external"
+      ]
+    },
+    {
+      "id": "person-admin",
+      "name": "Admin User",
+      "parentId": "domain-ecommerce",
+      "type": "actor",
+      "tagIds": [
+        "tag-internal"
+      ]
+    },
+    {
+      "id": "system-storefront",
+      "name": "Storefront",
+      "parentId": "domain-ecommerce",
+      "type": "system",
+      "tagIds": [
+        "tag-internal"
+      ]
+    },
+    {
+      "id": "system-payment",
+      "name": "Payment Gateway",
+      "parentId": "domain-ecommerce",
+      "type": "system",
+      "tagIds": [
+        "tag-external"
+      ]
+    },
+    {
+      "id": "system-email",
+      "name": "Email Service",
+      "parentId": "domain-ecommerce",
+      "type": "system",
+      "tagIds": [
+        "tag-external"
+      ]
+    },
+    {
+      "id": "container-web",
+      "name": "Web App",
+      "parentId": "system-storefront",
+      "type": "app",
+      "tagIds": [
+        "tag-internal"
+      ]
+    },
+    {
+      "id": "container-api",
+      "name": "API Server",
+      "parentId": "system-storefront",
+      "type": "app",
+      "tagIds": [
+        "tag-internal"
+      ]
+    },
+    {
+      "id": "container-db",
+      "name": "Product Database",
+      "parentId": "system-storefront",
+      "type": "database",
+      "tagIds": [
+        "tag-internal"
+      ]
+    },
+    {
+      "id": "container-cache",
+      "name": "Cache",
+      "parentId": "system-storefront",
+      "type": "database",
+      "tagIds": [
+        "tag-internal"
+      ]
+    },
+    {
+      "id": "component-product-service",
+      "name": "Product Service",
+      "parentId": "container-api",
+      "type": "component",
+      "tagIds": [
+        "tag-internal"
+      ]
+    },
+    {
+      "id": "component-order-service",
+      "name": "Order Service",
+      "parentId": "container-api",
+      "type": "component",
+      "tagIds": [
+        "tag-internal"
+      ]
+    },
+    {
+      "id": "component-auth-service",
+      "name": "Auth Service",
+      "parentId": "container-api",
+      "type": "component",
+      "tagIds": [
+        "tag-internal"
+      ]
+    },
+    {
+      "id": "component-notification-service",
+      "name": "Notification Service",
+      "parentId": "container-api",
+      "type": "component",
+      "tagIds": [
+        "tag-internal"
+      ]
+    }
+  ],
+  "modelConnections": [
+    {
+      "id": "conn-customer-web",
+      "name": "Browses store via HTTPS",
+      "direction": "outgoing",
+      "originId": "person-customer",
+      "targetId": "container-web"
+    },
+    {
+      "id": "conn-admin-web",
+      "name": "Manages catalog via HTTPS",
+      "direction": "outgoing",
+      "originId": "person-admin",
+      "targetId": "container-web"
+    },
+    {
+      "id": "conn-web-api",
+      "name": "REST API calls",
+      "direction": "outgoing",
+      "originId": "container-web",
+      "targetId": "container-api"
+    },
+    {
+      "id": "conn-api-db",
+      "name": "Reads/writes",
+      "direction": "outgoing",
+      "originId": "container-api",
+      "targetId": "container-db"
+    },
+    {
+      "id": "conn-api-cache",
+      "name": "Caches product data",
+      "direction": "outgoing",
+      "originId": "container-api",
+      "targetId": "container-cache"
+    },
+    {
+      "id": "conn-order-payment",
+      "name": "Processes payment",
+      "direction": "outgoing",
+      "originId": "component-order-service",
+      "targetId": "system-payment"
+    },
+    {
+      "id": "conn-notification-email",
+      "name": "Sends order confirmations",
+      "direction": "outgoing",
+      "originId": "component-notification-service",
+      "targetId": "system-email"
+    },
+    {
+      "id": "conn-product-db",
+      "name": "Queries product catalog",
+      "direction": "outgoing",
+      "originId": "component-product-service",
+      "targetId": "container-db"
+    },
+    {
+      "id": "conn-auth-db",
+      "name": "Reads user records",
+      "direction": "outgoing",
+      "originId": "component-auth-service",
+      "targetId": "container-db"
+    },
+    {
+      "id": "conn-order-notification",
+      "name": "Triggers notifications",
+      "direction": "outgoing",
+      "originId": "component-order-service",
+      "targetId": "component-notification-service"
+    }
+  ],
+  "tagGroups": [
+    {
+      "id": "tag-group-ownership",
+      "name": "Ownership",
+      "icon": "tag"
+    }
+  ],
+  "tags": [
+    {
+      "id": "tag-internal",
+      "name": "Internal",
+      "color": "blue",
+      "groupId": "tag-group-ownership"
+    },
+    {
+      "id": "tag-external",
+      "name": "External",
+      "color": "orange",
+      "groupId": "tag-group-ownership"
+    }
+  ]
+}
