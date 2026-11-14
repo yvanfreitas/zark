@@ -100,6 +100,7 @@ function DepsGraph({ center, levels }: { center: string; levels: number }) {
           inActiveFlow: false,
           interactive: false,
           resizable: false,
+          showDescription: false,
         } satisfies EntityData,
       };
     });
