@@ -214,6 +214,15 @@ body {
   pointer-events: none;
 }
 
+/* Hover highlight (canvas/hover.ts): fades in and out quickly. */
+.react-flow__node,
+.react-flow__edge {
+  transition: opacity 120ms ease;
+}
+[data-edge-label] {
+  transition: filter 120ms ease;
+}
+
 .zark-icon > svg {
   display: block;
   width: 100%;

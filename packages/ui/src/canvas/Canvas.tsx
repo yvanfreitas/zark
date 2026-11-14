@@ -22,6 +22,7 @@ import { flowView } from '../flow';
 import { buildGraph, drawingBounds } from './build';
 import { nodeTypes } from './nodes';
 import { edgeTypes } from './ZarkEdge';
+import { hoverCss, hoverTargets, type Hover } from './hover';
 import { ConnectionPicker, QuickCreate } from '../panels/CanvasDialogs';
 
 const snap = (v: number, g: number) => Math.round(v / g) * g;
@@ -71,6 +72,14 @@ export function Canvas({ mode = 'edit' }: { mode?: 'edit' | 'render' }) {
     setNodes(built.nodes.map((n) => ({ ...n, selected: selected.has(n.id) })));
   }, [built.nodes]);
   const edges = useMemo(() => built.edges.map((e) => ({ ...e, selected: selection.edges.includes(e.id) })), [built.edges, selection.edges]);
+
+  // Hover highlight: a stylesheet keyed by data-id, so nodes and edges never re-render.
+  // Off while a flow is open: the flow already owns the dim/highlight.
+  const [hover, setHover] = useState<Hover | null>(null);
+  // An element removed (or a drawing switched) under the pointer never fires mouseleave: ignore stale ids.
+  const hoverAlive = hover && ('edge' in hover ? built.edges.some((e) => e.id === hover.edge) : built.nodes.some((n) => n.id === hover.node));
+  const hovering = hoverAlive && !flowState ? hover : null;
+  const hoverStyle = useMemo(() => (hovering ? hoverCss(hoverTargets(hovering, built.edges)) : ''), [hovering, built.edges]);
 
   // Batched canvas writes: many moves in 300 ms become one call and one save.
   const pending = useRef(new Map<string, { x?: number; y?: number; w?: number; h?: number }>());
@@ -225,7 +234,8 @@ export function Canvas({ mode = 'edit' }: { mode?: 'edit' | 'render' }) {
   if (mode === 'render') return <RenderFrame drawing={drawing} index={index} nodes={nodes} edges={edges} setNodes={setNodes} />;
 
   return (
-    <div ref={wrapper} className="relative h-full w-full">
+    <div ref={wrapper} className={`relative h-full w-full${hovering ? ' zark-hovering' : ''}`}>
+      {hoverStyle && <style>{hoverStyle}</style>}
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -238,6 +248,10 @@ export function Canvas({ mode = 'edit' }: { mode?: 'edit' | 'render' }) {
         onEdgeContextMenu={(e, edge: Edge) => openMenu(e, { edge: edge.id })}
         onSelectionContextMenu={(e) => openMenu(e, { node: useStore.getState().selection.nodes[0] })}
         onPaneContextMenu={(e) => openMenu(e)}
+        onNodeMouseEnter={(_, node) => setHover(node.type === 'entity' ? { node: node.id } : null)}
+        onNodeMouseLeave={() => setHover(null)}
+        onEdgeMouseEnter={(_, edge) => setHover({ edge: edge.id, source: edge.source, target: edge.target })}
+        onEdgeMouseLeave={() => setHover(null)}
         onNodeDoubleClick={(_, node) => {
           const inner = index.drawingsByScope.get(node.id)?.[0];
           if (inner) useStore.getState().openDrawing(inner.id);
