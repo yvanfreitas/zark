@@ -26,7 +26,7 @@ export function ConnectionPicker({ source, target, onClose }: { source: string; 
   const [direction, setDirection] = useState<'outgoing' | 'bidirectional'>('outgoing');
 
   const draw = async (ref: string) => {
-    const r = await write('POST', `/api/drawings/${drawing.id}/ops`, { ops: [{ op: 'draw-edges', edges: [{ ref, shape: 'straight' }] }] }, [drawing.file]);
+    const r = await write('POST', `/api/drawings/${drawing.id}/ops`, { ops: [{ op: 'draw-edges', edges: [{ ref, shape: 'auto' }] }] }, [drawing.file]);
     if (r) onClose();
   };
   const create = async () => {
@@ -35,7 +35,7 @@ export function ConnectionPicker({ source, target, onClose }: { source: string; 
     const r = await useStore.getState().ops(
       [
         { op: 'connection.create', from: source, connection: { id, to: target, label: label.trim(), ...(direction === 'bidirectional' ? { direction } : {}) } },
-        { op: 'drawing.draw-edges', drawing: drawing.id, edges: [{ ref: `${source}.${id}`, shape: 'straight' }] },
+        { op: 'drawing.draw-edges', drawing: drawing.id, edges: [{ ref: `${source}.${id}`, shape: 'auto' }] },
       ],
       [from.file, drawing.file],
     );

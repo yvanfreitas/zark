@@ -186,7 +186,7 @@ export const commands: Record<string, Command> = {
     const project = await requireProject(dir);
     if (check) {
       // Only PNGs already in rendered/ count; no browser needed, hashes say it all.
-      const stale = (await renderedProblems(project)).filter((p) => !args.length || (p.ref && args.includes(p.ref)));
+      const stale = (await renderedProblems(project)).filter((p) => !args.length || (p.ref && args.includes(p.ref.replace(/^rendered:/, ''))));
       for (const p of stale) console.log(`${p.file}: ${p.message}`);
       console.log(stale.length ? `${stale.length} PNG(s) desatualizado(s). Rode "zark render --write"` : 'PNGs em rendered/ atualizados');
       return stale.length ? 1 : 0;

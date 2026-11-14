@@ -104,7 +104,7 @@ function EntityInspector({ entity }: { entity: WithFile<Entity> }) {
   const incoming = [...index.conns.values()].filter((c) => c.to === entity.id);
   const toggle = async (c: Conn, on: boolean) => {
     if (!drawing) return;
-    const ops = on ? [{ op: 'draw-edges', edges: [{ ref: c.ref, shape: 'straight' }] }] : [{ op: 'remove-edges', refs: [c.ref] }];
+    const ops = on ? [{ op: 'draw-edges', edges: [{ ref: c.ref, shape: 'auto' }] }] : [{ op: 'remove-edges', refs: [c.ref] }];
     await write('POST', `/api/drawings/${drawing.id}/ops`, { ops }, [drawing.file]);
   };
   const drawable = (c: Conn) => !!drawing && !!index.resolve(drawing, c.from) && !!index.resolve(drawing, c.to) && index.resolve(drawing, c.from) !== index.resolve(drawing, c.to);
@@ -348,6 +348,7 @@ function ConnectionInspector({ conn }: { conn: Conn }) {
                 <option value="straight">Reto</option>
                 <option value="step">Degrau</option>
                 <option value="curved">Curvo</option>
+                <option value="auto">Automático</option>
               </select>
             </Field>
             {(['from', 'to'] as const).map((k) => (
@@ -521,7 +522,7 @@ function DrawingInspector({ drawing }: { drawing: WithFile<Drawing> }) {
                 {index.name(c.from)} → {index.name(c.to)}
               </span>
             </span>
-            <Button variant="subtle" onClick={() => ops([{ op: 'draw-edges', edges: [{ ref: c.ref, shape: 'straight' }] }])}>
+            <Button variant="subtle" onClick={() => ops([{ op: 'draw-edges', edges: [{ ref: c.ref, shape: 'auto' }] }])}>
               Traçar
             </Button>
           </li>
