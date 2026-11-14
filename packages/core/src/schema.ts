@@ -154,7 +154,7 @@ export const Config = z.strictObject({
       theme: z.enum(['light', 'dark']).optional(),
     })
     .optional(),
-  git: z.strictObject({ baseBranch: z.string().optional(), branchPrefix: z.string().optional() }).optional(),
+  git: z.strictObject({ baseBranch: z.string().optional(), branchPrefix: z.string().optional(), provider: z.enum(['github', 'gitlab']).optional() }).optional(),
   rules: z.record(z.string().regex(/^[EW]\d{3}$/), z.enum(['error', 'warning', 'off'])).optional(),
   mcp: z.strictObject({ prRequiresUi: z.boolean().optional() }).optional(),
 });

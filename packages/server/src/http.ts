@@ -9,6 +9,7 @@ import { serve, type ServerType } from '@hono/node-server';
 import { RESPONSE_ALREADY_SENT } from '@hono/node-server/utils/response';
 import type { ApplyResult, Op } from '@zark/core';
 import { GitError } from './git.js';
+import { ProviderError } from './providers.js';
 import type { ZarkService } from './service.js';
 
 export type McpHttpHandler = (req: IncomingMessage, res: ServerResponse, body: unknown) => Promise<void>;
@@ -184,7 +185,7 @@ export function createApp(opts: AppOptions) {
   });
 
   // Git and PR
-  const gitError = (c: Context, err: unknown) => c.json({ ok: false, error: err instanceof Error ? err.message : String(err) }, err instanceof GitError ? 400 : 500);
+  const gitError = (c: Context, err: unknown) => c.json({ ok: false, error: err instanceof Error ? err.message : String(err) }, err instanceof GitError || err instanceof ProviderError ? 400 : 500);
   app.get('/api/git/status', async (c) => c.json(await service.gitStatus()));
   app.post('/api/git/discard', async (c) => {
     try {

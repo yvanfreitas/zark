@@ -1,0 +1,50 @@
+{
+  "name": "zark-vscode",
+  "displayName": "Zark",
+  "description": "Abre o desenho do Zark ao lado do YAML da arquitetura",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "publisher": "zark",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Visualization"
+  ],
+  "type": "module",
+  "main": "./dist/extension.cjs",
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "zark.openDrawing",
+        "title": "Zark: Abrir desenho ao lado",
+        "icon": "$(type-hierarchy)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "zark.openDrawing",
+          "when": "resourcePath =~ /[\\\\/]architecture[\\\\/].*\\.yaml$/",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "zark.openDrawing",
+          "when": "resourcePath =~ /[\\\\/]architecture[\\\\/].*\\.yaml$/"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "smoke": "node smoke.cjs"
+  },
+  "devDependencies": {
+    "@types/vscode": "1.90.0",
+    "esbuild": "^0.28.2"
+  }
+}

@@ -17,6 +17,7 @@ jobs:
       - run: pnpm typecheck
       # Build first so the UI exists: the end-to-end PR test renders real PNGs.
       - run: pnpm build
+      - run: pnpm --filter zark-vscode smoke
       - name: Chromium do Playwright (com dependências do sistema)
         run: pnpm --filter @zark/server exec playwright-core install --with-deps chromium
       - run: pnpm test

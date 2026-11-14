@@ -11,6 +11,7 @@ export interface GitStatus {
   remote?: string;
   behind?: number;
   pr?: { url: string; number: number; state: string };
+  provider?: { name: 'github' | 'gitlab'; noun: 'PR' | 'MR' };
 }
 
 export function useGitStatus() {
@@ -145,7 +146,8 @@ export function TopBar({ git }: { git?: GitStatus }) {
       )}
       {git?.pr && (
         <a href={git.pr.url} target="_blank" rel="noreferrer" className="text-[12.5px] font-medium text-[var(--accent)] hover:underline">
-          PR #{git.pr.number}
+          {git.provider?.noun ?? 'PR'} {git.provider?.name === 'gitlab' ? '!' : '#'}
+          {git.pr.number}
         </a>
       )}
       <IconButton label={theme === 'dark' ? 'Tema claro' : 'Tema escuro'} onClick={() => {
@@ -160,7 +162,7 @@ export function TopBar({ git }: { git?: GitStatus }) {
         <Svg icon={theme === 'dark' ? Icon.sun : Icon.moon} />
       </IconButton>
       <Button data-edit onClick={() => set({ prDialog: true })} disabled={!git?.isRepo}>
-        Abrir PR
+        Abrir {git?.provider?.noun ?? 'PR'}
       </Button>
     </header>
   );
