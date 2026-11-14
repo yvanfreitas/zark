@@ -73,7 +73,7 @@ export function anchor(r: Rect, side: Side): Pt {
 }
 
 /** Orthogonal route from s to t leaving/entering along the anchor sides. */
-export function stepRoute(s: Pt, sp: Side, t: Pt, tp: Side, points: Pt[]): Pt[] {
+export function stepRoute(s: Pt, sp: Side, t: Pt, tp: Side, points: Pt[], mid = 0): Pt[] {
   const [sdx, sdy] = DIR[sp];
   const [tdx, tdy] = DIR[tp];
   const s1: Pt = [s[0] + sdx * STEP_OFFSET, s[1] + sdy * STEP_OFFSET];
@@ -92,11 +92,11 @@ export function stepRoute(s: Pt, sp: Side, t: Pt, tp: Side, points: Pt[]): Pt[] 
     return route;
   }
   if (horizontal(sp) && horizontal(tp)) {
-    const mx = (s1[0] + t1[0]) / 2;
+    const mx = (s1[0] + t1[0]) / 2 + mid;
     return [s, s1, [mx, s1[1]], [mx, t1[1]], t1, t];
   }
   if (!horizontal(sp) && !horizontal(tp)) {
-    const my = (s1[1] + t1[1]) / 2;
+    const my = (s1[1] + t1[1]) / 2 + mid;
     return [s, s1, [s1[0], my], [t1[0], my], t1, t];
   }
   return horizontal(sp) ? [s, s1, [t1[0], s1[1]], t1, t] : [s, s1, [s1[0], t1[1]], t1, t];
@@ -126,29 +126,103 @@ export function bezierRoute(s: Pt, sp: Side, t: Pt, tp: Side, samples = 32): Pt[
 
 const routeCache = new WeakMap<object, Map<string, Pt[]>>();
 
-/** `auto` route around `obstacles`, ends slid by `shift` along their sides; memoized per obstacle list. */
-export function autoRoute(s: Pt, sp: Side, t: Pt, tp: Side, obstacles: Rect[], shift = 0): Pt[] {
-  const sx = s[0] + (horizontal(sp) ? 0 : shift), sy = s[1] + (horizontal(sp) ? shift : 0);
-  const tx = t[0] + (horizontal(tp) ? 0 : shift), ty = t[1] + (horizontal(tp) ? shift : 0);
+/**
+ * Sideways offsets of one connector among several between the same two boxes:
+ * `s`/`t` slide each end along its box side (px), `mid` moves the middle
+ * segment of a step route so parallel corridors don't cross.
+ */
+export interface EdgeOffsets {
+  s: number;
+  t: number;
+  mid: number;
+  /** `auto` only: interior vertical / horizontal corridors move by these (px). */
+  ix?: number;
+  iy?: number;
+  /** `auto` only: route from the target end and reverse, so a group shares one corridor shape. */
+  flip?: boolean;
+}
+export const NO_OFFSETS: EdgeOffsets = { s: 0, t: 0, mid: 0 };
+
+/** Moves interior segments of an orthogonal route (not the end stubs): vertical ones by ix, horizontal ones by iy. */
+function shiftCorridors(route: Pt[], ix: number, iy: number): Pt[] {
+  if ((!ix && !iy) || route.length < 4) return route;
+  const out = route.map((p) => [p[0], p[1]] as Pt);
+  for (let i = 1; i < route.length - 2; i++) {
+    const [a, b] = [route[i], route[i + 1]];
+    if (a[0] === b[0]) (out[i][0] = a[0] + ix), (out[i + 1][0] = b[0] + ix);
+    else if (a[1] === b[1]) (out[i][1] = a[1] + iy), (out[i + 1][1] = b[1] + iy);
+  }
+  return out;
+}
+
+/** An end slid along its side: y on left/right sides, x on top/bottom. */
+export function slide(p: Pt, side: Side, by: number): Pt {
+  return horizontal(side) ? [p[0], p[1] + by] : [p[0] + by, p[1]];
+}
+
+/** `auto` route around `obstacles` between already slid ends; memoized per obstacle list. */
+export function autoRoute(s: Pt, sp: Side, t: Pt, tp: Side, obstacles: Rect[]): Pt[] {
   let cache = routeCache.get(obstacles);
   if (!cache) routeCache.set(obstacles, (cache = new Map()));
-  const key = `${sx},${sy},${sp},${tx},${ty},${tp}`;
+  const key = `${s[0]},${s[1]},${sp},${t[0]},${t[1]},${tp}`;
   let route = cache.get(key);
   if (!route) {
-    route = routeOrthogonal([sx, sy], sp, [tx, ty], tp, obstacles, { margin: 16, stub: 24 }) ?? stepRoute([sx, sy], sp, [tx, ty], tp, []);
+    route = routeOrthogonal(s, sp, t, tp, obstacles, { margin: 16, stub: 24 }) ?? stepRoute(s, sp, t, tp, []);
     cache.set(key, route);
   }
   return route;
 }
 
-/** Route for an edge spec between two anchors (what the canvas draws, as a polyline). */
-export function edgeRoute(spec: DrawingEdge, s: Pt, sp: Side, t: Pt, tp: Side, obstacles: Rect[], shift = 0): Pt[] {
+/** The connector's two ends after the parallel offsets (what every shape starts from). */
+export function edgeEnds(s: Pt, sp: Side, t: Pt, tp: Side, offsets: EdgeOffsets = NO_OFFSETS): [Pt, Pt] {
+  return [slide(s, sp, offsets.s), slide(t, tp, offsets.t)];
+}
+
+/**
+ * Route for an edge spec between two anchors (what the canvas draws, as a
+ * polyline). Parallel offsets apply to every shape; explicit `points` keep
+ * their manual bends and only the ends slide.
+ */
+export function edgeRoute(spec: DrawingEdge, s0: Pt, sp: Side, t0: Pt, tp: Side, obstacles: Rect[], offsets: EdgeOffsets = NO_OFFSETS): Pt[] {
   const shape = spec.shape ?? 'straight';
   const points = (spec.points ?? []) as Pt[];
+  const [s, t] = edgeEnds(s0, sp, t0, tp, offsets);
   if (shape === 'curved' && !points.length) return bezierRoute(s, sp, t, tp);
-  if (shape === 'auto') return autoRoute(s, sp, t, tp, obstacles, shift);
-  if (shape === 'step') return stepRoute(s, sp, t, tp, points);
+  if (shape === 'auto') {
+    const r = offsets.flip ? [...autoRoute(t, tp, s, sp, obstacles)].reverse() : autoRoute(s, sp, t, tp, obstacles);
+    return shiftCorridors(r, offsets.ix ?? 0, offsets.iy ?? 0);
+  }
+  if (shape === 'step') return stepRoute(s, sp, t, tp, points, points.length ? 0 : offsets.mid);
   return [s, ...points, t];
+}
+
+/** Spacing between parallel connectors, px (shrinks to fit short box sides). */
+export const PARALLEL_SPACING = 18;
+/** Ends stay this far inside the box side, px. */
+const SIDE_MARGIN = 10;
+
+const sideLength = (r: Rect, side: Side) => (horizontal(side) ? r.h : r.w);
+const sign = (v: number) => (v > 0 ? 1 : v < 0 ? -1 : 0);
+
+/**
+ * Offsets for connector `k` of `n` between boxes `a` (first) and `b`, with
+ * sides `sa`/`sb` seen from `a`. Same-axis sides slide both ends by the same
+ * amount (parallel lines); mixed sides nest like L shapes, so the far end
+ * slides the opposite way when needed to keep lines from crossing. Step
+ * routes move their middle segment so the inner corridor turns first.
+ */
+export function parallelOffsets(k: number, n: number, a: Rect, sa: Side, b: Rect, sb: Side): { a: number; b: number; mid: number; ix: number; iy: number } {
+  if (n < 2) return { a: 0, b: 0, mid: 0, ix: 0, iy: 0 };
+  const room = Math.max(0, Math.min(sideLength(a, sa), sideLength(b, sb)) - 2 * SIDE_MARGIN);
+  const spacing = Math.min(PARALLEL_SPACING, room / (n - 1));
+  const o = (k - (n - 1) / 2) * spacing;
+  const pa = anchor(a, sa), pb = anchor(b, sb);
+  const dx = pb[0] - pa[0], dy = pb[1] - pa[1];
+  // Interior corridors of orthogonal routes: the line offset towards the turn turns first.
+  const ix = -o * sign(dy) * sign(dx || 1);
+  const iy = -o * sign(dx) * sign(dy || 1);
+  if (horizontal(sa) === horizontal(sb)) return { a: o, b: o, mid: horizontal(sa) ? ix : iy, ix, iy };
+  return { a: o, b: -o * sign(dx || 1) * sign(dy || 1), mid: 0, ix, iy };
 }
 
 /** Point at fraction `f` (0..1) of the polyline length. */
@@ -200,8 +274,8 @@ export interface EdgeGeometry {
   ref: string;
   sourceSide: Side;
   targetSide: Side;
-  /** Sideways shift of an `auto` connector between the same two boxes, px. */
-  shift: number;
+  /** Sideways offsets among parallel connectors between the same two boxes. */
+  offsets: EdgeOffsets;
   route: Pt[];
   /** Final label position: explicit `labelAt`, or the automatic placement. */
   labelAt: number;
@@ -250,33 +324,46 @@ export function drawingGeometry(boxes: GeometryBox[], edges: GeometryEdge[], opt
   const out = new Map<string, EdgeGeometry>();
   const usable = edges.filter((e) => byId.has(e.source) && byId.has(e.target) && e.source !== e.target).sort((a, b) => a.ref.localeCompare(b.ref));
 
-  // Parallel `auto` connectors between the same two boxes fan out side by side.
-  const fan = new Map<string, { shift: number; at?: number }>();
-  const pairs = new Map<string, GeometryEdge[]>();
+  // Connectors between the same two boxes (any shape, either direction, inherited
+  // ones included once resolved to their placed ancestors) run side by side.
+  const sides = new Map<string, [Side, Side]>();
+  const groups = new Map<string, GeometryEdge[]>();
   for (const e of usable) {
-    if (e.spec.shape !== 'auto') continue;
-    const key = [e.source, e.target].sort().join('|');
-    pairs.set(key, [...(pairs.get(key) ?? []), e]);
+    const a = byId.get(e.source)!, b = byId.get(e.target)!;
+    const [autoFrom, autoTo] = autoSide(a, b);
+    const ss = (e.spec.from ?? autoFrom) as Side;
+    const ts = (e.spec.to ?? autoTo) as Side;
+    sides.set(e.ref, [ss, ts]);
+    // Keyed from the alphabetically first box, so A->B and B->A share a group.
+    const key = e.source < e.target ? `${e.source}:${ss}|${e.target}:${ts}` : `${e.target}:${ts}|${e.source}:${ss}`;
+    groups.set(key, [...(groups.get(key) ?? []), e]);
   }
-  for (const group of pairs.values()) {
+  const fan = new Map<string, { offsets: EdgeOffsets; at?: number }>();
+  for (const group of groups.values()) {
     group.forEach((e, k) => {
-      const shift = (k - (group.length - 1) / 2) * 32;
-      // Fractions run from the alphabetically first box, whatever each connector's direction.
+      const forward = e.source < e.target;
+      const [ss, ts] = sides.get(e.ref)!;
+      const [first, second] = forward ? [e.source, e.target] : [e.target, e.source];
+      const [fs, ns] = forward ? [ss, ts] : [ts, ss];
+      const o = parallelOffsets(k, group.length, byId.get(first)!, fs, byId.get(second)!, ns);
+      // The middle offset is absolute, so it holds for both directions.
+      // Corridor offsets are absolute; `auto` routes of a group all start from the first box.
+      const offsets: EdgeOffsets = forward ? { s: o.a, t: o.b, mid: o.mid } : { s: o.b, t: o.a, mid: o.mid };
+      if (group.length > 1) Object.assign(offsets, { ix: o.ix, iy: o.iy, ...(forward ? {} : { flip: true }) });
+      // Labels stagger along the line, fractions measured from the first box.
       const frac = group.length > 1 ? 0.3 + (0.4 * k) / (group.length - 1) : undefined;
-      fan.set(e.ref, { shift, at: frac === undefined ? undefined : e.source < e.target ? frac : 1 - frac });
+      fan.set(e.ref, { offsets, at: frac === undefined ? undefined : forward ? frac : 1 - frac });
     });
   }
 
   for (const e of usable) {
     const a = byId.get(e.source)!, b = byId.get(e.target)!;
-    const [autoFrom, autoTo] = autoSide(a, b);
-    const sourceSide = (e.spec.from ?? autoFrom) as Side;
-    const targetSide = (e.spec.to ?? autoTo) as Side;
-    const shift = fan.get(e.ref)?.shift ?? 0;
-    const route = edgeRoute(e.spec, anchor(a, sourceSide), sourceSide, anchor(b, targetSide), targetSide, obstacles, shift);
+    const [sourceSide, targetSide] = sides.get(e.ref)!;
+    const offsets = fan.get(e.ref)?.offsets ?? NO_OFFSETS;
+    const route = edgeRoute(e.spec, anchor(a, sourceSide), sourceSide, anchor(b, targetSide), targetSide, obstacles, offsets);
     const defaultLabelAt = fan.get(e.ref)?.at ?? 0.5;
     const explicit = e.spec.labelAt !== undefined && !opts.ignoreExplicit?.has(e.ref);
-    out.set(e.ref, { ref: e.ref, sourceSide, targetSide, shift, route, defaultLabelAt, explicit, labelAt: explicit ? e.spec.labelAt! : defaultLabelAt });
+    out.set(e.ref, { ref: e.ref, sourceSide, targetSide, offsets, route, defaultLabelAt, explicit, labelAt: explicit ? e.spec.labelAt! : defaultLabelAt });
   }
 
   const placed: Rect[] = [];

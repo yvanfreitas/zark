@@ -2,7 +2,7 @@ import { MarkerType, type Edge, type Node } from '@xyflow/react';
 import type { Index } from '../model';
 import type { Conn, Drawing, DrawingEdge, Entity, Problem } from '../types';
 import type { FilterState } from '../store';
-import { drawingGeometry, type GeometryBox, type GeometryEdge, type Rect } from '@core/edge-geometry';
+import { drawingGeometry, type EdgeOffsets, type GeometryBox, type GeometryEdge, type Rect } from '@core/edge-geometry';
 
 export type Side = 'top' | 'right' | 'bottom' | 'left';
 
@@ -33,8 +33,8 @@ export interface EdgeData extends Record<string, unknown> {
   pulse: boolean;
   /** Boxes an `auto` connector routes around (shared across edges; absolute coords). */
   obstacles: Rect[];
-  /** Sideways shift of an `auto` connector so parallel ones between the same boxes don't overlap, px. */
-  shift: number;
+  /** Sideways offsets so parallel connectors between the same boxes run side by side (core edge-geometry). */
+  offsets: EdgeOffsets;
   /** Label position along the route: explicit `labelAt`, or the overlap-free automatic placement (core edge-geometry). */
   labelAt?: number;
   severity?: 'error' | 'warning';
@@ -220,7 +220,7 @@ export function buildGraph(index: Index, drawing: Drawing, catalog: CatalogTechs
         severity: severity.get(ref),
         animate: opts.animate,
         obstacles,
-        shift: g.shift,
+        offsets: g.offsets,
         labelAt: g.labelAt,
       } satisfies EdgeData,
     });

@@ -123,7 +123,7 @@ function DepsGraph({ center, levels }: { center: string; levels: number }) {
         markerEnd: marker,
         markerStart: c.conn.direction === 'bidirectional' ? marker : undefined,
         selectable: false,
-        data: { ref: c.ref, conn: c, spec: { shape: 'auto' }, inherited: false, label: c.conn.label, bidirectional: c.conn.direction === 'bidirectional', dim: false, pulse: false, animate: false, obstacles, shift: g.shift, labelAt: g.labelAt } satisfies EdgeData,
+        data: { ref: c.ref, conn: c, spec: { shape: 'auto' }, inherited: false, label: c.conn.label, bidirectional: c.conn.direction === 'bidirectional', dim: false, pulse: false, animate: false, obstacles, offsets: g.offsets, labelAt: g.labelAt } satisfies EdgeData,
       }];
     });
     return { nodes, edges };
