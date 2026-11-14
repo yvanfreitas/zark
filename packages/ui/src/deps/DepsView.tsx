@@ -100,7 +100,13 @@ function DepsGraph({ center, levels }: { center: string; levels: number }) {
         } satisfies EntityData,
       };
     });
+    // Connectors route around the boxes; parallel ones between the same pair fan out.
+    const obstacles = sub.entities.map(rect);
+    const pairCount = new Map<string, number>();
     const edges: Edge[] = sub.edges.map((c) => {
+      const pair = [c.from, c.to].sort().join('|');
+      const k = pairCount.get(pair) ?? 0;
+      pairCount.set(pair, k + 1);
       const [from, to] = autoSide(rect(c.from), rect(c.to));
       const marker = { type: MarkerType.ArrowClosed, width: 18, height: 18, color: 'var(--edge)' };
       return {
@@ -113,7 +119,7 @@ function DepsGraph({ center, levels }: { center: string; levels: number }) {
         markerEnd: marker,
         markerStart: c.conn.direction === 'bidirectional' ? marker : undefined,
         selectable: false,
-        data: { ref: c.ref, conn: c, spec: { shape: 'curved' }, inherited: false, label: c.conn.label, bidirectional: c.conn.direction === 'bidirectional', dim: false, pulse: false, animate: false } satisfies EdgeData,
+        data: { ref: c.ref, conn: c, spec: { shape: 'auto' }, inherited: false, label: c.conn.label, bidirectional: c.conn.direction === 'bidirectional', dim: false, pulse: false, animate: false, obstacles, shift: k * 32 } satisfies EdgeData,
       };
     });
     return { nodes, edges };
