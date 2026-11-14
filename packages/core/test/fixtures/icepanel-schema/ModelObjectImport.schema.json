@@ -1,0 +1,85 @@
+{
+  "$id": "https://api.icepanel.io/v1/schemas/ModelObjectImport",
+  "additionalProperties": false,
+  "properties": {
+    "caption": {
+      "description": "Display description",
+      "maxLength": 50000,
+      "type": "string"
+    },
+    "description": {
+      "description": "Detailed description",
+      "maxLength": 950000,
+      "type": "string"
+    },
+    "external": {
+      "description": "Whether the model object is an external service",
+      "type": "boolean"
+    },
+    "groupIds": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "icon": {
+      "$ref": "https://api.icepanel.io/v1/schemas/ImportIconNullable"
+    },
+    "id": {
+      "type": "string"
+    },
+    "labels": {
+      "additionalProperties": {
+        "maxLength": 5000,
+        "type": "string"
+      },
+      "maxProperties": 50,
+      "type": "object"
+    },
+    "links": {
+      "items": {
+        "$ref": "https://api.icepanel.io/v1/schemas/ImportLink"
+      },
+      "type": "array"
+    },
+    "name": {
+      "maxLength": 4000,
+      "type": "string"
+    },
+    "parentId": {
+      "description": "Parent model object ID, must follow the IcePanel hierarchy.\n\nDomain: parent must be missing/null\n\nActor/System: parent must be a domain\n\nGroup: parent must be a domain or another group\n\nApp/Store: parent must be a system\n\nComponent: parent must be an app or store",
+      "nullable": true,
+      "type": "string"
+    },
+    "status": {
+      "$ref": "https://api.icepanel.io/v1/schemas/ModelObjectStatus"
+    },
+    "tagIds": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "teamIds": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "technologyIds": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "type": {
+      "$ref": "https://api.icepanel.io/v1/schemas/ImportModelObjectType"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "type"
+  ],
+  "type": "object"
+}

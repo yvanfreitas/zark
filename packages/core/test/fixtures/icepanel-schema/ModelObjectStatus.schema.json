@@ -1,0 +1,10 @@
+{
+  "$id": "https://api.icepanel.io/v1/schemas/ModelObjectStatus",
+  "enum": [
+    "deprecated",
+    "future",
+    "live",
+    "removed"
+  ],
+  "type": "string"
+}

@@ -1,0 +1,30 @@
+{
+  "$id": "https://api.icepanel.io/v1/schemas/TagGroupImport",
+  "additionalProperties": false,
+  "properties": {
+    "icon": {
+      "$ref": "https://api.icepanel.io/v1/schemas/TagGroupIcon"
+    },
+    "id": {
+      "type": "string"
+    },
+    "labels": {
+      "additionalProperties": {
+        "maxLength": 5000,
+        "type": "string"
+      },
+      "maxProperties": 50,
+      "type": "object"
+    },
+    "name": {
+      "maxLength": 4000,
+      "type": "string"
+    }
+  },
+  "required": [
+    "icon",
+    "id",
+    "name"
+  ],
+  "type": "object"
+}

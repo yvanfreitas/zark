@@ -1,0 +1,72 @@
+{
+  "$id": "https://api.icepanel.io/v1/schemas/ModelConnectionImport",
+  "additionalProperties": false,
+  "properties": {
+    "description": {
+      "description": "Detailed description",
+      "maxLength": 950000,
+      "type": "string"
+    },
+    "direction": {
+      "$ref": "https://api.icepanel.io/v1/schemas/ModelConnectionDirection"
+    },
+    "id": {
+      "type": "string"
+    },
+    "labels": {
+      "additionalProperties": {
+        "maxLength": 5000,
+        "type": "string"
+      },
+      "maxProperties": 50,
+      "type": "object"
+    },
+    "links": {
+      "items": {
+        "$ref": "https://api.icepanel.io/v1/schemas/ImportLink"
+      },
+      "type": "array"
+    },
+    "name": {
+      "maxLength": 4000,
+      "type": "string"
+    },
+    "originId": {
+      "description": "Model object that initiates the connection",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "https://api.icepanel.io/v1/schemas/ModelConnectionStatus"
+    },
+    "tagIds": {
+      "description": "Tag IDs assigned to this model",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "targetId": {
+      "description": "Model object that receives the message",
+      "type": "string"
+    },
+    "technologyIds": {
+      "description": "Technology IDs assigned to this model",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "viaId": {
+      "description": "Model object that facilitates the connection, such as a Kafka topic, or RabbitMQ queue",
+      "type": "string"
+    }
+  },
+  "required": [
+    "direction",
+    "id",
+    "name",
+    "originId",
+    "targetId"
+  ],
+  "type": "object"
+}

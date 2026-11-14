@@ -1,0 +1,13 @@
+{
+  "$id": "https://api.icepanel.io/v1/schemas/ImportModelObjectType",
+  "enum": [
+    "domain",
+    "actor",
+    "app",
+    "component",
+    "group",
+    "store",
+    "system"
+  ],
+  "type": "string"
+}
