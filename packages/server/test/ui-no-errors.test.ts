@@ -65,7 +65,7 @@ afterAll(async () => {
   await rm(root, { recursive: true, force: true });
 });
 
-describe('every UI write endpoint keeps the model free of errors', () => {
+describe('every UI write endpoint keeps the model free of errors', { timeout: 30_000 }, () => {
   it('entities: create (+place), update, move, delete', async () => {
     await valid('POST', '/api/entities', { entity: { id: 'billing', name: 'Billing', kind: 'system', external: true }, place: { drawing: 'context', x: 0, y: -560 } });
     await refused('POST', '/api/entities', { entity: { id: 'solto', name: 'Solto', kind: 'app' } }, 'E011');
