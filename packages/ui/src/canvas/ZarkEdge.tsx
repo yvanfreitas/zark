@@ -47,6 +47,7 @@ export const ZarkEdge = memo(function ZarkEdge(props: EdgeProps & { data: EdgeDa
         ))}
       <EdgeLabelRenderer>
         <div
+          data-edge-label={props.id}
           className="nodrag nopan pointer-events-auto absolute flex flex-col items-center gap-1"
           style={{ transform: `translate(-50%, -50%) translate(${label[0]}px, ${label[1]}px)`, opacity, zIndex: active ? 30 : 10 }}
         >
