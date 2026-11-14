@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
-import { readOnly, subscribe } from './api';
+import { api, readOnly, subscribe } from './api';
 import { Canvas } from './canvas/Canvas';
 import { freeId } from './model';
 import { currentDrawing, useStore } from './store';
@@ -157,10 +157,14 @@ function useLiveUpdates() {
           }
         },
         'problems.changed': refresh,
+        'render.status': (renderStatus) => useStore.getState().set({ renderStatus }),
       },
       (connected) => {
         useStore.getState().setConnected(connected);
-        if (connected) refresh();
+        if (connected) {
+          refresh();
+          void api('GET', '/api/render/status').then((renderStatus) => useStore.getState().set({ renderStatus }), () => undefined);
+        }
       },
     );
   }, []);

@@ -41,6 +41,7 @@ export async function startServer(opts: StartOptions): Promise<Running> {
   let port = 0;
   const service = new ZarkService(store, () => `http://127.0.0.1:${port}`, token);
   if (opts.watch) service.enableAutoRender();
+  service.enableRenderStatus();
   const app = createApp({ service, uiDir: opts.uiDir, mcp: opts.mcp?.(service), port: () => port, readOnly: opts.readOnly });
   const started = await listen(app, opts.port ?? 4317, opts.host);
   port = started.port;

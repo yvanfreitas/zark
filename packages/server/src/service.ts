@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { diffProjects, type Change } from '@zark/core';
 import { createPr, defaultBase, discard, projectAtRef, prPreview, status } from './git.js';
-import { readHash, renderHash, type RenderTarget } from './render-hash.js';
+import { readHash, renderHash, renderStatus, type RenderStatus, type RenderTarget } from './render-hash.js';
 import { cacheDir, Renderer, renderedDir, type RenderOutput } from './render.js';
 import { ProjectStore } from './store.js';
 
@@ -13,6 +13,7 @@ import { ProjectStore } from './store.js';
 export class ZarkService {
   readonly renderer: Renderer;
   private alwaysTimer?: NodeJS.Timeout;
+  private statusTimer?: NodeJS.Timeout;
 
   constructor(readonly store: ProjectStore, baseUrl: () => string, readonly token: string) {
     this.renderer = new Renderer(baseUrl, token);
@@ -30,8 +31,35 @@ export class ZarkService {
     this.store.on('model.changed', () => {
       if (this.project.config.render.commit !== 'always') return;
       clearTimeout(this.alwaysTimer);
+    clearTimeout(this.statusTimer);
       this.alwaysTimer = setTimeout(() => void this.renderAll(true).catch((e) => console.error(`render: ${e.message}`)), 2000);
     });
+  }
+
+  renderStatus(): Promise<RenderStatus> {
+    return renderStatus(this.project);
+  }
+
+  /** Recomputes render status after model changes (debounced) and broadcasts `render.status`. */
+  enableRenderStatus() {
+    const emit = () => void this.renderStatus().then((s) => this.store.emit('render.status', s), () => undefined);
+    this.store.on('model.changed', () => {
+      clearTimeout(this.statusTimer);
+      this.statusTimer = setTimeout(emit, 300);
+    });
+  }
+
+  /** Re-renders every stale committed PNG into rendered/ and broadcasts the new status. */
+  async renderStale() {
+    const { stale } = await this.renderStatus();
+    const written: string[] = [];
+    for (const item of stale) {
+      const out = await this.render(item.target, true);
+      written.push(`rendered/${out.file}`);
+    }
+    const status = await this.renderStatus();
+    this.store.emit('render.status', status);
+    return { written, status };
   }
 
   /**

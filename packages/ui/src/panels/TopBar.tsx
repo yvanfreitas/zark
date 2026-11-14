@@ -161,9 +161,42 @@ export function TopBar({ git }: { git?: GitStatus }) {
       }}>
         <Svg icon={theme === 'dark' ? Icon.sun : Icon.moon} />
       </IconButton>
+      <RegenerateButton />
       <Button data-edit onClick={() => set({ prDialog: true })} disabled={!git?.isRepo}>
         Abrir {git?.provider?.noun ?? 'PR'}
       </Button>
     </header>
+  );
+}
+
+/** Re-renders committed PNGs; enabled only while some are out of date with the model. */
+function RegenerateButton() {
+  const status = useStore((s) => s.renderStatus);
+  const [busy, setBusy] = useState(false);
+  if (!status || status.commitMode === 'never') return null;
+  const count = status.stale.length;
+  const title = busy
+    ? 'Gerando as imagens…'
+    : count
+      ? `Desatualizadas: ${status.stale.map((s) => `${s.file}${s.reason === 'missing' ? ' (falta)' : ''}`).join(', ')}`
+      : 'Imagens em dia';
+  const run = async () => {
+    setBusy(true);
+    try {
+      const r = await api<{ ok: boolean; error?: string; written: string[]; status: NonNullable<typeof status> }>('POST', '/api/render/all');
+      if (!r.ok) throw new Error(r.error ?? 'Falha ao gerar as imagens');
+      useStore.getState().set({ renderStatus: r.status });
+      useStore.getState().toast(`${r.written.length} imagem(ns) regerada(s)`, 'success');
+    } catch (err) {
+      useStore.getState().toast(`Não foi possível regerar as imagens: ${(err as Error).message}`, 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Button data-edit variant="subtle" onClick={run} disabled={busy || !count} title={title} aria-label={busy ? 'Gerando imagens' : count ? `Regerar ${count} imagem(ns) desatualizada(s)` : 'Imagens em dia'}>
+      {busy ? 'Gerando…' : 'Regerar imagens'}
+      {!busy && count > 0 && <span className="rounded-full bg-[var(--warn-soft)] px-1.5 text-[11px] font-semibold text-[var(--warn-fg)]">{count}</span>}
+    </Button>
   );
 }
