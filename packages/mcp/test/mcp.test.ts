@@ -9,7 +9,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { ProjectStore, ZarkService } from '@zark/server';
 import { createMcpServer } from '../src/index.js';
 
-const EXAMPLE = fileURLToPath(new URL('../../../examples/ecommerce/architecture', import.meta.url));
+const EXAMPLE = fileURLToPath(new URL('../../../examples/ai-chat/architecture', import.meta.url));
 
 let root: string;
 let dir: string;
@@ -55,53 +55,53 @@ describe('zark MCP server', () => {
 
   it('reads overview and flow as mermaid', async () => {
     const overview = await call('get_overview');
-    expect(overview.counts).toEqual({ entities: 13, connections: 17, drawings: 2, flows: 1 });
-    const text = await call('get_flow', { id: 'compra-com-estoque-da-loja', format: 'mermaid' });
+    expect(overview.counts).toEqual({ entities: 16, connections: 19, drawings: 2, flows: 2 });
+    const text = await call('get_flow', { id: 'user-chats-with-the-bot', format: 'mermaid' });
     expect(text).toContain('sequenceDiagram');
-    expect(text).toContain('alt Coleta agendada');
+    expect(text).toContain('alt Content approved');
   });
 
   it('apply_changes creates, connects, places and draws in one call', async () => {
     const r = await call('apply_changes', {
       ops: [
-        { op: 'entity.create', entity: { id: 'antifraude', name: 'Antifraude', kind: 'system', external: true } },
-        { op: 'connection.create', from: 'antifraude', connection: { id: 'score', to: 'trinio', label: 'Devolve score' } },
-        { op: 'drawing.place', drawing: 'contexto', nodes: [{ id: 'antifraude' }] },
-        { op: 'drawing.draw-edges', drawing: 'contexto', edges: [{ ref: 'antifraude.score', shape: 'straight' }] },
+        { op: 'entity.create', entity: { id: 'spam-filter', name: 'Spam filter', kind: 'system', external: true } },
+        { op: 'connection.create', from: 'spam-filter', connection: { id: 'score', to: 'papo-app', label: 'Returns a spam score' } },
+        { op: 'drawing.place', drawing: 'context', nodes: [{ id: 'spam-filter' }] },
+        { op: 'drawing.draw-edges', drawing: 'context', edges: [{ ref: 'spam-filter.score', shape: 'straight' }] },
       ],
     });
     expect(r.ok).toBe(true);
-    expect(r.changedFiles).toContain('entities/antifraude.yaml');
-    expect(r.changes).toContain('Entidade adicionada: Antifraude (system, externo)');
-    expect(existsSync(join(dir, 'entities/antifraude.yaml'))).toBe(true);
+    expect(r.changedFiles).toContain('entities/spam-filter.yaml');
+    expect(r.changes).toContain('Entidade adicionada: Spam filter (system, externo)');
+    expect(existsSync(join(dir, 'entities/spam-filter.yaml'))).toBe(true);
   });
 
   it('warns with a hint when a new connection is not drawn', async () => {
-    const r = await call('create_connection', { from: 'antifraude', connection: { id: 'alerta', to: 'sintese', label: 'Envia alerta' } });
+    const r = await call('create_connection', { from: 'spam-filter', connection: { id: 'alert', to: 'auth', label: 'Sends an alert' } });
     expect(r.ok).toBe(true);
-    expect(r.problems.warnings.some((w: string) => w.startsWith('W003 antifraude.alerta'))).toBe(true);
+    expect(r.problems.warnings.some((w: string) => w.startsWith('W003 spam-filter.alert'))).toBe(true);
     expect(r.hint).toContain('draw_connections');
   });
 
   it('refuses an op that introduces an error, without writing', async () => {
-    const r = await call('create_connection', { from: 'cliente', connection: { id: 'x', to: 'nada', label: 'X' } });
+    const r = await call('create_connection', { from: 'user', connection: { id: 'x', to: 'nada', label: 'X' } });
     expect(r.ok).toBe(false);
     expect(r.problems.errors[0]).toMatch(/^E020/);
-    expect(service.project.connections.has('cliente.x')).toBe(false);
+    expect(service.project.connections.has('user.x')).toBe(false);
   });
 
   it('dryRun validates without writing', async () => {
-    const r = await call('update_entity', { id: 'deco', set: { caption: 'Storefront' }, dryRun: true });
+    const r = await call('update_entity', { id: 'auth', set: { caption: 'Identity' }, dryRun: true });
     expect(r.ok).toBe(true);
-    expect(service.project.entities.get('deco')!.entity.caption).toBe('Front');
+    expect(service.project.entities.get('auth')!.entity.caption).toBe('Accounts and tokens');
   });
 
   it('delete_entity without cascade returns impact', async () => {
-    const r = await call('delete_entity', { id: 'linx' });
+    const r = await call('delete_entity', { id: 'llm-provider' });
     expect(r.ok).toBe(false);
-    expect(r.impact.join('\n')).toMatch(/sintese\.baixa-estoque/);
+    expect(r.impact.join('\n')).toMatch(/bot-orchestrator\.complete/);
     expect(r.hint).toContain('cascade: true');
-    expect(existsSync(join(dir, 'entities/linx.yaml'))).toBe(true);
+    expect(existsSync(join(dir, 'entities/llm-provider.yaml'))).toBe(true);
   });
 
   it('open_pr without confirm only returns the preview', async () => {

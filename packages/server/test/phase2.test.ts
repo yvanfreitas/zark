@@ -10,7 +10,7 @@ import { chromium } from 'playwright-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { startServer, type Running } from '../src/index.js';
 
-const EXAMPLE = fileURLToPath(new URL('../../../examples/ecommerce/architecture', import.meta.url));
+const EXAMPLE = fileURLToPath(new URL('../../../examples/ai-chat/architecture', import.meta.url));
 const UI = fileURLToPath(new URL('../../ui/dist', import.meta.url));
 
 describe.skipIf(!existsSync(join(UI, 'index.html')))('fase 2: visualizador e render', () => {
@@ -34,22 +34,22 @@ describe.skipIf(!existsSync(join(UI, 'index.html')))('fase 2: visualizador e ren
     try {
       const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
       await page.goto(`${running.url}/?token=${running.token}`);
-      const box = page.locator('.react-flow__node[data-id="stone"]');
+      const box = page.locator('.react-flow__node[data-id="auth"]');
       await box.waitFor();
       // Let the live-update stream connect before editing.
       await page.waitForFunction(() => document.body.innerText.includes('Salvo') || document.body.innerText.includes('Válido'));
       await page.waitForTimeout(300);
       const before = await box.evaluate((el) => (el as HTMLElement).style.transform);
 
-      const file = join(dir, 'drawings/contexto.yaml');
+      const file = join(dir, 'drawings/context.yaml');
       const text = await readFile(file, 'utf8');
-      const edited = text.replace('stone: { x: 360, y: -272 }', 'stone: { x: 600, y: -272 }');
+      const edited = text.replace('auth: { x: 832, y: -320 }', 'auth: { x: 600, y: -320 }');
       expect(edited).not.toBe(text);
       const started = Date.now();
       await writeFile(file, edited);
       await page.waitForFunction(
         ([sel, prev]) => (document.querySelector(sel) as HTMLElement | null)?.style.transform !== prev,
-        ['.react-flow__node[data-id="stone"]', before] as const,
+        ['.react-flow__node[data-id="auth"]', before] as const,
         { timeout: 5000, polling: 'raf' },
       );
       const elapsed = Date.now() - started;
@@ -62,12 +62,12 @@ describe.skipIf(!existsSync(join(UI, 'index.html')))('fase 2: visualizador e ren
   }, 60_000);
 
   it('renders the same PNG twice byte for byte', async () => {
-    const a = await running.service.renderer.png(running.service.project, { drawing: 'contexto' });
-    const b = await running.service.renderer.png(running.service.project, { drawing: 'contexto' });
+    const a = await running.service.renderer.png(running.service.project, { drawing: 'context' });
+    const b = await running.service.renderer.png(running.service.project, { drawing: 'context' });
     expect(a.png.length).toBeGreaterThan(10_000);
     expect(Buffer.compare(a.png, b.png)).toBe(0);
-    const flowA = await running.service.renderer.png(running.service.project, { flow: 'compra-com-estoque-da-loja', step: 'cria-pedido' });
-    const flowB = await running.service.renderer.png(running.service.project, { flow: 'compra-com-estoque-da-loja', step: 'cria-pedido' });
+    const flowA = await running.service.renderer.png(running.service.project, { flow: 'user-chats-with-the-bot', step: 'triggers-the-bot' });
+    const flowB = await running.service.renderer.png(running.service.project, { flow: 'user-chats-with-the-bot', step: 'triggers-the-bot' });
     expect(Buffer.compare(flowA.png, flowB.png)).toBe(0);
   }, 120_000);
 });

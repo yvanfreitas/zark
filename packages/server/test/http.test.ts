@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startServer, type Running } from '../src/index.js';
 
-const EXAMPLE = fileURLToPath(new URL('../../../examples/ecommerce/architecture', import.meta.url));
+const EXAMPLE = fileURLToPath(new URL('../../../examples/ai-chat/architecture', import.meta.url));
 
 let root: string;
 let dir: string;
@@ -105,42 +105,42 @@ describe('model and writes', () => {
   it('returns the model with hashes and no problems', async () => {
     const { status, body } = await call('GET', '/api/model');
     expect(status).toBe(200);
-    expect(body.entities).toHaveLength(13);
-    expect(body.files['entities/deco.yaml'].hash).toMatch(/^[0-9a-f]{16}$/);
+    expect(body.entities).toHaveLength(16);
+    expect(body.files['entities/auth.yaml'].hash).toMatch(/^[0-9a-f]{16}$/);
     expect(body.problems).toEqual([]);
   });
 
   it('PATCH changes exactly one line and is reflected in GET', async () => {
-    const before = await readFile(join(dir, 'entities/deco.yaml'), 'utf8');
-    const r = await call('PATCH', '/api/entities/deco', { set: { caption: 'Frontend' } });
+    const before = await readFile(join(dir, 'entities/auth.yaml'), 'utf8');
+    const r = await call('PATCH', '/api/entities/auth', { set: { caption: 'Identity' } });
     expect(r.status).toBe(200);
-    expect(r.body.changes).toEqual(['deco: caption alterado']);
-    const after = await readFile(join(dir, 'entities/deco.yaml'), 'utf8');
+    expect(r.body.changes).toEqual(['Auth: caption alterado']);
+    const after = await readFile(join(dir, 'entities/auth.yaml'), 'utf8');
     expect(lineDiff(before, after)).toBe(1);
     const { body } = await call('GET', '/api/model');
-    expect(body.entities.find((e: any) => e.id === 'deco').caption).toBe('Frontend');
+    expect(body.entities.find((e: any) => e.id === 'auth').caption).toBe('Identity');
   });
 
   it('stale If-Match returns 409 with the current model', async () => {
-    const r = await call('PATCH', '/api/entities/deco', { set: { caption: 'x' } }, { 'if-match': 'entities/deco.yaml=stale' });
+    const r = await call('PATCH', '/api/entities/auth', { set: { caption: 'x' } }, { 'if-match': 'entities/auth.yaml=stale' });
     expect(r.status).toBe(409);
-    expect(r.body.model.entities).toHaveLength(13);
+    expect(r.body.model.entities).toHaveLength(16);
   });
 
   it('a connection to a missing entity returns 422 with E020', async () => {
-    const r = await call('POST', '/api/entities/cliente/connections', { connection: { id: 'x', to: 'nada', label: 'X' } });
+    const r = await call('POST', '/api/entities/user/connections', { connection: { id: 'x', to: 'nada', label: 'X' } });
     expect(r.status).toBe(422);
     expect(r.body.problems.map((p: any) => p.code)).toContain('E020');
   });
 
   it('delete without cascade returns impact; with cascade removes cleanly', async () => {
-    const r = await call('DELETE', '/api/entities/linx');
+    const r = await call('DELETE', '/api/entities/llm-provider');
     expect(r.body.ok).toBe(false);
     expect(r.body.impact.length).toBeGreaterThan(0);
-    await expect(readFile(join(dir, 'entities/linx.yaml'), 'utf8')).resolves.toContain('id: linx');
-    const ok = await call('DELETE', '/api/entities/linx?cascade=true');
+    await expect(readFile(join(dir, 'entities/llm-provider.yaml'), 'utf8')).resolves.toContain('id: llm-provider');
+    const ok = await call('DELETE', '/api/entities/llm-provider?cascade=true');
     expect(ok.status).toBe(200);
-    await expect(readFile(join(dir, 'entities/linx.yaml'), 'utf8')).rejects.toThrow();
+    await expect(readFile(join(dir, 'entities/llm-provider.yaml'), 'utf8')).rejects.toThrow();
     const v = await call('GET', '/api/validate');
     expect(v.body.problems.filter((p: any) => p.severity === 'error')).toEqual([]);
   });
@@ -148,9 +148,9 @@ describe('model and writes', () => {
 
 describe('canvas ops and history', () => {
   it('move-nodes changes one line; undo restores exactly; redo re-applies', async () => {
-    const path = join(dir, 'drawings/contexto.yaml');
+    const path = join(dir, 'drawings/context.yaml');
     const original = await readFile(path, 'utf8');
-    const r = await call('POST', '/api/drawings/contexto/ops', { ops: [{ op: 'move-nodes', nodes: [{ id: 'stone', x: 360, y: -296 }] }] });
+    const r = await call('POST', '/api/drawings/context/ops', { ops: [{ op: 'move-nodes', nodes: [{ id: 'auth', x: 832, y: -344 }] }] });
     expect(r.status).toBe(200);
     const moved = await readFile(path, 'utf8');
     expect(lineDiff(original, moved)).toBe(1);
@@ -163,20 +163,20 @@ describe('canvas ops and history', () => {
 
 describe('events', () => {
   it('emits model.changed with origin external on disk edits', async () => {
-    const path = join(dir, 'entities/trinio.yaml');
+    const path = join(dir, 'entities/moderation.yaml');
     const text = await readFile(path, 'utf8');
     const data = await waitForEvent(
-      () => writeFile(path, text.replace('caption: Checkout', 'caption: Checkout externo')),
+      () => writeFile(path, text.replace('caption: Content classifier', 'caption: Content classifier v2')),
       (e, d) => e === 'model.changed' && d.origin === 'external',
     );
-    expect(data.files).toContain('entities/trinio.yaml');
+    expect(data.files).toContain('entities/moderation.yaml');
   });
 
   it('emits model.changed with origin ui on API writes', async () => {
     const data = await waitForEvent(
-      () => call('PATCH', '/api/entities/stone', { set: { caption: 'Adquirente' } }),
+      () => call('PATCH', '/api/entities/attachments', { set: { caption: 'Images, audio and files' } }),
       (e, d) => e === 'model.changed' && d.origin === 'ui',
     );
-    expect(data.files).toContain('entities/stone.yaml');
+    expect(data.files).toContain('entities/attachments.yaml');
   });
 });

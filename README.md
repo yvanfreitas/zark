@@ -7,7 +7,18 @@ Documentação de arquitetura as code. Os arquivos YAML em `architecture/` são 
 - **Fluxos** (`flows/<id>.yaml`): passo a passo sobre as conexões, com paralelos, alternativas e subfluxos, reproduzido sobre um desenho.
 - **Validação**: todo problema tem código (`E001`…`W030`), arquivo e linha. Erros falham o CI e bloqueiam escrita pela UI e pelo MCP.
 
-Veja `examples/ecommerce/architecture/` para um modelo completo (13 entidades, 17 conexões, 2 desenhos, 1 fluxo).
+## Example: Papo, an AI chat app on AWS
+
+`examples/ai-chat/architecture/` is a complete, fictional model: **Papo**, a chat app whose messages go through an Amazon API Gateway WebSocket API, fan out on an SNS topic to SQS queues, and wake up an AI bot running on AWS Lambda (16 entities, 19 connections, 2 drawings, 2 flows).
+
+- **Context** drawing: the user, the Papo app, Auth (Amazon Cognito), the Papo platform and two external services (an LLM provider and a moderation service).
+- **Papo platform** drawing (drill-down into the platform): WebSocket API, message handler (Lambda), messages topic (SNS), bot and history queues plus a dead-letter queue (SQS), bot orchestrator and history writer (Lambda), conversation history (DynamoDB) and attachments (S3).
+- **User chats with the bot** flow: parallel delivery to history and bot, alternatives for approved or blocked content, a reply step and the answer pushed back over the WebSocket.
+- **History is saved** flow: the history queue, its writer and the dead-letter path.
+
+```bash
+zark dev --dir examples/ai-chat/architecture
+```
 
 ## Instalação
 
@@ -98,10 +109,10 @@ pnpm install
 pnpm test                 # Vitest
 pnpm typecheck
 pnpm build                # UI e depois a CLI (packages/cli/dist)
-pnpm zark validate --dir examples/ecommerce/architecture   # CLI direto do código-fonte
+pnpm zark validate --dir examples/ai-chat/architecture   # CLI direto do código-fonte
 ```
 
-Para trabalhar na UI, rode `pnpm build` (ou `pnpm --filter @zark/ui build`) e `pnpm zark dev --dir examples/ecommerce/architecture`.
+Para trabalhar na UI, rode `pnpm build` (ou `pnpm --filter @zark/ui build`) e `pnpm zark dev --dir examples/ai-chat/architecture`.
 
 ## Publicar no GitHub Pages
 

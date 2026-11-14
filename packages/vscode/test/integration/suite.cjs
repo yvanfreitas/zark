@@ -29,7 +29,7 @@ async function run() {
   assert.ok(commands.includes('zark.openDrawing'), 'comando zark.openDrawing não registrado');
   log('extension activated, command registered');
 
-  const file = path.join(workspace, 'architecture', 'drawings', 'contexto.yaml');
+  const file = path.join(workspace, 'architecture', 'drawings', 'context.yaml');
   const doc = await vscode.workspace.openTextDocument(file);
   await vscode.window.showTextDocument(doc);
   await vscode.commands.executeCommand('zark.openDrawing');
@@ -38,11 +38,11 @@ async function run() {
     if (api.lastError()) throw new Error(`a extensão falhou: ${api.lastError()}`);
     return [...api.panels.values()][0];
   }, 'o painel do Zark');
-  assert.equal(panel.title, 'Zark: contexto');
+  assert.equal(panel.title, 'Zark: context');
   // "Ao lado do YAML": the panel's tab must live in a group to the right of the editor's.
   const editorColumn = vscode.window.activeTextEditor?.viewColumn ?? vscode.ViewColumn.One;
   const panelGroup = await waitFor(
-    () => vscode.window.tabGroups.all.find((g) => g.tabs.some((t) => t.label === 'Zark: contexto')),
+    () => vscode.window.tabGroups.all.find((g) => g.tabs.some((t) => t.label === 'Zark: context')),
     'a aba do painel num grupo de editores',
   );
   const yamlGroup = vscode.window.tabGroups.all.find((g) => g.tabs.some((t) => t.input && t.input.uri && t.input.uri.fsPath === doc.uri.fsPath));
@@ -53,7 +53,7 @@ async function run() {
   log(`webview panel "${panel.title}" in column ${panelGroup.viewColumn}, YAML in column ${yamlGroup.viewColumn} (beside)`);
 
   const html = panel.webview.html;
-  const m = /<iframe src="(http:\/\/127\.0\.0\.1:(\d+)\/\?token=([0-9a-f]+)#drawing=contexto)"/.exec(html);
+  const m = /<iframe src="(http:\/\/127\.0\.0\.1:(\d+)\/\?token=([0-9a-f]+)#drawing=context)"/.exec(html);
   assert.ok(m, `iframe para o desenho não encontrado no HTML do webview:\n${html}`);
   const [, url, port, token] = m;
   assert.match(html, new RegExp(`frame-src http://127\\.0\\.0\\.1:${port};`), 'CSP não restringe o frame à porta do servidor');
@@ -70,15 +70,15 @@ async function run() {
   assert.equal(page.status, 200);
   assert.match(await page.text(), /<div id="root">/);
   const model = await fetch(`http://127.0.0.1:${port}/api/model`, { headers: { 'x-zark-token': token } }).then((r) => r.json());
-  assert.equal(model.entities.length, 13);
+  assert.equal(model.entities.length, 16);
   log(`UI served, model has ${model.entities.length} entities`);
 
   // Same command on an entity file reuses the server and retargets the panel.
-  await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(path.join(workspace, 'architecture', 'entities', 'gateway.yaml')));
+  await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(path.join(workspace, 'architecture', 'entities', 'bot-queue.yaml')));
   await vscode.commands.executeCommand('zark.openDrawing');
-  await waitFor(() => api.panels.size === 1 && /#drawing=vtex"/.test(panel.webview.html), 'o painel apontar para o desenho vtex');
+  await waitFor(() => api.panels.size === 1 && /#drawing=platform"/.test(panel.webview.html), 'o painel apontar para o desenho platform');
   assert.ok(panel.webview.html.includes(`127.0.0.1:${port}/`), 'servidor não foi reaproveitado');
-  log('entity gateway.yaml -> same panel, #drawing=vtex, same server');
+  log('entity bot-queue.yaml -> same panel, #drawing=platform, same server');
 
   log('PASS');
 }

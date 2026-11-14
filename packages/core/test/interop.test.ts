@@ -17,7 +17,7 @@ import {
   type Project,
 } from '../src/index.js';
 
-const EXAMPLE = fileURLToPath(new URL('../../../examples/ecommerce/architecture', import.meta.url));
+const EXAMPLE = fileURLToPath(new URL('../../../examples/ai-chat/architecture', import.meta.url));
 const fixture = (name: string) => readFile(fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url)), 'utf8');
 const texts = await readTexts(EXAMPLE);
 const example = buildProject(EXAMPLE, texts);
@@ -87,14 +87,14 @@ describe('IcePanel', () => {
 
   it('export matches the LandscapeImportData shape', () => {
     const data = parse(toIcePanelYaml(example));
-    expect(data.modelObjects.find((o: { id: string }) => o.id === 'seller-phg')).toMatchObject({ type: 'app', parentId: 'vtex', name: 'PHG' });
-    expect(data.modelConnections.find((c: { id: string }) => c.id === 'sintese.pedido-intelipost')).toMatchObject({
-      originId: 'sintese',
-      targetId: 'intelipost',
-      name: 'Cria o pedido de transporte',
+    expect(data.modelObjects.find((o: { id: string }) => o.id === 'websocket-api')).toMatchObject({ type: 'app', parentId: 'platform', name: 'WebSocket API' });
+    expect(data.modelConnections.find((c: { id: string }) => c.id === 'bot-orchestrator.complete')).toMatchObject({
+      originId: 'bot-orchestrator',
+      targetId: 'llm-provider',
+      name: 'Generates the answer',
       direction: 'bidirectional',
     });
-    expect(data.tags[0]).toMatchObject({ id: 'logistica', name: 'Logística', color: 'grey', groupId: 'zark' });
+    expect(data.tags[0]).toMatchObject({ id: 'messaging', name: 'Messaging', color: 'grey', groupId: 'zark' });
   });
 
   it('imports a hand-written landscape: domains and groups dropped with warnings, hierarchy kept', async () => {
@@ -122,9 +122,9 @@ describe('IcePanel', () => {
 describe('import into an existing project', () => {
   it('suffixes colliding ids and keeps the existing catalog', async () => {
     const r = await importInto(example, toIcePanelYaml(example), 'icepanel');
-    expect(r.project.entities.has('vtex-2')).toBe(true);
-    expect(r.project.entities.get('seller-phg-2')?.entity.parent).toBe('vtex-2');
-    expect(r.project.catalog.technologies?.find((t) => t.id === 'vtex')?.name).toBe('VTEX');
+    expect(r.project.entities.has('platform-2')).toBe(true);
+    expect(r.project.entities.get('websocket-api-2')?.entity.parent).toBe('platform-2');
+    expect(r.project.catalog.technologies?.find((t) => t.id === 'lambda')?.name).toBe('AWS Lambda');
     expect(r.project.drawings.has('icepanel')).toBe(true);
   });
 

@@ -31,10 +31,21 @@ function PersonIcon() {
   );
 }
 
+/**
+ * Two letters that tell boxes apart: initials of the entity's significant
+ * words ("Fila do bot" -> FB). The technology name made every AWS box read "Am".
+ */
+export function initials(name: string): string {
+  const words = name.split(/\s+/).filter((w) => w.length > 2 || /^[A-ZÀ-Ý]/.test(w));
+  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+  const one = words[0] ?? name;
+  return one.slice(0, 1).toUpperCase() + one.slice(1, 2).toLowerCase();
+}
+
 function Badge({ text }: { text: string }) {
   return (
     <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[var(--badge)] text-[13px] font-semibold text-[var(--badge-fg)]" aria-hidden="true">
-      {text.slice(0, 2)}
+      {initials(text)}
     </span>
   );
 }
@@ -121,7 +132,7 @@ export const EntityNode = memo(function EntityNode({ id, data, selected }: NodeP
       <Handles interactive={data.interactive} />
       <Indicators data={data} id={id} />
       <div className="flex min-h-0 items-start gap-2.5">
-        {data.techIcon ? <img src={data.techIcon} alt="" className="size-8 shrink-0 rounded-lg object-contain" /> : <Badge text={data.techName ?? e.name} />}
+        {data.techIcon ? <img src={data.techIcon} alt="" className="size-8 shrink-0 rounded-lg object-contain" /> : <Badge text={e.name} />}
         <div className="min-w-0">
           <div className={`truncate text-[15px] font-semibold leading-snug text-[var(--fg)] ${nameClass}`}>{e.name}</div>
           {e.caption && <div className="line-clamp-2 text-[12px] leading-snug text-[var(--muted)]">{e.caption}</div>}

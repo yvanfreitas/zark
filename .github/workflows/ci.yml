@@ -23,9 +23,9 @@ jobs:
       - run: pnpm test
       - name: Exemplo do apêndice continua válido e canônico
         run: |
-          node packages/cli/dist/main.js validate --dir examples/ecommerce/architecture
-          node packages/cli/dist/main.js fmt --check --dir examples/ecommerce/architecture
-          node packages/cli/dist/main.js render --check --dir examples/ecommerce/architecture
+          node packages/cli/dist/main.js validate --dir examples/ai-chat/architecture
+          node packages/cli/dist/main.js fmt --check --dir examples/ai-chat/architecture
+          node packages/cli/dist/main.js render --check --dir examples/ai-chat/architecture
       - name: Cache do VS Code de teste
         uses: actions/cache@v4
         with:

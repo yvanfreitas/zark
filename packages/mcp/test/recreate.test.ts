@@ -11,7 +11,7 @@ import { createDoc, diffProjects, loadProject, toText, writeAtomic } from '@zark
 import { startServer, type Running } from '@zark/server';
 import { createMcpServer } from '../src/index.js';
 
-const EXAMPLE = fileURLToPath(new URL('../../../examples/ecommerce/architecture', import.meta.url));
+const EXAMPLE = fileURLToPath(new URL('../../../examples/ai-chat/architecture', import.meta.url));
 
 let running: Running | undefined;
 let root: string | undefined;
@@ -53,7 +53,7 @@ async function listen(url: string, token: string) {
 }
 
 describe('fase 3: agente recria o apêndice só com tools', () => {
-  it('rebuilds the ecommerce model with no errors, semantically equal, UI following live', async () => {
+  it('rebuilds the AI chat example model with no errors, semantically equal, UI following live', async () => {
     root = await mkdtemp(join(tmpdir(), 'zark-recreate-'));
     const dir = join(root, 'architecture');
     const example = await loadProject(EXAMPLE);

@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=https://unpkg.com/zark/schema/entity.json
+
+id: messages-topic
+name: Messages topic
+kind: store
+parent: platform
+caption: Fans out every message
+technologies: [ sns ]
+tags: [ messaging ]
+
+connections:
+  - id: history
+    to: history-queue
+    label: History subscription
+  - id: bot
+    to: bot-queue
+    label: Bot subscription

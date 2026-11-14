@@ -1,11 +1,10 @@
 # yaml-language-server: $schema=https://unpkg.com/zark/schema/entity.json
 
-id: cliente
-name: Cliente
+id: user
+name: User
 kind: actor
-external: true
 
 connections:
-  - id: navega
-    to: deco
-    label: Navega e compra
+  - id: uses
+    to: papo-app
+    label: Chats in the app

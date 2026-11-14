@@ -50,7 +50,7 @@ function hierarchyErrors(data: { modelObjects?: IceObject[]; modelConnections?: 
   return out;
 }
 
-const EXAMPLE = here('../../../examples/ecommerce/architecture');
+const EXAMPLE = here('../../../examples/ai-chat/architecture');
 const texts = await readTexts(EXAMPLE);
 const example = buildProject(EXAMPLE, texts);
 const empty = () => buildProject(EXAMPLE, new Map([['zark.yaml', texts.get('zark.yaml')!]]));
@@ -74,24 +74,24 @@ describe('IcePanel LandscapeImportData conformance', () => {
     expect(hierarchyErrors(data)).toEqual([]);
     // Root actor/system sit under one domain named after the project.
     const domain = data.modelObjects.find((o: IceObject) => o.type === 'domain');
-    expect(domain).toMatchObject({ id: 'domain-ecommerce', name: 'Ecommerce' });
-    expect(data.modelObjects.find((o: IceObject) => o.id === 'cliente').parentId).toBe('domain-ecommerce');
+    expect(domain).toMatchObject({ id: 'domain-papo', name: 'Papo' });
+    expect(data.modelObjects.find((o: IceObject) => o.id === 'user').parentId).toBe('domain-papo');
     // No Zark catalog ids where IcePanel expects its own catalog/organization ids.
     const all = [...data.modelObjects, ...data.modelConnections];
     expect(all.filter((o) => 'technologyIds' in o || 'teamIds' in o)).toEqual([]);
-    expect(data.modelObjects.find((o: IceObject) => o.id === 'sintese').labels).toEqual({ 'zark:owner': 'time-oms=Time OMS' });
-    expect(data.modelObjects.find((o: IceObject) => o.id === 'vtex').labels).toEqual({ 'zark:technologies': 'vtex=VTEX' });
+    expect(data.modelObjects.find((o: IceObject) => o.id === 'platform').labels).toEqual({ 'zark:owner': 'platform-team=Platform team' });
+    expect(data.modelObjects.find((o: IceObject) => o.id === 'history').labels).toEqual({ 'zark:technologies': 'dynamodb=Amazon DynamoDB' });
   });
 
   it('round trip through IcePanel keeps catalog names via labels', async () => {
     const { project } = await importText(toIcePanelYaml(example));
     expect(project.entities.size).toBe(example.entities.size);
-    expect(project.entities.get('cliente')?.entity.parent).toBeUndefined();
-    expect(project.entities.get('vtex')?.entity.technologies).toEqual(['vtex']);
-    expect(project.catalog.technologies?.find((t) => t.id === 'vtex')?.name).toBe('VTEX');
+    expect(project.entities.get('user')?.entity.parent).toBeUndefined();
+    expect(project.entities.get('history')?.entity.technologies).toEqual(['dynamodb']);
+    expect(project.catalog.technologies?.find((t) => t.id === 'dynamodb')?.name).toBe('Amazon DynamoDB');
     expect(project.catalog.technologies?.find((t) => t.id === 'rest')?.name).toBe('REST');
-    expect(project.entities.get('sintese')?.entity.owner).toBe('time-oms');
-    expect(project.catalog.teams?.find((t) => t.id === 'time-oms')?.name).toBe('Time OMS');
+    expect(project.entities.get('platform')?.entity.owner).toBe('platform-team');
+    expect(project.catalog.teams?.find((t) => t.id === 'platform-team')?.name).toBe('Platform team');
   });
 
   it('the hand-written fixture validates and follows the hierarchy', () => {

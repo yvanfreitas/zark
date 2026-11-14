@@ -17,10 +17,10 @@ import {
 export type FileKind = 'config' | 'catalog' | 'entity' | 'drawing' | 'flow';
 
 export interface SourceFile {
-  /** Posix path relative to the architecture dir, e.g. `entities/vtex.yaml`. */
+  /** Posix path relative to the architecture dir, e.g. `entities/auth.yaml`. */
   path: string;
   kind: FileKind;
-  /** Id implied by the file name (`entities/vtex.yaml` -> `vtex`). */
+  /** Id implied by the file name (`entities/auth.yaml` -> `auth`). */
   nameId: string;
   text: string;
   hash: string;
