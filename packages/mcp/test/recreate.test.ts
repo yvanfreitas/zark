@@ -52,7 +52,7 @@ async function listen(url: string, token: string) {
   return { events, stop: () => controller.abort() };
 }
 
-describe('fase 3: agente recria o apêndice só com tools', () => {
+describe('phase 3: an agent recreates the example using only tools', () => {
   it('rebuilds the AI chat example model with no errors, semantically equal, UI following live', async () => {
     root = await mkdtemp(join(tmpdir(), 'zark-recreate-'));
     const dir = join(root, 'architecture');

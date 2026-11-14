@@ -90,7 +90,7 @@ describe('PR text', () => {
     const before = project();
     const after = project((t) => t.set('entities/auth.yaml', t.get('entities/auth.yaml')!.replace('caption: Accounts and tokens', 'caption: Identity')));
     const changes = diffProjects(before, after);
-    expect(prTitle(changes, after, before)).toBe('Auth: caption alterado');
+    expect(prTitle(changes, after, before)).toBe('Auth: caption changed');
   });
 
   it('summarizes several changes', () => {
@@ -100,7 +100,7 @@ describe('PR text', () => {
       t.set('drawings/context.yaml', t.get('drawings/context.yaml')!.replace('auth: { x: 832, y: -320 }', 'auth: { x: 832, y: -328 }'));
     });
     const title = prTitle(diffProjects(before, after), after, before);
-    expect(title).toBe('Arquitetura: adiciona Novo e 2 conexões, ajusta Context');
+    expect(title).toBe('Architecture: adds Novo and 2 connections, adjusts Context');
   });
 
   it('builds the body with summary, drawings table and validation line', () => {
@@ -116,10 +116,10 @@ describe('PR text', () => {
         { code: 'W003', severity: 'warning', file: 'b', message: 'y' },
       ],
     });
-    expect(body).toContain('## Resumo\n- Auth: caption alterado');
-    expect(body).toContain('| Antes | Depois |');
-    expect(body).toContain('![antes](https://x/before/rendered/context.png)');
-    expect(body).toContain('0 erros, 2 avisos (W003 x2)');
+    expect(body).toContain('## Summary\n- Auth: caption changed');
+    expect(body).toContain('| Before | After |');
+    expect(body).toContain('![before](https://x/before/rendered/context.png)');
+    expect(body).toContain('0 errors, 2 warnings (W003 x2)');
   });
 });
 
@@ -160,8 +160,8 @@ describe('git integration', () => {
 
     const preview = await prPreview(dir, store.project, store.problems);
     expect(preview.ok).toBe(false);
-    expect(preview.blockers.join('\n')).toMatch(/remoto/);
-    expect(preview.changes.map((c) => c.text)).toEqual(['Auth: caption alterado']);
+    expect(preview.blockers.join('\n')).toMatch(/remote/);
+    expect(preview.changes.map((c) => c.text)).toEqual(['Auth: caption changed']);
 
     await discard(dir, ['entities/auth.yaml']);
     expect(await readFile(join(dir, 'entities/auth.yaml'), 'utf8')).toBe(await readFile(join(EXAMPLE, 'entities/auth.yaml'), 'utf8'));

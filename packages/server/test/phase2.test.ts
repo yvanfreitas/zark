@@ -37,7 +37,7 @@ describe.skipIf(!existsSync(join(UI, 'index.html')))('fase 2: visualizador e ren
       const box = page.locator('.react-flow__node[data-id="auth"]');
       await box.waitFor();
       // Let the live-update stream connect before editing.
-      await page.waitForFunction(() => document.body.innerText.includes('Salvo') || document.body.innerText.includes('Válido'));
+      await page.waitForFunction(() => document.body.innerText.includes('Saved') || document.body.innerText.includes('Valid'));
       await page.waitForTimeout(300);
       const before = await box.evaluate((el) => (el as HTMLElement).style.transform);
 
@@ -53,7 +53,7 @@ describe.skipIf(!existsSync(join(UI, 'index.html')))('fase 2: visualizador e ren
         { timeout: 5000, polling: 'raf' },
       );
       const elapsed = Date.now() - started;
-      console.log(`x no YAML -> caixa na tela: ${elapsed} ms`);
+      console.log(`x in YAML -> box on screen: ${elapsed} ms`);
       expect(await box.evaluate((el) => (el as HTMLElement).style.transform)).toContain('600px');
       expect(elapsed).toBeLessThan(1000);
     } finally {

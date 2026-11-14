@@ -14,8 +14,8 @@ const { runTests } = testElectron;
 const pkg = fileURLToPath(new URL('../..', import.meta.url));
 const repo = join(pkg, '..', '..');
 const cli = join(repo, 'packages', 'cli', 'dist', 'main.js');
-if (!existsSync(cli)) throw new Error(`CLI não encontrada em ${cli}. Rode "pnpm build" antes.`);
-if (!existsSync(join(pkg, 'dist', 'extension.cjs'))) throw new Error('Extensão não buildada. Rode "pnpm --filter zark-vscode build".');
+if (!existsSync(cli)) throw new Error(`CLI not found at ${cli}. Run "pnpm build" first.`);
+if (!existsSync(join(pkg, 'dist', 'extension.cjs'))) throw new Error('Extension not built. Run "pnpm --filter zark-vscode build".');
 
 const workspace = await mkdtemp(join(tmpdir(), 'zark-vscode-'));
 await cp(join(repo, 'examples', 'ai-chat'), workspace, { recursive: true });

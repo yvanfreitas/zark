@@ -18,19 +18,19 @@ jobs:
       # Build first so the UI exists: the end-to-end PR test renders real PNGs.
       - run: pnpm build
       - run: pnpm --filter zark-vscode smoke
-      - name: Chromium do Playwright (com dependências do sistema)
+      - name: Playwright Chromium (with system dependencies)
         run: pnpm --filter @zark/server exec playwright-core install --with-deps chromium
       - run: pnpm test
-      - name: Exemplo do apêndice continua válido e canônico
+      - name: Example stays valid and canonical
         run: |
           node packages/cli/dist/main.js validate --dir examples/ai-chat/architecture
           node packages/cli/dist/main.js fmt --check --dir examples/ai-chat/architecture
           node packages/cli/dist/main.js render --check --dir examples/ai-chat/architecture
-      - name: Cache do VS Code de teste
+      - name: Cache the test VS Code
         uses: actions/cache@v4
         with:
           path: packages/vscode/.vscode-test
           key: vscode-test-${{ runner.os }}-stable-${{ github.run_id }}
           restore-keys: vscode-test-${{ runner.os }}-stable-
-      - name: Extensão num VS Code real (xvfb)
+      - name: Extension in a real VS Code (xvfb)
         run: xvfb-run -a pnpm --filter zark-vscode test:integration

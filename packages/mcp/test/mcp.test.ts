@@ -72,7 +72,7 @@ describe('zark MCP server', () => {
     });
     expect(r.ok).toBe(true);
     expect(r.changedFiles).toContain('entities/spam-filter.yaml');
-    expect(r.changes).toContain('Entidade adicionada: Spam filter (system, externo)');
+    expect(r.changes).toContain('Entity added: Spam filter (system, external)');
     expect(existsSync(join(dir, 'entities/spam-filter.yaml'))).toBe(true);
   });
 

@@ -1,4 +1,4 @@
-// "Regerar imagens": which committed PNGs are out of date, and regenerating them.
+// "Re-render images": which committed PNGs are out of date, and regenerating them.
 import { existsSync, readdirSync } from 'node:fs';
 import { cp, mkdtemp, readFile, rm, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -147,25 +147,25 @@ describe.skipIf(!hasUi)('regenerate images (real render)', () => {
     try {
       const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
       await page.goto(`${running.url}/?token=${running.token}`);
-      const button = page.getByRole('button', { name: /Imagens em dia|Regerar .* imagem/ });
+      const button = page.getByRole('button', { name: /Images up to date|Re-render .* image/ });
       await button.waitFor();
       expect(await button.isDisabled()).toBe(true);
-      expect(await button.getAttribute('title')).toBe('Imagens em dia');
+      expect(await button.getAttribute('title')).toBe('Images up to date');
 
       // Edit the YAML on disk: the watcher reloads and the status follows live.
       const { drawingId, nodeId, node, file } = firstNode(running.service.project);
       const text = await readFile(join(dir, file), 'utf8');
       await writeFile(join(dir, file), text.replace(new RegExp(`(\\n  ${nodeId}: \\{ x: )${node.x}(,)`), `$1${node.x + 8}$2`));
       await page.waitForFunction(() => {
-        const b = [...document.querySelectorAll('button')].find((x) => x.textContent?.startsWith('Regerar imagens'));
+        const b = [...document.querySelectorAll('button')].find((x) => x.textContent?.startsWith('Re-render images'));
         return !!b && !b.disabled && /1$/.test(b.textContent ?? '');
       }, undefined, { timeout: 10_000 });
       await page.screenshot({ path: join(tmpdir(), 'zark-regenerate-button.png'), clip: { x: 900, y: 0, width: 700, height: 48 } });
 
-      await page.getByRole('button', { name: /Regerar 1 imagem/ }).click();
+      await page.getByRole('button', { name: /Re-render 1 out-of-date image/ }).click();
       await page.waitForFunction(() => {
-        const b = [...document.querySelectorAll('button')].find((x) => x.textContent?.startsWith('Regerar imagens'));
-        return !!b && b.disabled && b.title === 'Imagens em dia';
+        const b = [...document.querySelectorAll('button')].find((x) => x.textContent?.startsWith('Re-render images'));
+        return !!b && b.disabled && b.title === 'Images up to date';
       }, undefined, { timeout: 60_000 });
       expect((await renderStatus(running.service.project)).stale).toEqual([]);
       expect(drawingId).toBeTruthy();

@@ -114,7 +114,7 @@ describe('model and writes', () => {
     const before = await readFile(join(dir, 'entities/auth.yaml'), 'utf8');
     const r = await call('PATCH', '/api/entities/auth', { set: { caption: 'Identity' } });
     expect(r.status).toBe(200);
-    expect(r.body.changes).toEqual(['Auth: caption alterado']);
+    expect(r.body.changes).toEqual(['Auth: caption changed']);
     const after = await readFile(join(dir, 'entities/auth.yaml'), 'utf8');
     expect(lineDiff(before, after)).toBe(1);
     const { body } = await call('GET', '/api/model');

@@ -119,7 +119,7 @@ describe('operations', () => {
     expect(r.ok).toBe(true);
     const after = r.files.get('drawings/context.yaml')!;
     expect(lineDiff(base.get('drawings/context.yaml')!, after)).toBe(1);
-    expect(r.changes.map((c) => c.text)).toEqual(['Context: 1 caixa reposicionada']);
+    expect(r.changes.map((c) => c.text)).toEqual(['Context: 1 box repositioned']);
   });
 
   it('preserves comments when editing', async () => {
@@ -152,7 +152,7 @@ describe('operations', () => {
 
   it('children block entity deletion unless cascaded', async () => {
     const dry = await applyOps(project(), [{ op: 'entity.delete', id: 'platform' }]);
-    expect(dry.impact!.join('\n')).toMatch(/Filhos impedem/);
+    expect(dry.impact!.join('\n')).toMatch(/Children block/);
     const r = await applyOps(project(), [{ op: 'entity.delete', id: 'platform', cascade: true }]);
     expect(r.ok).toBe(true);
     expect([...r.project.entities.keys()]).not.toContain('websocket-api');
@@ -173,7 +173,7 @@ describe('operations', () => {
     const ok = await applyOps(project(), [{ op: 'connection.reverse', ref: 'papo-app.login' }]);
     expect(ok.ok).toBe(true);
     expect(ok.project.connections.get('auth.login')?.conn.to).toBe('papo-app');
-    expect(ok.changes.map((c) => c.text)).toContain('Conexão invertida: agora Auth -> Papo app');
+    expect(ok.changes.map((c) => c.text)).toContain('Connection reversed: now Auth -> Papo app');
     const refused = await applyOps(project(), [{ op: 'connection.reverse', ref: 'message-handler.publish' }]);
     expect(refused.ok).toBe(false);
     expect(refused.newErrors.map((e) => e.code)).toContain('E041');
@@ -191,9 +191,9 @@ describe('operations', () => {
     expect(errorsOf(r.problems)).toEqual([]);
     expect(r.files.get('entities/spam-filter.yaml')).toMatch(/^# yaml-language-server/);
     const changes = r.changes.map((c) => c.text);
-    expect(changes).toContain('Entidade adicionada: Spam filter (system, externo)');
-    expect(changes).toContain('Nova conexão: Spam filter -> WebSocket API ("Returns a spam score")');
-    expect(changes).toContain('User chats with the bot: 1 passo adicionado');
+    expect(changes).toContain('Entity added: Spam filter (system, external)');
+    expect(changes).toContain('New connection: Spam filter -> WebSocket API ("Returns a spam score")');
+    expect(changes).toContain('User chats with the bot: 1 step added');
     // New files are canonical too.
     for (const [path, text] of r.files) if (text) expect(formatText(fileKind(path)!, text), path).toBe(text);
   });
@@ -275,11 +275,11 @@ describe('format migration', () => {
     expect(() => migrate(newer)).toThrow(MigrationError);
     const older = new Map(base);
     older.set('zark.yaml', base.get('zark.yaml')!.replace('schema: 1', 'schema: 0'));
-    expect(() => migrate(older, [])).toThrow(/Não há migração do schema 0/);
+    expect(() => migrate(older, [])).toThrow(/There is no migration from schema 0/);
   });
 
   it('explains an unsupported schema when loading', () => {
     const p = project((t) => t.set('zark.yaml', base.get('zark.yaml')!.replace('schema: 1', 'schema: 2')));
-    expect(validate(p).find((x) => x.code === 'E001')?.message).toMatch(/mais novo que este Zark/);
+    expect(validate(p).find((x) => x.code === 'E001')?.message).toMatch(/newer than this Zark/);
   });
 });

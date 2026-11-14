@@ -44,6 +44,6 @@ describe('POST /api/import', () => {
   it('answers 400 with a readable message for an unknown file', async () => {
     const res = await call({ content: '{"hello": 1}' });
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toMatch(/Formato não reconhecido/);
+    expect((await res.json()).error).toMatch(/Unrecognized format/);
   });
 });

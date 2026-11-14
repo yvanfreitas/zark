@@ -1,4 +1,4 @@
-// Fase 4 acceptance: "Nenhuma ação da UI deixa o modelo com erro".
+// Phase 4 acceptance: "no UI action leaves the model with errors".
 // The UI writes only through the HTTP API, so every write endpoint it uses is
 // exercised here: a valid call must leave zero errors, and a call crafted to
 // introduce an error must be refused with the files on disk untouched.

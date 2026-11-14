@@ -110,8 +110,8 @@ describe('IcePanel', () => {
     expect(p.connections.get('obj-api.autoriza-pagamento')?.conn).toMatchObject({ direction: 'bidirectional', tags: ['pagamentos'] });
     expect(p.catalog.tags?.find((t) => t.id === 'pagamentos')).toMatchObject({ name: 'Pagamentos', color: 'green' });
     const w = r.warnings.join('\n');
-    expect(w).toMatch(/Domínios/);
-    expect(w).toMatch(/Grupos/);
+    expect(w).toMatch(/IcePanel domains/);
+    expect(w).toMatch(/IcePanel groups/);
     expect(w).toMatch(/Laço/);
     const d = p.drawings.get('icepanel')!.drawing;
     expect(Object.keys(d.nodes!).sort()).toEqual(['obj-cliente', 'obj-gateway', 'obj-loja']);
@@ -129,8 +129,8 @@ describe('import into an existing project', () => {
   });
 
   it('rejects unknown files with a readable message', () => {
-    expect(() => planImport('{"hello": 1}', 'auto')).toThrow(/Formato não reconhecido/);
+    expect(() => planImport('{"hello": 1}', 'auto')).toThrow(/Unrecognized format/);
     expect(() => planImport('modelObjects: []', 'structurizr')).toThrow(/Structurizr/);
-    expect(() => planImport('{ broken', 'auto')).toThrow(/Arquivo inválido/);
+    expect(() => planImport('{ broken', 'auto')).toThrow(/Invalid file/);
   });
 });

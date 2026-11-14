@@ -22,11 +22,11 @@ async function run() {
   assert.ok(workspace, 'ZARK_TEST_WORKSPACE ausente');
 
   const ext = vscode.extensions.getExtension('zark.zark-vscode');
-  assert.ok(ext, 'extensão zark.zark-vscode não carregada');
+  assert.ok(ext, 'extension zark.zark-vscode not loaded');
   const api = await ext.activate();
-  assert.ok(api && api.panels, 'activate() não devolveu a API');
+  assert.ok(api && api.panels, 'activate() did not return the API');
   const commands = await vscode.commands.getCommands(true);
-  assert.ok(commands.includes('zark.openDrawing'), 'comando zark.openDrawing não registrado');
+  assert.ok(commands.includes('zark.openDrawing'), 'command zark.openDrawing not registered');
   log('extension activated, command registered');
 
   const file = path.join(workspace, 'architecture', 'drawings', 'context.yaml');
@@ -35,28 +35,28 @@ async function run() {
   await vscode.commands.executeCommand('zark.openDrawing');
 
   const panel = await waitFor(() => {
-    if (api.lastError()) throw new Error(`a extensão falhou: ${api.lastError()}`);
+    if (api.lastError()) throw new Error(`the extension failed: ${api.lastError()}`);
     return [...api.panels.values()][0];
-  }, 'o painel do Zark');
+  }, 'the Zark panel');
   assert.equal(panel.title, 'Zark: context');
   // "Ao lado do YAML": the panel's tab must live in a group to the right of the editor's.
   const editorColumn = vscode.window.activeTextEditor?.viewColumn ?? vscode.ViewColumn.One;
   const panelGroup = await waitFor(
     () => vscode.window.tabGroups.all.find((g) => g.tabs.some((t) => t.label === 'Zark: context')),
-    'a aba do painel num grupo de editores',
+    'the panel tab in an editor group',
   );
   const yamlGroup = vscode.window.tabGroups.all.find((g) => g.tabs.some((t) => t.input && t.input.uri && t.input.uri.fsPath === doc.uri.fsPath));
-  assert.ok(yamlGroup, 'a aba do YAML sumiu');
-  assert.notEqual(panelGroup.viewColumn, yamlGroup.viewColumn, 'o painel abriu no mesmo grupo do YAML, não ao lado');
-  assert.ok(panelGroup.viewColumn > yamlGroup.viewColumn, `o painel ficou à esquerda (painel ${panelGroup.viewColumn}, YAML ${yamlGroup.viewColumn})`);
+  assert.ok(yamlGroup, 'the YAML tab disappeared');
+  assert.notEqual(panelGroup.viewColumn, yamlGroup.viewColumn, 'the panel opened in the YAML group, not beside it');
+  assert.ok(panelGroup.viewColumn > yamlGroup.viewColumn, `the panel ended up on the left (panel ${panelGroup.viewColumn}, YAML ${yamlGroup.viewColumn})`);
   assert.equal(editorColumn, yamlGroup.viewColumn, 'o foco deveria continuar no YAML (preserveFocus)');
   log(`webview panel "${panel.title}" in column ${panelGroup.viewColumn}, YAML in column ${yamlGroup.viewColumn} (beside)`);
 
   const html = panel.webview.html;
   const m = /<iframe src="(http:\/\/127\.0\.0\.1:(\d+)\/\?token=([0-9a-f]+)#drawing=context)"/.exec(html);
-  assert.ok(m, `iframe para o desenho não encontrado no HTML do webview:\n${html}`);
+  assert.ok(m, `iframe for the drawing not found in the webview HTML:\n${html}`);
   const [, url, port, token] = m;
-  assert.match(html, new RegExp(`frame-src http://127\\.0\\.0\\.1:${port};`), 'CSP não restringe o frame à porta do servidor');
+  assert.match(html, new RegExp(`frame-src http://127\\.0\\.0\\.1:${port};`), 'CSP does not restrict the frame to the server port');
   log(`iframe ${url.replace(token, '<token>')}`);
 
   const health = await fetch(`http://127.0.0.1:${port}/api/health`, { headers: { 'x-zark-token': token } });
@@ -76,8 +76,8 @@ async function run() {
   // Same command on an entity file reuses the server and retargets the panel.
   await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(path.join(workspace, 'architecture', 'entities', 'bot-queue.yaml')));
   await vscode.commands.executeCommand('zark.openDrawing');
-  await waitFor(() => api.panels.size === 1 && /#drawing=platform"/.test(panel.webview.html), 'o painel apontar para o desenho platform');
-  assert.ok(panel.webview.html.includes(`127.0.0.1:${port}/`), 'servidor não foi reaproveitado');
+  await waitFor(() => api.panels.size === 1 && /#drawing=platform"/.test(panel.webview.html), 'the panel pointing at the platform drawing');
+  assert.ok(panel.webview.html.includes(`127.0.0.1:${port}/`), 'server was not reused');
   log('entity bot-queue.yaml -> same panel, #drawing=platform, same server');
 
   log('PASS');
