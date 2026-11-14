@@ -6,6 +6,7 @@ import { errorsOf, nodeSize, validate, type Problem } from './validate.js';
 import { createDoc, pushItem, removeFile, setKey, toText, writeAtomic } from './writer.js';
 import { autoLayout } from './layout.js';
 import { diffProjects, type Change } from './diff.js';
+import { drawingLabelOverlaps } from './labels.js';
 import { IMPACT_EN, type Params } from './messages.js';
 
 export interface ImpactItem {
@@ -36,6 +37,7 @@ export type Op =
   | { op: 'drawing.update-edge'; drawing: string; ref: string; set?: Fields; unset?: string[] }
   | { op: 'drawing.remove-edges'; drawing: string; refs: string[] }
   | { op: 'drawing.auto-layout'; drawing: string; ids?: string[] }
+  | { op: 'drawing.auto-place-labels'; drawing: string }
   | { op: 'drawing.set-group'; drawing: string; group: { id: string; label: string; members: string[]; style?: 'dashed' | 'solid' } }
   | { op: 'drawing.remove-group'; drawing: string; id: string }
   | { op: 'drawing.set-note'; drawing: string; note: { id: string; text: string; x: number; y: number; w?: number } }
@@ -356,6 +358,16 @@ async function run(tx: Tx, op: Op): Promise<void> {
     case 'drawing.remove-edges': {
       const { file } = drawingFile(tx, op.drawing);
       deleteMapKeys(tx.doc(file), ['edges'], op.refs);
+      return;
+    }
+    case 'drawing.auto-place-labels': {
+      // Fixed labelAt values that cause W013 go back to automatic placement,
+      // which avoids other labels and boxes (same geometry as canvas and PNG).
+      const { file, drawing } = drawingFile(tx, op.drawing);
+      const { overlaps } = drawingLabelOverlaps(p, drawing);
+      const involved = new Set(overlaps.flatMap((o) => [o.ref, ...(o.with.kind === 'label' ? [o.with.ref] : [])]));
+      const doc = tx.doc(file);
+      for (const ref of [...involved].sort()) if (drawing.edges?.[ref]?.labelAt !== undefined) setKey(doc, ['edges', ref], 'labelAt', undefined, 'edge');
       return;
     }
     case 'drawing.auto-layout': {

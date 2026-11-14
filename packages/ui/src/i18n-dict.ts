@@ -1,6 +1,9 @@
 // Generated UI dictionaries (en default, pt optional). Keys must match in both;
 // packages/ui/test/i18n.test.ts checks parity.
 export const en: Record<string, string> = {
+  'insp.labelOverlap': '1 overlapping label',
+  'insp.labelOverlaps': '{n} overlapping labels',
+  'insp.fixLabels': 'Fix labels',
   'icon.none': 'No icon (uses the technology icon or initials)',
   'icon.choose': 'Choose…',
   'icon.remove': 'Remove icon',
@@ -385,6 +388,9 @@ export const en: Record<string, string> = {
 };
 
 export const pt: Record<string, string> = {
+  'insp.labelOverlap': '1 rótulo sobreposto',
+  'insp.labelOverlaps': '{n} rótulos sobrepostos',
+  'insp.fixLabels': 'Corrigir rótulos',
   'icon.none': 'Sem ícone (usa o ícone da tecnologia ou as iniciais)',
   'icon.choose': 'Escolher…',
   'icon.remove': 'Remover ícone',

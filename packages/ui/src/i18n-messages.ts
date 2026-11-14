@@ -59,6 +59,8 @@ export const PROBLEM_PT: Record<string, Template> = {
   'W021.alternative': (p) => `alternativa "${p.name}" vazia`,
   'W030.orphan': (p) => `${p.file} não corresponde a nenhum desenho ou fluxo`,
   W030: (p) => `${p.file} desatualizado. Rode "zark render"`,
+  'W013.label': (p) => `rótulo de ${p.ref} sobreposto ao rótulo de ${p.other}`,
+  'W013.box': (p) => `rótulo de ${p.ref} sobreposto à caixa ${p.box}`,
   W040: (p) => `ícone "${p.icon}" não existe${iconSets(p.sets)}`,
   'W040.technology': (p) => `tecnologia ${p.id}: ícone "${p.icon}" não existe${iconSets(p.sets)}`,
 };

@@ -47,7 +47,7 @@ describe('zark MCP server', () => {
     const expected = [
       'get_overview', 'list_entities', 'get_entity', 'list_connections', 'list_drawings', 'get_drawing', 'list_flows', 'get_flow', 'search', 'validate', 'diff', 'render',
       'create_entity', 'update_entity', 'delete_entity', 'move_entity', 'create_connection', 'update_connection', 'delete_connection', 'reverse_connection',
-      'create_drawing', 'update_drawing', 'delete_drawing', 'place_entities', 'move_nodes', 'remove_nodes', 'draw_connections', 'update_edge', 'remove_edges', 'auto_layout',
+      'create_drawing', 'update_drawing', 'delete_drawing', 'place_entities', 'move_nodes', 'remove_nodes', 'draw_connections', 'update_edge', 'remove_edges', 'auto_layout', 'fix_label_overlaps',
       'create_flow', 'update_flow', 'delete_flow', 'add_steps', 'update_step', 'move_step', 'remove_steps', 'apply_changes', 'rename_id', 'open_pr',
     ];
     for (const n of expected) expect(names).toContain(n);

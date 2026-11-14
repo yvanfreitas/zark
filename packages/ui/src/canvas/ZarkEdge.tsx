@@ -2,106 +2,20 @@ import { memo } from 'react';
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, Position, type EdgeProps } from '@xyflow/react';
 import { useStore } from '../store';
 import { useT } from '../i18n';
-import { routeOrthogonal, type Side as RouteSide } from '@core/route';
+import { edgeRoute, pointAt, type Pt, type Side } from '@core/edge-geometry';
 import type { EdgeData } from './build';
 
-type Pt = [number, number];
-const OFFSET = 24;
-
-const dirOf = (p: Position): Pt => (p === Position.Left ? [-1, 0] : p === Position.Right ? [1, 0] : p === Position.Top ? [0, -1] : [0, 1]);
-const horizontal = (p: Position) => p === Position.Left || p === Position.Right;
-
-/** Orthogonal route from s to t leaving/entering along the anchor sides. */
-function stepRoute(s: Pt, sp: Position, t: Pt, tp: Position, points: Pt[]): Pt[] {
-  const [sdx, sdy] = dirOf(sp);
-  const [tdx, tdy] = dirOf(tp);
-  const s1: Pt = [s[0] + sdx * OFFSET, s[1] + sdy * OFFSET];
-  const t1: Pt = [t[0] + tdx * OFFSET, t[1] + tdy * OFFSET];
-  if (points.length) {
-    const route: Pt[] = [s, s1];
-    let prev = s1;
-    let h = horizontal(sp);
-    for (const p of [...points, t1]) {
-      if (prev[0] !== p[0] && prev[1] !== p[1]) route.push(h ? [p[0], prev[1]] : [prev[0], p[1]]);
-      route.push(p);
-      h = !h;
-      prev = p;
-    }
-    route.push(t);
-    return route;
-  }
-  if (horizontal(sp) && horizontal(tp)) {
-    const mx = (s1[0] + t1[0]) / 2;
-    return [s, s1, [mx, s1[1]], [mx, t1[1]], t1, t];
-  }
-  if (!horizontal(sp) && !horizontal(tp)) {
-    const my = (s1[1] + t1[1]) / 2;
-    return [s, s1, [s1[0], my], [t1[0], my], t1, t];
-  }
-  return horizontal(sp) ? [s, s1, [t1[0], s1[1]], t1, t] : [s, s1, [s1[0], t1[1]], t1, t];
-}
-
-function pathOf(route: Pt[]) {
-  return route.map(([x, y], i) => `${i ? 'L' : 'M'}${x},${y}`).join(' ');
-}
-
-/** Point at fraction `f` (0..1) of the polyline length. */
-function pointAt(route: Pt[], f: number): Pt {
-  const lens = route.slice(1).map((p, i) => Math.hypot(p[0] - route[i][0], p[1] - route[i][1]));
-  let left = lens.reduce((a, b) => a + b, 0) * f;
-  for (let i = 0; i < lens.length; i++) {
-    if (left <= lens[i] || i === lens.length - 1) {
-      const k = lens[i] ? left / lens[i] : 0;
-      return [route[i][0] + (route[i + 1][0] - route[i][0]) * k, route[i][1] + (route[i + 1][1] - route[i][1]) * k];
-    }
-    left -= lens[i];
-  }
-  return route[0];
-}
-
-const SIDE: Record<Position, RouteSide> = { [Position.Top]: 'top', [Position.Right]: 'right', [Position.Bottom]: 'bottom', [Position.Left]: 'left' };
-const routeCache = new WeakMap<object, Map<string, Pt[]>>();
-
-/** Orthogonal route around other boxes; falls back to a plain step route. Memoized per geometry. */
-function autoRoute(sx: number, sy: number, sp: Position, tx: number, ty: number, tp: Position, obstacles: EdgeData['obstacles'], shift: number): Pt[] {
-  // Slide each end along its side; the same absolute shift keeps parallel connectors parallel.
-  if (sp === Position.Top || sp === Position.Bottom) sx += shift;
-  else sy += shift;
-  if (tp === Position.Top || tp === Position.Bottom) tx += shift;
-  else ty += shift;
-  let cache = routeCache.get(obstacles);
-  if (!cache) routeCache.set(obstacles, (cache = new Map()));
-  const key = `${sx},${sy},${sp},${tx},${ty},${tp}`;
-  let route = cache.get(key);
-  if (!route) {
-    route = routeOrthogonal([sx, sy], SIDE[sp], [tx, ty], SIDE[tp], obstacles, { margin: 16, stub: 24 }) ?? stepRoute([sx, sy], sp, [tx, ty], tp, []);
-    cache.set(key, route);
-  }
-  return route;
-}
+const SIDE: Record<Position, Side> = { [Position.Top]: 'top', [Position.Right]: 'right', [Position.Bottom]: 'bottom', [Position.Left]: 'left' };
+const pathOf = (route: Pt[]) => route.map(([x, y], i) => `${i ? 'L' : 'M'}${x},${y}`).join(' ');
 
 export const ZarkEdge = memo(function ZarkEdge(props: EdgeProps & { data: EdgeData }) {
   const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, selected, markerEnd, markerStart } = props;
   const spec = data.spec;
-  const shape = spec.shape ?? 'straight';
-  const points = (spec.points ?? []) as Pt[];
-  const at = spec.labelAt ?? data.labelAt ?? 0.5;
-  let d: string;
-  let label: Pt;
-  if (shape === 'curved' && !points.length) {
-    const [path, lx, ly] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
-    d = path;
-    label = at === 0.5 ? [lx, ly] : pointAt([[sourceX, sourceY], [targetX, targetY]], at);
-  } else {
-    const route: Pt[] =
-      shape === 'auto'
-        ? autoRoute(sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, data.obstacles, data.shift)
-        : shape === 'step'
-          ? stepRoute([sourceX, sourceY], sourcePosition, [targetX, targetY], targetPosition, points)
-          : [[sourceX, sourceY], ...points, [targetX, targetY]];
-    d = pathOf(route);
-    label = pointAt(route, at);
-  }
+  // Route geometry is shared with the render route and the validator (core edge-geometry).
+  const route = edgeRoute(spec, [sourceX, sourceY], SIDE[sourcePosition], [targetX, targetY], SIDE[targetPosition], data.obstacles, data.shift);
+  const curved = (spec.shape ?? 'straight') === 'curved' && !spec.points?.length;
+  const d = curved ? getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition })[0] : pathOf(route);
+  const label = pointAt(route, data.labelAt ?? spec.labelAt ?? 0.5);
   const t = useT();
   const active = data.active?.length ? data.active : undefined;
   const stroke = active ? 'var(--accent)' : data.severity === 'error' ? 'var(--danger)' : selected ? 'var(--accent)' : 'var(--edge)';

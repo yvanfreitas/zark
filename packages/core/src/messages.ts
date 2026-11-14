@@ -63,6 +63,8 @@ export const PROBLEM_EN: Record<string, Template> = {
   'W021.alternative': (p) => `alternative "${p.name}" is empty`,
   'W030.orphan': (p) => `${p.file} matches no drawing or flow`,
   W030: (p) => `${p.file} is out of date. Run "zark render"`,
+  'W013.label': (p) => `label of ${p.ref} overlaps the label of ${p.other}`,
+  'W013.box': (p) => `label of ${p.ref} overlaps the box ${p.box}`,
   W040: (p) => `icon "${p.icon}" does not exist${iconSets(p.sets)}`,
   'W040.technology': (p) => `technology ${p.id}: icon "${p.icon}" does not exist${iconSets(p.sets)}`,
 };

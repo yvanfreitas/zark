@@ -2,6 +2,7 @@ import { ALLOWED_PARENTS, type Drawing, type FlowItem } from './schema.js';
 import { ancestors, lineOf, resolveEndpoint, walkSteps, type Project, type SourceFile } from './project.js';
 import { PROBLEM_EN, type Params } from './messages.js';
 import { hasIcon, iconSets } from './icons/registry.js';
+import { drawingLabelOverlaps } from './labels.js';
 
 export type Severity = 'error' | 'warning';
 
@@ -147,6 +148,11 @@ export function validate(project: Project, extra: Problem[] = []): Problem[] {
       }),
     );
     checkLayout(project, drawing, file, add);
+    // W013: connector labels must not cover each other or other boxes.
+    for (const o of drawingLabelOverlaps(project, drawing).overlaps) {
+      if (o.with.kind === 'label') add('W013', file, 'W013.label', { ref: o.ref, other: o.with.ref }, ['edges', o.ref], o.ref);
+      else add('W013', file, 'W013.box', { ref: o.ref, box: o.with.id }, ['edges', o.ref], o.ref);
+    }
   }
 
   for (const [id, { entity, file }] of project.entities) {

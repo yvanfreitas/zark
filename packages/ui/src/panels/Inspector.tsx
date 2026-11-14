@@ -490,6 +490,7 @@ function DrawingInspector({ drawing }: { drawing: WithFile<Drawing> }) {
     const b = index.resolve(drawing, c.to);
     return a && b && a !== b;
   });
+  const labelOverlaps = model.problems.filter((p) => p.code === 'W013' && p.file === drawing.file).length;
   const ops = (o: unknown[]) => write('POST', `/api/drawings/${drawing.id}/ops`, { ops: o }, [drawing.file]);
   const t = useT();
 
@@ -531,6 +532,14 @@ function DrawingInspector({ drawing }: { drawing: WithFile<Drawing> }) {
           {t('insp.newNote')}
         </Button>
       </div>
+      {labelOverlaps > 0 && (
+        <div className="flex items-center justify-between gap-2 rounded-md bg-[var(--warn-soft)] px-2.5 py-2 text-[12.5px] text-[var(--warn-fg)]">
+          <span>{t(labelOverlaps === 1 ? 'insp.labelOverlap' : 'insp.labelOverlaps', { n: labelOverlaps })}</span>
+          <Button variant="subtle" onClick={() => ops([{ op: 'auto-place-labels' }])}>
+            {t('insp.fixLabels')}
+          </Button>
+        </div>
+      )}
       <SectionTitle>{t('insp.available', { n: available.length })}</SectionTitle>
       <ul className="flex flex-col">
         {available.map((c) => (

@@ -3,7 +3,8 @@ import { applyNodeChanges, ConnectionMode, MarkerType, ReactFlow, ReactFlowProvi
 import type { Index } from '../model';
 import { useStore } from '../store';
 import { tr, useT } from '../i18n';
-import { autoSide, entityIconSvg, type EdgeData, type EntityData } from '../canvas/build';
+import { drawingGeometry } from '@core/edge-geometry';
+import { entityIconSvg, type EdgeData, type EntityData } from '../canvas/build';
 import { nodeTypes } from '../canvas/nodes';
 import { edgeTypes } from '../canvas/ZarkEdge';
 import { inputClass } from '../panels/ui';
@@ -102,27 +103,28 @@ function DepsGraph({ center, levels }: { center: string; levels: number }) {
         } satisfies EntityData,
       };
     });
-    // Connectors route around the boxes; parallel ones between the same pair fan out.
+    // Connectors route around the boxes and labels avoid each other, with the same core geometry as drawings.
     const obstacles = sub.entities.map(rect);
-    const pairCount = new Map<string, number>();
-    const edges: Edge[] = sub.edges.map((c) => {
-      const pair = [c.from, c.to].sort().join('|');
-      const k = pairCount.get(pair) ?? 0;
-      pairCount.set(pair, k + 1);
-      const [from, to] = autoSide(rect(c.from), rect(c.to));
+    const geometry = drawingGeometry(
+      sub.entities.map((id) => ({ id, ...rect(id) })),
+      sub.edges.map((c) => ({ ref: c.ref, source: c.from, target: c.to, spec: { shape: 'auto' as const }, label: c.conn.label })),
+    );
+    const edges: Edge[] = sub.edges.flatMap((c) => {
+      const g = geometry.get(c.ref);
+      if (!g) return [];
       const marker = { type: MarkerType.ArrowClosed, width: 18, height: 18, color: 'var(--edge)' };
-      return {
+      return [{
         id: c.ref,
         type: 'zark',
         source: c.from,
         target: c.to,
-        sourceHandle: from,
-        targetHandle: to,
+        sourceHandle: g.sourceSide,
+        targetHandle: g.targetSide,
         markerEnd: marker,
         markerStart: c.conn.direction === 'bidirectional' ? marker : undefined,
         selectable: false,
-        data: { ref: c.ref, conn: c, spec: { shape: 'auto' }, inherited: false, label: c.conn.label, bidirectional: c.conn.direction === 'bidirectional', dim: false, pulse: false, animate: false, obstacles, shift: k * 32 } satisfies EdgeData,
-      };
+        data: { ref: c.ref, conn: c, spec: { shape: 'auto' }, inherited: false, label: c.conn.label, bidirectional: c.conn.direction === 'bidirectional', dim: false, pulse: false, animate: false, obstacles, shift: g.shift, labelAt: g.labelAt } satisfies EdgeData,
+      }];
     });
     return { nodes, edges };
   }, [positions, sub, index, catalog, icons, center]);

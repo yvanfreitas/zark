@@ -2,7 +2,7 @@ import { MarkerType, type Edge, type Node } from '@xyflow/react';
 import type { Index } from '../model';
 import type { Conn, Drawing, DrawingEdge, Entity, Problem } from '../types';
 import type { FilterState } from '../store';
-import type { Rect } from '@core/route';
+import { drawingGeometry, type GeometryBox, type GeometryEdge, type Rect } from '@core/edge-geometry';
 
 export type Side = 'top' | 'right' | 'bottom' | 'left';
 
@@ -35,7 +35,7 @@ export interface EdgeData extends Record<string, unknown> {
   obstacles: Rect[];
   /** Sideways shift of an `auto` connector so parallel ones between the same boxes don't overlap, px. */
   shift: number;
-  /** Default label position for fanned-out connectors, so their labels don't stack. */
+  /** Label position along the route: explicit `labelAt`, or the overlap-free automatic placement (core edge-geometry). */
   labelAt?: number;
   severity?: 'error' | 'warning';
   animate: boolean;
@@ -64,13 +64,6 @@ function chipsOf(e: Entity): string[] {
     `status:${e.status ?? 'live'}`,
     ...(e.owner ? [`team:${e.owner}`] : []),
   ];
-}
-
-export function autoSide(a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }): [Side, Side] {
-  const dx = b.x + b.w / 2 - (a.x + a.w / 2);
-  const dy = b.y + b.h / 2 - (a.y + a.h / 2);
-  if (Math.abs(dx) * 0.75 >= Math.abs(dy)) return dx >= 0 ? ['right', 'left'] : ['left', 'right'];
-  return dy >= 0 ? ['bottom', 'top'] : ['top', 'bottom'];
 }
 
 type CatalogTechs = { technologies?: { id: string; name: string; icon?: string }[] };
@@ -180,15 +173,25 @@ export function buildGraph(index: Index, drawing: Drawing, catalog: CatalogTechs
   }
 
   const edges: Edge[] = [];
-  // Expanded containers are frames, not walls: connectors may cross them.
-  const obstacles: Rect[] = visible.filter((id) => !placed[id].expanded).map(rect);
+  // Routes, sides, fan-out and label placement come from the core, the same
+  // geometry the PNG render and the W013 validator use.
+  const geoBoxes: GeometryBox[] = visible.map((id) => ({ id, ...rect(id), expanded: !!placed[id].expanded }));
+  const geoEdges: GeometryEdge[] = [];
   for (const [ref, spec] of Object.entries(drawing.edges ?? {})) {
     const conn = index.conns.get(ref);
     if (!conn) continue;
     const a = index.resolve(drawing, conn.from);
     const b = index.resolve(drawing, conn.to);
     if (!a || !b || a === b || !visibleSet.has(a) || !visibleSet.has(b)) continue;
-    const [autoFrom, autoTo] = autoSide(rect(a), rect(b));
+    geoEdges.push({ ref, source: a, target: b, spec, label: conn.conn.label });
+  }
+  const geometry = drawingGeometry(geoBoxes, geoEdges);
+  // Expanded containers are frames, not walls: connectors may cross them.
+  const obstacles: Rect[] = visible.filter((id) => !placed[id].expanded).map(rect);
+  for (const ge of geoEdges) {
+    const { ref, spec, source: a, target: b } = ge;
+    const conn = index.conns.get(ref)!;
+    const g = geometry.get(ref)!;
     const color = 'var(--edge)';
     const active = opts.activeSteps?.get(ref);
     const bidirectional = conn.conn.direction === 'bidirectional';
@@ -198,8 +201,8 @@ export function buildGraph(index: Index, drawing: Drawing, catalog: CatalogTechs
       type: 'zark',
       source: a,
       target: b,
-      sourceHandle: spec.from ?? autoFrom,
-      targetHandle: spec.to ?? autoTo,
+      sourceHandle: g.sourceSide,
+      targetHandle: g.targetSide,
       markerEnd: marker,
       markerStart: bidirectional ? marker : undefined,
       selectable: opts.animate,
@@ -217,27 +220,9 @@ export function buildGraph(index: Index, drawing: Drawing, catalog: CatalogTechs
         severity: severity.get(ref),
         animate: opts.animate,
         obstacles,
-        shift: 0,
+        shift: g.shift,
+        labelAt: g.labelAt,
       } satisfies EdgeData,
-    });
-  }
-  // Parallel `auto` connectors between the same two boxes fan out side by side.
-  const pairs = new Map<string, Edge[]>();
-  for (const e of edges) {
-    if ((e.data as EdgeData).spec.shape !== 'auto') continue;
-    const key = [e.source, e.target].sort().join('|');
-    pairs.set(key, [...(pairs.get(key) ?? []), e]);
-  }
-  for (const group of pairs.values()) {
-    group.sort((x, y) => x.id.localeCompare(y.id));
-    group.forEach((e, k) => {
-      const data = e.data as EdgeData;
-      data.shift = (k - (group.length - 1) / 2) * 32;
-      if (group.length > 1) {
-        // Fractions run from the alphabetically first box, whatever each connector's direction.
-        const frac = 0.3 + (0.4 * k) / (group.length - 1);
-        data.labelAt = e.source < e.target ? frac : 1 - frac;
-      }
     });
   }
   return { nodes, edges };

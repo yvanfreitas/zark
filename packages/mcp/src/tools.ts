@@ -33,6 +33,7 @@ function hintFor(problems: Problem[], result?: ApplyResult): string | undefined 
     case 'W001':
     case 'W002': return `Use place_entities to place ${p.ref} in a drawing.`;
     case 'W010': return 'Overlapping boxes: use move_nodes or auto_layout and check with render.';
+    case 'W013': return 'Overlapping labels: use fix_label_overlaps on the drawing (returns pinned labels to automatic placement) and check with render.';
     case 'W004': return `Give connection ${p.ref} a descriptive label with update_connection.`;
     case 'E041': return 'The step goes against the connection: use reverse_connection or mark the step with reply: true.';
     case 'E044': return 'Draw the connection in the flow drawing with draw_connections.';
@@ -129,6 +130,7 @@ export const GUIDE = `# Zark: modeling rules
 - Prefer apply_changes: create, connect, place and draw in a single validated call.
 - After writing, call render and fix overlaps or crossing arrows.
 - Icons: \`icon: <set>:<name>\` on the entity (lucide generic, si brands/languages/frameworks, own packs such as aws). Use search_icons or suggest_icons to choose; without icon the box uses the technology's icon.
+- Connection labels must not overlap each other or cover other boxes (W013). Without \`labelAt\` Zark picks a free spot; if a pinned \`labelAt\` collides, use \`fix_label_overlaps\`.
 - open_pr is the only action that leaves the machine: first the preview, then confirm: true.
 `;
 
@@ -325,6 +327,9 @@ export function createMcpServer(service: ZarkService): McpServer {
 
   tool('auto_layout', 'Re-lays out the whole drawing or a selection', { drawing: z.string(), ids: z.array(z.string()).optional(), dryRun }, ({ drawing, ids, dryRun: dry }) =>
     write([{ op: 'drawing.auto-layout', drawing, ids }], dry));
+
+  tool('fix_label_overlaps', 'Fixes overlapping connection labels (W013): pinned labelAt values that collide return to automatic placement', { drawing: z.string(), dryRun }, ({ drawing, dryRun: dry }) =>
+    write([{ op: 'drawing.auto-place-labels', drawing }], dry));
 
   tool('create_flow', 'Creates a flow on a drawing', { id: z.string(), name: z.string(), drawing: z.string(), description: z.string().optional(), steps: z.array(z.any()).optional(), dryRun }, ({ dryRun: dry, ...flow }) =>
     write([{ op: 'flow.create', flow: flow as any }], dry));
