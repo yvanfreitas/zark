@@ -1,0 +1,69 @@
+# yaml-language-server: $schema=https://api.icepanel.io/v1/schemas/LandscapeImportData
+tagGroups:
+  - id: tg-1
+    name: Domínio
+    icon: bug
+tags:
+  - id: tag-pay
+    name: Pagamentos
+    color: green
+    groupId: tg-1
+modelObjects:
+  - id: dom-1
+    name: Ecommerce
+    type: domain
+  - id: grp-1
+    name: Parceiros
+    type: group
+    parentId: dom-1
+  - id: obj-cliente
+    name: Cliente
+    type: actor
+    parentId: dom-1
+  - id: obj-loja
+    name: Loja Online
+    type: system
+    parentId: dom-1
+    caption: Vitrine e checkout
+    tagIds: [tag-pay]
+    links:
+      - url: https://example.com/loja
+        customName: Repositório
+  - id: obj-api
+    name: API de Pedidos
+    type: app
+    parentId: obj-loja
+    technologyIds: [nodejs]
+    status: future
+  - id: obj-db
+    name: Banco de Pedidos
+    type: store
+    parentId: obj-loja
+  - id: obj-gateway
+    name: Gateway de Pagamento
+    type: system
+    parentId: dom-1
+    external: true
+    groupIds: [grp-1]
+modelConnections:
+  - id: c-1
+    name: Compra
+    originId: obj-cliente
+    targetId: obj-api
+    direction: outgoing
+  - id: c-2
+    name: Grava pedido
+    originId: obj-api
+    targetId: obj-db
+    direction: outgoing
+  - id: c-3
+    name: Autoriza pagamento
+    originId: obj-api
+    targetId: obj-gateway
+    direction: bidirectional
+    tagIds: [tag-pay]
+  - id: c-4
+    name: Laço
+    originId: obj-api
+    targetId: obj-api
+    direction: outgoing

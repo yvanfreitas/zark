@@ -15,7 +15,8 @@ Comandos:
   diff [--base ref] [--format text|markdown]
   pr [--yes] [--title t]       Abre PR com prévia e confirmação
   build --out dir              Site estático somente leitura
-  export <mermaid|json> [id]   Exporta modelo ou fluxo
+  export <formato> [id] [--out arquivo]  mermaid, json, structurizr, icepanel-yaml
+  import [formato] <arquivo> [--yes]     structurizr, icepanel-json, icepanel-yaml (padrão: detecta)
   schema --out dir             Grava os JSON Schemas
 
 Opções globais:

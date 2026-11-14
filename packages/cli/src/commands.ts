@@ -19,6 +19,11 @@ import {
   validate,
   warningsOf,
   writeAtomic,
+  applyOps,
+  planImport,
+  toIcePanelYaml,
+  toStructurizr,
+  writeResult,
   type Change,
   type Project,
 } from '@zark/core';
@@ -248,21 +253,45 @@ export const commands: Record<string, Command> = {
     console.log(`Site estático gravado em ${target}`);
   },
 
-  async export({ dir, args }) {
+  async export({ dir, args, out }) {
     const [format, id] = args;
+    const emit = async (text: string) => {
+      if (out) {
+        await writeAtomic(resolve(out), text);
+        console.error(`Exportado em ${resolve(out)}`);
+      } else process.stdout.write(text);
+    };
     if (format === 'json') {
       const store = await new ProjectStore(dir).load();
-      process.stdout.write(JSON.stringify(store.snapshot(), null, 2) + '\n');
-      return;
+      return emit(JSON.stringify(store.snapshot(), null, 2) + '\n');
     }
     if (format === 'mermaid') {
       const project = await requireProject(dir);
       const ids = id ? [id] : [...project.flows.keys()];
       if (!ids.length) throw new Error('Nenhum fluxo para exportar');
-      process.stdout.write(ids.map((f) => `%% ${f}\n${mermaidFor(project, f)}`).join('\n'));
-      return;
+      return emit(ids.map((f) => `%% ${f}\n${mermaidFor(project, f)}`).join('\n'));
     }
-    throw new Error('Formatos: mermaid, json');
+    if (format === 'structurizr') return emit(JSON.stringify(toStructurizr(await requireProject(dir)), null, 2) + '\n');
+    if (format === 'icepanel-yaml' || format === 'icepanel') return emit(toIcePanelYaml(await requireProject(dir)));
+    throw new Error('Formatos: mermaid, json, structurizr, icepanel-yaml');
+  },
+
+  async import({ dir, args, yes }) {
+    const [format, file] = args.length === 1 ? ['auto', args[0]] : args;
+    if (!file) throw new Error('Uso: zark import <icepanel-json|icepanel-yaml|structurizr|auto> <arquivo>');
+    const project = await requireProject(dir);
+    const plan = planImport(await readFile(resolve(file), 'utf8'), format, project);
+    const result = await applyOps(project, plan.ops);
+    for (const w of plan.warnings) console.log(`aviso: ${w}`);
+    if (!result.ok) {
+      for (const p of result.newErrors) console.log(formatProblem(p));
+      throw new Error(`Importação recusada: ${result.error}`);
+    }
+    for (const c of result.changes) console.log(c.text);
+    console.log(`${result.files.size} arquivo(s) a gravar a partir de ${plan.format}`);
+    if (!yes && !(await confirm('Gravar os arquivos?'))) return 1;
+    await writeResult(dir, result.files);
+    console.log('Importado. Rode "zark validate" para ver os avisos.');
   },
 };
 

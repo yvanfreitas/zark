@@ -7,3 +7,4 @@ export * from './diff.js';
 export * from './layout.js';
 export * from './flow-text.js';
 export * from './route.js';
+export * from './interop/index.js';

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { KIND_LABEL } from '../model';
 import { currentDrawing, useStore } from '../store';
 import { Button, inputClass } from './ui';
+import { pickAndImport } from '../importFile';
 
 interface Item {
   label: string;
@@ -62,6 +63,7 @@ export function CommandPalette() {
       ['Mostrar problemas', () => s.set({ right: 'problems' })],
       ['Mostrar alterações', () => s.set({ right: 'changes' })],
       ['Abrir PR', () => s.set({ prDialog: true })],
+      ['Importar do Structurizr ou IcePanel…', pickAndImport],
       ['Desfazer', () => void s.undo()],
       ['Refazer', () => void s.redo()],
       ['Enquadrar o desenho', () => (s.select([]), s.requestFocus())],
