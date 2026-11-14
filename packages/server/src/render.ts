@@ -8,6 +8,21 @@ import type { Browser } from 'playwright-core';
 import { embedHash, readHash, renderHash, targetFile, type RenderTarget } from './render-hash.js';
 
 const exec = promisify(execFile);
+
+/**
+ * Same pixels on every OS: no hinting, no LCD/subpixel text, software
+ * raster, fixed color profile. Text rasterization is what differs between
+ * Windows and Linux otherwise.
+ */
+const RASTER_ARGS = [
+  '--font-render-hinting=none',
+  '--disable-lcd-text',
+  '--disable-font-subpixel-positioning',
+  '--force-color-profile=srgb',
+  '--disable-gpu',
+  '--disable-skia-runtime-opts',
+  '--disable-partial-raster',
+];
 const require = createRequire(import.meta.url);
 
 export interface RenderOutput {
@@ -30,13 +45,13 @@ export class Renderer {
   private async launch(): Promise<Browser> {
     const { chromium } = await import('playwright-core');
     try {
-      return await chromium.launch();
+      return await chromium.launch({ args: RASTER_ARGS });
     } catch (err) {
       if (!/Executable doesn't exist|executable.*not found|install/i.test(String(err))) throw err;
       process.stderr.write('Baixando o Chromium do Playwright (só na primeira vez)...\n');
       const cli = join(require.resolve('playwright-core/package.json'), '..', 'cli.js');
       await exec(process.execPath, [cli, 'install', 'chromium'], { windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
-      return chromium.launch();
+      return chromium.launch({ args: RASTER_ARGS });
     }
   }
 

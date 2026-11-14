@@ -34,3 +34,11 @@ jobs:
           restore-keys: vscode-test-${{ runner.os }}-stable-
       - name: Extensão num VS Code real (xvfb)
         run: xvfb-run -a pnpm --filter zark-vscode test:integration
+      - name: Experimento PNG entre máquinas (Windows vs Linux)
+        run: |
+          rm -rf /tmp/x && cp -r examples/ecommerce/architecture /tmp/x && rm -rf /tmp/x/rendered
+          node packages/cli/dist/main.js render --dir /tmp/x
+          for f in contexto vtex; do
+            if cmp -s "examples/ecommerce/architecture/rendered/$f.png" "/tmp/x/rendered/$f.png"; then echo "CROSS $f: bytes IDENTICOS"; else echo "CROSS $f: bytes DIFERENTES"; fi
+            md5sum "examples/ecommerce/architecture/rendered/$f.png" "/tmp/x/rendered/$f.png"
+          done
