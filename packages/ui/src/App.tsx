@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
-import { subscribe } from './api';
+import { readOnly, subscribe } from './api';
 import { Canvas } from './canvas/Canvas';
 import { freeId } from './model';
 import { currentDrawing, useStore } from './store';
@@ -133,6 +133,8 @@ function useShortcuts() {
 
 function useLiveUpdates() {
   useEffect(() => {
+    // `zark build` site: a snapshot, no server to listen to.
+    if (readOnly) return;
     let timer: number | undefined;
     const refresh = () => {
       clearTimeout(timer);
@@ -219,7 +221,7 @@ export function App() {
 
   return (
     <ReactFlowProvider>
-      <div className="flex h-screen flex-col bg-[var(--canvas)] text-[var(--fg)]">
+      <div className="flex h-screen flex-col bg-[var(--canvas)] text-[var(--fg)]" data-readonly={readOnly || undefined}>
         <TopBar git={git} />
         <div className="flex min-h-0 flex-1">
           <LeftPanel />

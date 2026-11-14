@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api } from '../api';
+import { api, readOnly } from '../api';
 import { currentDrawing, useStore } from '../store';
 import { Button, Icon, IconButton, Svg } from './ui';
 
@@ -17,6 +17,7 @@ export function useGitStatus() {
   const [status, setStatus] = useState<GitStatus>();
   const model = useStore((s) => s.model);
   useEffect(() => {
+    if (readOnly) return;
     let alive = true;
     const t = setTimeout(() => void api<GitStatus>('GET', '/api/git/status').then((s) => alive && setStatus(s)).catch(() => undefined), 250);
     return () => {
@@ -83,15 +84,15 @@ export function TopBar({ git }: { git?: GitStatus }) {
         <kbd className="font-mono text-[11px]">⌘K</kbd>
       </button>
       <div className="flex items-center">
-        <IconButton label="Desfazer (⌘Z)" onClick={() => void useStore.getState().undo()}>
+        <IconButton data-edit label="Desfazer (⌘Z)" onClick={() => void useStore.getState().undo()}>
           <Svg icon={Icon.undo} />
         </IconButton>
-        <IconButton label="Refazer (⌘⇧Z)" onClick={() => void useStore.getState().redo()}>
+        <IconButton data-edit label="Refazer (⌘⇧Z)" onClick={() => void useStore.getState().redo()}>
           <Svg icon={Icon.redo} />
         </IconButton>
       </div>
-      <span className="w-[64px] text-[12px] text-[var(--muted)]" aria-live="polite">
-        {!connected ? 'Offline' : saving === 'saving' ? 'Salvando…' : saving === 'saved' ? 'Salvo' : ''}
+      <span className="min-w-[64px] whitespace-nowrap text-[12px] text-[var(--muted)]" aria-live="polite">
+        {readOnly ? 'Somente leitura' : !connected ? 'Offline' : saving === 'saving' ? 'Salvando…' : saving === 'saved' ? 'Salvo' : ''}
       </span>
       <button
         type="button"
@@ -126,7 +127,7 @@ export function TopBar({ git }: { git?: GitStatus }) {
       }}>
         <Svg icon={theme === 'dark' ? Icon.sun : Icon.moon} />
       </IconButton>
-      <Button onClick={() => set({ prDialog: true })} disabled={!git?.isRepo}>
+      <Button data-edit onClick={() => set({ prDialog: true })} disabled={!git?.isRepo}>
         Abrir PR
       </Button>
     </header>

@@ -82,6 +82,30 @@ pnpm zark validate --dir examples/ecommerce/architecture   # CLI direto do códi
 
 Para trabalhar na UI, rode `pnpm build` (ou `pnpm --filter @zark/ui build`) e `pnpm zark dev --dir examples/ecommerce/architecture`.
 
+## Publicar no GitHub Pages
+
+`zark build` gera um site estático somente leitura: a mesma UI, sem controles de edição, lendo um `model.json` ao lado do `index.html`. Os caminhos são relativos, então funciona em qualquer subpasta. Job opcional para a branch principal:
+
+```yaml
+# .github/workflows/architecture-pages.yml
+name: architecture-pages
+on:
+  push:
+    branches: [main]
+    paths: ["architecture/**"]
+permissions: { contents: read, pages: write, id-token: write }
+jobs:
+  pages:
+    runs-on: ubuntu-latest
+    environment: { name: github-pages }
+    steps:
+      - uses: actions/checkout@v4
+      - run: npx zark build --out site
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: site }
+      - uses: actions/deploy-pages@v4
+```
+
 ## Licença
 
 MIT. Veja [LICENSE](LICENSE).

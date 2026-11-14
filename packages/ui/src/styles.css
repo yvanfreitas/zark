@@ -222,6 +222,18 @@ body {
   animation: zark-pulse 1.4s ease-in-out infinite;
 }
 
+/* `zark build` site: same UI, no editing controls. */
+[data-readonly] [data-edit] {
+  display: none !important;
+}
+[data-readonly] aside input,
+[data-readonly] aside textarea,
+[data-readonly] aside select:not([data-keep]) {
+  pointer-events: none;
+  border-color: transparent;
+  background: transparent;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .zark-pulse {
     animation: none;
