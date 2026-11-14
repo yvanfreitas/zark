@@ -10,12 +10,14 @@ import {
   useNodesInitialized,
   useReactFlow,
   type Connection as RFConnection,
+  type Edge,
   type Node,
   type NodeChange,
   type OnSelectionChangeParams,
 } from '@xyflow/react';
 import { useStore, currentDrawing } from '../store';
-import { tr } from '../i18n';
+import { tr, useT } from '../i18n';
+import { canvasMenu, selectionMenu } from '../actions';
 import { flowView } from '../flow';
 import { buildGraph, drawingBounds } from './build';
 import { nodeTypes } from './nodes';
@@ -161,6 +163,49 @@ export function Canvas({ mode = 'edit' }: { mode?: 'edit' | 'render' }) {
     if (c.source && c.target && c.source !== c.target && !c.source.includes(':') && !c.target.includes(':')) setPicker({ source: c.source, target: c.target });
   }, []);
 
+  // Right-click (or the menu key): the same actions the inspector and the shortcuts offer.
+  const openMenu = useCallback(
+    (e: { clientX: number; clientY: number; preventDefault: () => void }, target?: { node?: string; edge?: string }) => {
+      if (!interactive) return;
+      e.preventDefault();
+      const s = useStore.getState();
+      // Right-clicking outside the selection moves the selection there first.
+      if (target?.node && !s.selection.nodes.includes(target.node)) s.select([target.node]);
+      if (target?.edge && !s.selection.edges.includes(target.edge)) s.select([], [target.edge]);
+      const box = wrapper.current!.getBoundingClientRect();
+      const at = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+      const newEntity = () => setQuick({ x: snap(at.x, grid), y: snap(at.y, grid), left: e.clientX - box.left, top: e.clientY - box.top });
+      if (!target) s.select([]);
+      const items = target ? selectionMenu() : canvasMenu({ x: snap(at.x, grid), y: snap(at.y, grid) }, newEntity);
+      if (items.length) s.set({ menu: { x: e.clientX, y: e.clientY, items } });
+    },
+    [interactive, rf, grid],
+  );
+  useEffect(() => {
+    const onKey = () => {
+      const { nodes: ns, edges: es } = useStore.getState().selection;
+      const el = ns.length
+        ? wrapper.current?.querySelector(`.react-flow__node[data-id="${CSS.escape(ns[0])}"]`)
+        : es.length
+          ? wrapper.current?.querySelector(`.react-flow__edge[data-id="${CSS.escape(es[0])}"]`)
+          : wrapper.current;
+      const r = el?.getBoundingClientRect();
+      if (!r) return;
+      const point = { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, preventDefault: () => undefined };
+      openMenu(point, ns.length ? { node: ns[0] } : es.length ? { edge: es[0] } : undefined);
+    };
+    const onEdge = (e: Event) => {
+      const d = (e as CustomEvent).detail as { ref: string; clientX: number; clientY: number };
+      openMenu({ ...d, preventDefault: () => undefined }, { edge: d.ref });
+    };
+    window.addEventListener('zark:context-menu', onKey);
+    window.addEventListener('zark:edge-menu', onEdge);
+    return () => {
+      window.removeEventListener('zark:context-menu', onKey);
+      window.removeEventListener('zark:edge-menu', onEdge);
+    };
+  }, [openMenu]);
+
   // Fit when switching drawings or on request (Shift+C / Cmd+Shift+C).
   const initialized = useNodesInitialized();
   const fittedFor = useRef<string | undefined>(undefined);
@@ -189,6 +234,10 @@ export function Canvas({ mode = 'edit' }: { mode?: 'edit' | 'render' }) {
         onNodesChange={onNodesChange}
         onSelectionChange={onSelectionChange}
         onConnect={onConnect}
+        onNodeContextMenu={(e, node: Node) => openMenu(e, { node: node.id })}
+        onEdgeContextMenu={(e, edge: Edge) => openMenu(e, { edge: edge.id })}
+        onSelectionContextMenu={(e) => openMenu(e, { node: useStore.getState().selection.nodes[0] })}
+        onPaneContextMenu={(e) => openMenu(e)}
         onNodeDoubleClick={(_, node) => {
           const inner = index.drawingsByScope.get(node.id)?.[0];
           if (inner) useStore.getState().openDrawing(inner.id);
@@ -229,8 +278,59 @@ export function Canvas({ mode = 'edit' }: { mode?: 'edit' | 'render' }) {
         <MiniMap pannable zoomable className="!bg-[var(--surface)]" maskColor="var(--minimap-mask)" nodeColor="var(--minimap-node)" />
         <Controls showInteractive={false} />
       </ReactFlow>
+      {interactive && !quick && !picker && <CanvasHint flow={!!flowState} />}
       {picker && <ConnectionPicker {...picker} onClose={() => setPicker(null)} />}
       {quick && <QuickCreate {...quick} onClose={() => setQuick(null)} />}
+    </div>
+  );
+}
+
+/**
+ * One-line reminder of the gestures nothing on screen reveals (double-click,
+ * dragging from a box side, right-click). Never intercepts the canvas; the
+ * close button hides it for good in this browser.
+ */
+function CanvasHint({ flow }: { flow: boolean }) {
+  const t = useT();
+  const [hidden, setHidden] = useState(() => {
+    try {
+      return localStorage.getItem('zark-hint') === 'off';
+    } catch {
+      return false;
+    }
+  });
+  const selecting = useStore((s) => s.selection.nodes.length + s.selection.edges.length > 0);
+  const empty = useStore((s) => !s.model!.entities.length);
+  if (hidden || selecting || empty) return null;
+  const tips = flow ? [t('hint.flowStep'), t('hint.flowKeys')] : [t('hint.create'), t('hint.connect'), t('hint.menu'), t('hint.shortcuts')];
+  return (
+    <div className="pointer-events-none absolute inset-x-0 top-3 z-[5] flex justify-center px-3" data-edit>
+      <div role="note" className="flex min-w-0 max-w-full items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)]/95 py-1 pl-3.5 pr-1 text-[12px] text-[var(--muted)] shadow-sm">
+        <span className="min-w-0 truncate">
+          {tips.map((tip, i) => (
+            <span key={tip}>
+              {i > 0 && <span className="px-1.5 text-[var(--subtle)]">·</span>}
+              {tip}
+            </span>
+          ))}
+        </span>
+        <button
+          type="button"
+          aria-label={t('hint.dismiss')}
+          title={t('hint.dismiss')}
+          className="pointer-events-auto grid size-6 shrink-0 place-items-center rounded-full text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--fg)]"
+          onClick={() => {
+            try {
+              localStorage.setItem('zark-hint', 'off');
+            } catch {
+              /* still hidden for this tab */
+            }
+            setHidden(true);
+          }}
+        >
+          ×
+        </button>
+      </div>
     </div>
   );
 }

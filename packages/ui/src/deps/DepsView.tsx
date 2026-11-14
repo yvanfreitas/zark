@@ -197,7 +197,7 @@ export function DepsView() {
               role="radio"
               aria-checked={levels === n}
               onClick={() => set({ depsLevels: n })}
-              className={`grid size-7 place-items-center rounded-md font-medium ${levels === n ? 'bg-[var(--accent)] text-white' : 'hover:bg-[var(--hover)]'}`}
+              className={`grid size-7 place-items-center rounded-md font-medium ${levels === n ? 'bg-[var(--accent)] text-[var(--on-accent)]' : 'hover:bg-[var(--hover)]'}`}
             >
               {n}
             </button>

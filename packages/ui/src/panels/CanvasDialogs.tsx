@@ -46,7 +46,7 @@ export function ConnectionPicker({ source, target, onClose }: { source: string; 
 
   return (
     <div className="absolute inset-0 z-40 grid place-items-center bg-black/10" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div role="dialog" aria-label={t('picker.title')} className="w-[400px] rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-xl">
+      <div role="dialog" aria-modal="true" aria-label={t('picker.title')} className="w-[400px] rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-xl">
         <h2 className="text-[14px] font-semibold text-[var(--fg)]">
           {index.name(source)} → {index.name(target)}
         </h2>
@@ -180,6 +180,7 @@ export function QuickCreate({ x, y, left, top, onClose }: { x: number; y: number
             ))}
           </ul>
         )}
+        {!q && <p className="px-1.5 pb-0.5 pt-2 text-[11.5px] leading-snug text-[var(--muted)]">{t('quick.hint')}</p>}
         {q && !exact && (
           <div className="mt-1 flex items-center gap-2 border-t border-[var(--border)] px-1 pt-2">
             <select className={`${inputClass} !w-auto`} value={kind} onChange={(e) => setKind(e.target.value)} aria-label={t('common.kind')}>
@@ -189,8 +190,8 @@ export function QuickCreate({ x, y, left, top, onClose }: { x: number; y: number
                 </option>
               ))}
             </select>
-            <Button type="button" onClick={create} className="flex-1">
-              {t('quick.create', { name: query.trim() })}
+            <Button type="button" onClick={create} className="min-w-0 flex-1">
+              <span className="truncate">{t('quick.create', { name: query.trim() })}</span>
             </Button>
           </div>
         )}

@@ -93,9 +93,14 @@ describe.skipIf(!existsSync(join(UI, 'index.html')))('fase 5: fluxo montado pela
       await stepButton(text).last().waitFor();
     }
 
-    await stepRow('Delivers to history').first().getByRole('button', { name: '∥ next' }).click();
+    // Grouping lives in each step's menu ("⋯" or right-click on the step).
+    const stepAction = async (text: string, action: string) => {
+      await stepRow(text).first().getByRole('button', { name: 'Step actions' }).click();
+      await page.getByRole('menuitem', { name: action }).click();
+    };
+    await stepAction('Delivers to history', 'Run in parallel with the next step');
     await page.getByText('In parallel', { exact: true }).waitFor();
-    await stepRow('Generates the answer').getByRole('button', { name: 'or next' }).click();
+    await stepAction('Generates the answer', 'Make an alternative to the next step');
     await page.getByText('Alternatives', { exact: true }).waitFor();
 
     const pathName = page.getByLabel('Path name');
@@ -116,9 +121,10 @@ describe.skipIf(!existsSync(join(UI, 'index.html')))('fase 5: fluxo montado pela
 
     // A step against Papo app -> Auth (outgoing) is refused with the suggested fix.
     await addStep('Signs in', 'Auth calls the app', 'reverse');
-    const toast = page.getByText(/E041/);
-    await toast.waitFor();
-    expect(await toast.textContent()).toContain('Reverse the connection');
+    // The reason shows inside the add-step form, not in a passing toast.
+    const reason = page.getByRole('alert').filter({ hasText: 'Step not added' }).getByText(/E041/);
+    await reason.waitFor();
+    expect(await reason.textContent()).toContain('Reverse the connection');
     expect(errorsOf(running.service.store.problems)).toEqual([]);
     const after = buildProject(dir, await readTexts(dir)).flows.get('chat-built-in-the-ui')!.flow;
     expect(shape(after.steps)).toEqual(shape(original.steps));

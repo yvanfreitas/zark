@@ -4,6 +4,7 @@ import { api, ApiError, getModel, readOnly, type WriteResult } from './api';
 import { buildIndex, type Index } from './model';
 import { impactText, initialLang, problemText, tr, type Lang } from './i18n';
 import type { Model } from './types';
+import type { MenuItem } from './panels/Menu';
 
 export type FilterState = 'highlight' | 'hide';
 export type RightPanel = 'inspector' | 'problems' | 'changes';
@@ -13,6 +14,10 @@ export interface Toast {
   id: number;
   text: string;
   kind: 'info' | 'error' | 'success';
+  /** Bold first line; `text` then reads as the detail. */
+  title?: string;
+  /** One line per reason (refused writes list every problem). */
+  lines?: string[];
 }
 
 export interface ConfirmDialog {
@@ -52,12 +57,23 @@ interface State {
   palette: boolean;
   confirm?: ConfirmDialog;
   prDialog: boolean;
+  /** Keyboard shortcuts overlay. */
+  help: boolean;
+  /** Context menu open at a screen position (canvas right-click, "more actions" buttons). */
+  menu?: { x: number; y: number; items: MenuItem[] };
+  /** Reasons the last write was refused; cleared by the next write. Forms show it inline. */
+  refusal?: string[];
   theme: 'light' | 'dark';
   focusRequest: number;
   readOnly: boolean;
   lang: Lang;
   /** Committed PNGs out of date with the model (server: GET /api/render/status). */
   renderStatus?: { commitMode: 'pr' | 'always' | 'never'; stale: { file: string; reason: 'outdated' | 'missing' }[] };
+}
+
+/** `inline`: the caller shows `refusal` next to its own form, so no toast is raised. */
+export interface WriteOptions {
+  inline?: boolean;
 }
 
 interface Actions {
@@ -67,11 +83,11 @@ interface Actions {
   openDrawing: (id: string, push?: boolean) => void;
   up: () => void;
   select: (nodes: string[], edges?: string[]) => void;
-  toast: (text: string, kind?: Toast['kind']) => void;
+  toast: (text: string, kind?: Toast['kind'], extra?: Pick<Toast, 'title' | 'lines'>) => void;
   dismiss: (id: number) => void;
   /** Sends a write; returns the result, or undefined when it failed (a toast explains why). */
-  write: (method: string, path: string, body?: unknown, files?: string[]) => Promise<WriteResult | undefined>;
-  ops: (ops: unknown[], files?: string[]) => Promise<WriteResult | undefined>;
+  write: (method: string, path: string, body?: unknown, files?: string[], opts?: WriteOptions) => Promise<WriteResult | undefined>;
+  ops: (ops: unknown[], files?: string[], opts?: WriteOptions) => Promise<WriteResult | undefined>;
   /** Delete with cascade: asks first when the core reports impact. */
   deleteWithImpact: (path: string, label: string, files?: string[]) => Promise<void>;
   undo: () => Promise<void>;
@@ -109,6 +125,7 @@ export const useStore = create<State & Actions>((set, get) => ({
   filters: {},
   palette: false,
   prDialog: false,
+  help: false,
   theme: initialTheme(),
   focusRequest: 0,
   readOnly,
@@ -181,14 +198,15 @@ export const useStore = create<State & Actions>((set, get) => ({
 
   select: (nodes, edges = []) => set({ selection: { nodes, edges }, right: 'inspector' }),
 
-  toast(text, kind = 'info') {
+  toast(text, kind = 'info', extra = {}) {
     const id = ++toastId;
-    set({ toasts: [...get().toasts, { id, text, kind }] });
-    setTimeout(() => get().dismiss(id), kind === 'error' ? 8000 : 3500);
+    set({ toasts: [...get().toasts, { id, text, kind, ...extra }] });
+    // Errors with a list of reasons need reading time; they can also be dismissed by hand.
+    setTimeout(() => get().dismiss(id), extra.lines?.length ? 15000 : kind === 'error' ? 8000 : 3500);
   },
   dismiss: (id) => set({ toasts: get().toasts.filter((t) => t.id !== id) }),
 
-  async write(method, path, body, files = []) {
+  async write(method, path, body, files = [], opts = {}) {
     if (get().readOnly) {
       get().toast(tr('store.readOnly'), 'info');
       return undefined;
@@ -198,7 +216,7 @@ export const useStore = create<State & Actions>((set, get) => ({
       .filter((f) => model?.files[f])
       .map((f) => `${f}=${model!.files[f].hash}`)
       .join(', ');
-    set({ saving: 'saving' });
+    set({ saving: 'saving', refusal: undefined });
     try {
       const result = await api<WriteResult>(method, path, body, ifMatch ? { 'if-match': ifMatch } : {});
       if (result.conflict) {
@@ -212,9 +230,9 @@ export const useStore = create<State & Actions>((set, get) => ({
         return result;
       }
       if (!result.ok) {
-        const detail = result.problems?.map((p) => `${p.code}: ${problemText(p)}`).join(' · ');
-        get().toast(detail ? tr('store.refused', { detail }) : result.error ?? tr('store.opRefused'), 'error');
-        set({ saving: 'idle' });
+        const lines = result.problems?.length ? result.problems.map((p) => `${p.code}: ${problemText(p)}`) : [result.error ?? tr('store.opRefused')];
+        if (!opts.inline) get().toast(tr('store.refusedHint'), 'error', { title: tr('store.refusedTitle'), lines });
+        set({ saving: 'idle', refusal: lines });
         return undefined;
       }
       set({ saving: 'saved' });
@@ -227,7 +245,7 @@ export const useStore = create<State & Actions>((set, get) => ({
     }
   },
 
-  ops: (ops, files) => get().write('POST', '/api/ops', { ops }, files),
+  ops: (ops, files, opts) => get().write('POST', '/api/ops', { ops }, files, opts),
 
   async deleteWithImpact(path, label, files) {
     const first = await get().write('DELETE', path, undefined, files);

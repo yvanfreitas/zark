@@ -8,6 +8,7 @@ const exclude = ['**/node_modules/**', '**/dist/**', '.claude/**'];
 const browser = [
   'packages/server/test/phase2.test.ts',
   'packages/server/test/phase5-ui.test.ts',
+  'packages/server/test/canvas-menu-ui.test.ts',
   'packages/server/test/icons.test.ts',
   'packages/server/test/render-status.test.ts',
   'packages/server/test/pr-e2e.test.ts',

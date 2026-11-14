@@ -7,6 +7,7 @@ import { problemText, tr, useT } from '../i18n';
 import type { FlowItem, Step, Problem } from '../types';
 import { AddStepButton } from './Inspector';
 import { Button, Icon, IconButton, inputClass, Svg } from './ui';
+import { openMenuAt, type MenuItem } from './Menu';
 
 const SPEEDS = [0.5, 1, 2];
 
@@ -104,7 +105,7 @@ export function FlowPanel() {
           <button
             type="button"
             onClick={() => setFlow({ playing: !state.playing, frame: frame >= frames.length - 1 ? 0 : frame })}
-            className="grid size-9 place-items-center rounded-full bg-[var(--accent)] text-white hover:bg-[var(--accent-strong)]"
+            className="grid size-9 place-items-center rounded-full bg-[var(--accent)] text-[var(--on-accent)] hover:bg-[var(--accent-strong)]"
             aria-label={state.playing ? t('flow.pause') : t('flow.play')}
             title={state.playing ? t('flow.pause') : t('flow.play')}
           >
@@ -144,7 +145,11 @@ export function FlowPanel() {
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
         {selectedConn && <AddStepButton key={selectedConn} refId={selectedConn} flowId={flow.id} />}
-        {!selectedConn && <p data-edit className="mb-2 px-1 text-[12px] text-[var(--muted)]">{t('flow.clickHint')}</p>}
+        {!selectedConn && (
+          <p data-edit className="mb-2 rounded-md border border-dashed border-[var(--border-strong)] px-2.5 py-2 text-[12px] leading-snug text-[var(--muted)]">
+            {t('flow.clickHint')}
+          </p>
+        )}
         <StepList flowId={flow.id} numberOf={numberOf} activeIds={view.activeIds} problems={problems} onJump={(stepId) => {
           const at = frames.findIndex((f) => f.some((s) => s.id === stepId));
           if (at >= 0) setFlow({ frame: at, playing: false });
@@ -163,7 +168,7 @@ export function FlowPanel() {
       </div>
       {mermaid && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/30" onMouseDown={(e) => e.target === e.currentTarget && setMermaid(undefined)}>
-          <div role="dialog" aria-label="Mermaid" className="w-[560px] max-w-[92vw] rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-xl">
+          <div role="dialog" aria-modal="true" aria-label="Mermaid" className="w-[560px] max-w-[92vw] rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-xl">
             <h2 className="mb-2 text-[14px] font-semibold text-[var(--fg)]">Mermaid sequenceDiagram</h2>
             <textarea readOnly className={`${inputClass} h-[320px] font-mono text-[12px]`} value={mermaid} />
             <div className="mt-3 flex justify-end gap-2">
@@ -247,6 +252,32 @@ function StepList({
     return out.length ? <div className="mt-1.5 flex flex-wrap gap-1.5">{out}</div> : null;
   };
 
+  /** Everything a step can do; the "⋯" button and a right-click on the row open it. */
+  const stepMenu = (step: Step, topIndex?: number): MenuItem[] => {
+    const c = index.conns.get(step.via);
+    const top = topIndex !== undefined;
+    const hasNext = top && topIndex < items.length - 1;
+    return [
+      { label: t('flow.editText'), run: () => setEditing(step.id) },
+      { label: t('flow.markReply'), checked: !!step.reply, run: () => void (step.reply ? updateStep(step.id, {}, ['reply']) : updateStep(step.id, { reply: true })) },
+      ...(c?.conn.direction === 'bidirectional'
+        ? [{ label: t('flow.targetStarts'), checked: !!step.reverse, run: () => void (step.reverse ? updateStep(step.id, {}, ['reverse']) : updateStep(step.id, { reverse: true })) }]
+        : []),
+      ...(top
+        ? [
+            { separator: true } as MenuItem,
+            { label: t('flow.moveUp'), disabled: topIndex === 0, run: () => moveTop(topIndex, topIndex - 1) },
+            { label: t('flow.moveDown'), disabled: !hasNext, run: () => moveTop(topIndex, topIndex + 1) },
+            { separator: true } as MenuItem,
+            { label: t('flow.groupParallel'), disabled: !hasNext, run: () => groupWithNext(topIndex, 'parallel') },
+            { label: t('flow.groupAlt'), disabled: !hasNext, run: () => groupWithNext(topIndex, 'alternatives') },
+          ]
+        : []),
+      { separator: true },
+      { label: t('flow.deleteStep'), danger: true, run: () => void removeStep(step.id) },
+    ];
+  };
+
   const stepRow = (step: Step, topIndex?: number): ReactNode => {
     const c = index.conns.get(step.via);
     const backwards = !!step.reply !== !!step.reverse;
@@ -256,11 +287,16 @@ function StepList({
     const active = activeIds.has(step.id);
     return (
       <div
+        onContextMenu={(e) => {
+          if (useStore.getState().readOnly) return;
+          e.preventDefault();
+          useStore.getState().set({ menu: { x: e.clientX, y: e.clientY, items: stepMenu(step, topIndex) } });
+        }}
         className={`group rounded-lg border px-2.5 py-2 ${issues.some((p) => p.code.startsWith('E')) ? 'border-[var(--danger)]/60 bg-[var(--danger-soft)]' : active ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'border-transparent hover:bg-[var(--hover)]'}`}
       >
         <div className="flex items-start gap-2">
           {topIndex !== undefined && (
-            <span className="mt-0.5 cursor-grab text-[var(--subtle)]" aria-hidden="true">
+            <span className="mt-0.5 cursor-grab text-[var(--subtle)]" aria-hidden="true" title={t('flow.dragHint')}>
               <Svg icon={Icon.grip} size={14} />
             </span>
           )}
@@ -298,33 +334,10 @@ function StepList({
               </div>
             ))}
             {fixes(step, issues.map((p) => p.code))}
-            <div data-edit className="mt-1 flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11px]">
-              <button type="button" className="text-[var(--muted)] hover:text-[var(--fg)]" onClick={() => setEditing(step.id)}>
-                {t('flow.edit')}
-              </button>
-              <button type="button" className="text-[var(--muted)] hover:text-[var(--fg)]" onClick={() => (step.reply ? updateStep(step.id, {}, ['reply']) : updateStep(step.id, { reply: true }))}>
-                {step.reply ? t('flow.notReply') : t('flow.replyAction')}
-              </button>
-              {c?.conn.direction === 'bidirectional' && (
-                <button type="button" className="text-[var(--muted)] hover:text-[var(--fg)]" onClick={() => (step.reverse ? updateStep(step.id, {}, ['reverse']) : updateStep(step.id, { reverse: true }))}>
-                  {step.reverse ? t('flow.normalSense') : t('flow.targetStarts')}
-                </button>
-              )}
-              {topIndex !== undefined && topIndex < items.length - 1 && (
-                <>
-                  <button type="button" className="text-[var(--muted)] hover:text-[var(--fg)]" onClick={() => groupWithNext(topIndex, 'parallel')} title={t('flow.groupParallelTitle')}>
-                    {t('flow.groupParallel')}
-                  </button>
-                  <button type="button" className="text-[var(--muted)] hover:text-[var(--fg)]" onClick={() => groupWithNext(topIndex, 'alternatives')} title={t('flow.groupAltTitle')}>
-                    {t('flow.groupAlt')}
-                  </button>
-                </>
-              )}
-              <button type="button" className="text-[var(--muted)] hover:text-[var(--danger)]" onClick={() => removeStep(step.id)}>
-                {t('flow.delete')}
-              </button>
-            </div>
           </div>
+          <IconButton data-edit className="-mr-1 -mt-0.5 !size-7 shrink-0" label={t('flow.stepActions')} aria-haspopup="menu" onClick={(e) => openMenuAt(e.currentTarget, stepMenu(step, topIndex))}>
+            <Svg icon={Icon.more} />
+          </IconButton>
         </div>
       </div>
     );
@@ -391,7 +404,13 @@ function StepList({
       );
     });
 
-  if (!items.length) return <p className="px-1 py-6 text-center text-[13px] text-[var(--muted)]">{t('flow.empty')}</p>;
+  if (!items.length)
+    return (
+      <div className="px-3 py-8 text-center">
+        <p className="text-[13px] font-medium text-[var(--fg-soft)]">{t('flow.empty')}</p>
+        <p data-edit className="mx-auto mt-1 max-w-[250px] text-[12px] leading-snug text-[var(--muted)]">{t('flow.emptyHint')}</p>
+      </div>
+    );
   return <div className="flex flex-col gap-1">{renderItems(items, true)}</div>;
 }
 
