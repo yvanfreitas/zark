@@ -26,3 +26,11 @@ jobs:
           node packages/cli/dist/main.js validate --dir examples/ecommerce/architecture
           node packages/cli/dist/main.js fmt --check --dir examples/ecommerce/architecture
           node packages/cli/dist/main.js render --check --dir examples/ecommerce/architecture
+      - name: Experimento PNG entre máquinas (Windows vs Linux)
+        run: |
+          rm -rf /tmp/x && cp -r examples/ecommerce/architecture /tmp/x && rm -rf /tmp/x/rendered
+          node packages/cli/dist/main.js render --dir /tmp/x
+          for f in contexto vtex; do
+            if cmp -s "examples/ecommerce/architecture/rendered/$f.png" "/tmp/x/rendered/$f.png"; then echo "CROSS $f: bytes IDENTICOS"; else echo "CROSS $f: bytes DIFERENTES"; ls -l "examples/ecommerce/architecture/rendered/$f.png" "/tmp/x/rendered/$f.png"; fi
+          done
+          node -e "const f=require('fs');for(const n of ['contexto','vtex']){const a=f.readFileSync('examples/ecommerce/architecture/rendered/'+n+'.png'),b=f.readFileSync('/tmp/x/rendered/'+n+'.png');const w=x=>x.readUInt32BE(16)+'x'+x.readUInt32BE(20);console.log('CROSS',n,'dims win',w(a),'linux',w(b))}"
