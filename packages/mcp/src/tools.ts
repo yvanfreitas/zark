@@ -252,6 +252,7 @@ export function createMcpServer(service: ZarkService): McpServer {
   tool('create_entity', 'Cria uma entidade (e opcionalmente suas conexões de saída)', {
     id: z.string(), name: z.string(), kind: Kind, parent: z.string().nullable().optional(), caption: z.string().optional(), description: z.string().optional(),
     external: z.boolean().optional(), status: Status.optional(), technologies: z.array(z.string()).optional(), tags: z.array(z.string()).optional(), owner: z.string().optional(),
+    links: z.array(z.object({ label: z.string(), url: z.string() })).optional(),
     connections: z.array(ConnectionInput).optional(), dryRun,
   }, ({ dryRun: dry, ...entity }) => write([{ op: 'entity.create', entity: entity as any }], dry));
 
