@@ -212,6 +212,7 @@ export function App() {
   const theme = useStore((s) => s.theme);
   const view = useStore((s) => s.view);
   const git = useGitStatus();
+  const hasSelection = useStore((s) => s.selection.nodes.length + s.selection.edges.length > 0);
   useShortcuts();
   useLiveUpdates();
   useEffect(() => {
@@ -251,9 +252,12 @@ export function App() {
               </>
             )}
           </main>
-          <aside className="w-[340px] shrink-0 overflow-y-auto border-l border-[var(--border)] bg-[var(--panel)]" aria-label="Painel direito">
-            {right === 'problems' ? <ProblemsPanel /> : right === 'changes' ? <ChangesPanel git={git} /> : flow ? <FlowPanel /> : <Inspector />}
-          </aside>
+          {/* Outside the canvas the drawing inspector has nothing on screen to describe: show the panel only for a selection or a side view. */}
+          {(view === 'canvas' || right !== 'inspector' || hasSelection) && (
+            <aside className="w-[340px] shrink-0 overflow-y-auto border-l border-[var(--border)] bg-[var(--panel)]" aria-label="Painel direito">
+              {right === 'problems' ? <ProblemsPanel /> : right === 'changes' ? <ChangesPanel git={git} /> : flow && view === 'canvas' ? <FlowPanel /> : <Inspector />}
+            </aside>
+          )}
         </div>
         <BottomBar />
       </div>
