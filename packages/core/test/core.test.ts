@@ -283,3 +283,23 @@ describe('format migration', () => {
     expect(validate(p).find((x) => x.code === 'E001')?.message).toMatch(/newer than this Zark/);
   });
 });
+
+import { mkdtemp, open as openFile, readFile as readFileFs, rm as rmFs } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join as joinPath } from 'node:path';
+import { writeAtomic } from '../src/index.js';
+
+describe('atomic write', () => {
+  it('survives the target being open by another reader (Windows EPERM on rename)', async () => {
+    const dir = await mkdtemp(joinPath(tmpdir(), 'zark-atomic-'));
+    const file = joinPath(dir, 'a.yaml');
+    await writeAtomic(file, 'v: 1\n');
+    const handle = await openFile(file, 'r');
+    // Release the reader shortly after the write starts, as a watcher would.
+    const release = new Promise((r) => setTimeout(() => void handle.close().then(r), 60));
+    await writeAtomic(file, 'v: 2\n');
+    await release;
+    expect(await readFileFs(file, 'utf8')).toBe('v: 2\n');
+    await rmFs(dir, { recursive: true, force: true });
+  });
+});

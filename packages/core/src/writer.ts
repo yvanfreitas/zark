@@ -191,7 +191,30 @@ export async function writeAtomic(path: string, data: string | Uint8Array) {
   await mkdir(dirname(path), { recursive: true });
   const tmp = join(dirname(path), `.${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`);
   await writeFile(tmp, data);
-  await rename(tmp, path);
+  try {
+    await renameWithRetry(tmp, path);
+  } catch (err) {
+    await rm(tmp, { force: true });
+    throw err;
+  }
+}
+
+/**
+ * On Windows, rename over a file another process has open (the watcher, an
+ * editor, antivirus) fails with EPERM/EACCES/EBUSY for a few milliseconds.
+ * Retry briefly instead of losing the write, as graceful-fs does.
+ */
+async function renameWithRetry(from: string, to: string) {
+  const transient = new Set(['EPERM', 'EACCES', 'EBUSY']);
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await rename(from, to);
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code ?? '';
+      if (!transient.has(code) || attempt >= 20) throw err;
+      await new Promise((r) => setTimeout(r, Math.min(10 * 2 ** attempt, 200)));
+    }
+  }
 }
 
 export async function removeFile(path: string) {
