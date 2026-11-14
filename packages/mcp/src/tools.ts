@@ -71,7 +71,7 @@ const Status = z.enum(['live', 'future', 'deprecated', 'removed']);
 const dryRun = z.boolean().optional().describe('Valida sem gravar');
 const fields = z.record(z.string(), z.unknown());
 const EdgeShape = {
-  shape: z.enum(['straight', 'step', 'curved']).optional(),
+  shape: z.enum(['straight', 'step', 'curved', 'auto']).optional(),
   from: Side.optional(),
   to: Side.optional(),
   points: z.array(z.tuple([z.number(), z.number()])).optional(),

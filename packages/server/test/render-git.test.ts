@@ -20,7 +20,7 @@ import {
   status,
 } from '../src/index.js';
 
-const EXAMPLE = fileURLToPath(new URL('../../../examples/ecommerce/architecture', import.meta.url));
+const EXAMPLE = fileURLToPath(new URL('../../../examples/ai-chat/architecture', import.meta.url));
 
 function chunk(type: string, data: Buffer) {
   const len = Buffer.alloc(4);
@@ -60,11 +60,11 @@ describe('render hash', () => {
   });
 
   it('changes only when referenced inputs change', () => {
-    const h = renderHash(project(), { drawing: 'vtex' });
-    const renamed = renderHash(project((t) => t.set('entities/gateway.yaml', t.get('entities/gateway.yaml')!.replace('name: Gateway', 'name: Gateway 2'))), { drawing: 'vtex' });
+    const h = renderHash(project(), { drawing: 'platform' });
+    const renamed = renderHash(project((t) => t.set('entities/bot-queue.yaml', t.get('entities/bot-queue.yaml')!.replace('name: Bot queue', 'name: Bot queue 2'))), { drawing: 'platform' });
     expect(renamed).not.toBe(h);
-    // Transportadora is not in the vtex drawing.
-    const unrelated = renderHash(project((t) => t.set('entities/transportadora.yaml', t.get('entities/transportadora.yaml')!.replace('name: Transportadora', 'name: Outra'))), { drawing: 'vtex' });
+    // The user actor is not in the platform drawing.
+    const unrelated = renderHash(project((t) => t.set('entities/user.yaml', t.get('entities/user.yaml')!.replace('name: User', 'name: Customer'))), { drawing: 'platform' });
     expect(unrelated).toBe(h);
   });
 
@@ -75,10 +75,10 @@ describe('render hash', () => {
       await cp(EXAMPLE, dir, { recursive: true });
       await mkdir(join(dir, 'rendered'), { recursive: true });
       const p = buildProject(dir, await readTexts(dir));
-      await writeFile(join(dir, 'rendered/contexto.png'), embedHash(tinyPng(), 'wrong'));
-      await writeFile(join(dir, 'rendered/vtex.png'), embedHash(tinyPng(), renderHash(p, { drawing: 'vtex' })));
+      await writeFile(join(dir, 'rendered/context.png'), embedHash(tinyPng(), 'wrong'));
+      await writeFile(join(dir, 'rendered/platform.png'), embedHash(tinyPng(), renderHash(p, { drawing: 'platform' })));
       const problems = await renderedProblems(p);
-      expect(problems.map((x) => `${x.code} ${x.file}`)).toEqual(['W030 rendered/contexto.png']);
+      expect(problems.map((x) => `${x.code} ${x.file}`)).toEqual(['W030 rendered/context.png']);
     } finally {
       await rm(root, { recursive: true, force: true });
     }
@@ -88,27 +88,27 @@ describe('render hash', () => {
 describe('PR text', () => {
   it('uses the change text as title for a single change', () => {
     const before = project();
-    const after = project((t) => t.set('entities/deco.yaml', t.get('entities/deco.yaml')!.replace('caption: Front', 'caption: Frontend')));
+    const after = project((t) => t.set('entities/auth.yaml', t.get('entities/auth.yaml')!.replace('caption: Accounts and tokens', 'caption: Identity')));
     const changes = diffProjects(before, after);
-    expect(prTitle(changes, after, before)).toBe('deco: caption alterado');
+    expect(prTitle(changes, after, before)).toBe('Auth: caption alterado');
   });
 
   it('summarizes several changes', () => {
     const before = project();
     const after = project((t) => {
-      t.set('entities/novo.yaml', 'id: novo\nname: Novo\nkind: system\nconnections:\n  - id: a\n    to: deco\n    label: A\n  - id: b\n    to: linx\n    label: B\n');
-      t.set('drawings/contexto.yaml', t.get('drawings/contexto.yaml')!.replace('stone: { x: 360, y: -272 }', 'stone: { x: 360, y: -280 }'));
+      t.set('entities/novo.yaml', 'id: novo\nname: Novo\nkind: system\nconnections:\n  - id: a\n    to: auth\n    label: A\n  - id: b\n    to: user\n    label: B\n');
+      t.set('drawings/context.yaml', t.get('drawings/context.yaml')!.replace('auth: { x: 832, y: -320 }', 'auth: { x: 832, y: -328 }'));
     });
     const title = prTitle(diffProjects(before, after), after, before);
-    expect(title).toBe('Arquitetura: adiciona Novo e 2 conexões, ajusta Contexto');
+    expect(title).toBe('Arquitetura: adiciona Novo e 2 conexões, ajusta Context');
   });
 
   it('builds the body with summary, drawings table and validation line', () => {
     const before = project();
-    const after = project((t) => t.set('entities/deco.yaml', t.get('entities/deco.yaml')!.replace('caption: Front', 'caption: Frontend')));
+    const after = project((t) => t.set('entities/auth.yaml', t.get('entities/auth.yaml')!.replace('caption: Accounts and tokens', 'caption: Identity')));
     const body = prBody({
       changes: diffProjects(before, after),
-      images: [{ drawing: 'contexto', name: 'Contexto', path: 'rendered/contexto.png', hasBefore: true }],
+      images: [{ drawing: 'context', name: 'Context', path: 'rendered/context.png', hasBefore: true }],
       imageUrl: (p, side) => `https://x/${side}/${p}`,
       flows: [],
       problems: [
@@ -116,9 +116,9 @@ describe('PR text', () => {
         { code: 'W003', severity: 'warning', file: 'b', message: 'y' },
       ],
     });
-    expect(body).toContain('## Resumo\n- deco: caption alterado');
+    expect(body).toContain('## Resumo\n- Auth: caption alterado');
     expect(body).toContain('| Antes | Depois |');
-    expect(body).toContain('![antes](https://x/before/rendered/contexto.png)');
+    expect(body).toContain('![antes](https://x/before/rendered/context.png)');
     expect(body).toContain('0 erros, 2 avisos (W003 x2)');
   });
 });
@@ -146,25 +146,25 @@ describe('git integration', () => {
 
   it('reports changes, loads HEAD, discards, and blocks PR without remote', async () => {
     const store = await new ProjectStore(dir).load();
-    const r = await store.apply([{ op: 'entity.update', id: 'deco', set: { caption: 'Frontend' } }], 'ui');
+    const r = await store.apply([{ op: 'entity.update', id: 'auth', set: { caption: 'Identity' } }], 'ui');
     expect(r.ok).toBe(true);
 
     const st = await status(dir, 'main', false);
     expect(st.isRepo).toBe(true);
     expect(st.branch).toBe('main');
-    expect(st.changed.map((c) => c.path)).toEqual(['entities/deco.yaml']);
+    expect(st.changed.map((c) => c.path)).toEqual(['entities/auth.yaml']);
 
     const head = await projectAtRef(dir, 'HEAD');
-    expect(head.entities.size).toBe(13);
-    expect(head.entities.get('deco')!.entity.caption).toBe('Front');
+    expect(head.entities.size).toBe(16);
+    expect(head.entities.get('auth')!.entity.caption).toBe('Accounts and tokens');
 
     const preview = await prPreview(dir, store.project, store.problems);
     expect(preview.ok).toBe(false);
     expect(preview.blockers.join('\n')).toMatch(/remoto/);
-    expect(preview.changes.map((c) => c.text)).toEqual(['deco: caption alterado']);
+    expect(preview.changes.map((c) => c.text)).toEqual(['Auth: caption alterado']);
 
-    await discard(dir, ['entities/deco.yaml']);
-    expect(await readFile(join(dir, 'entities/deco.yaml'), 'utf8')).toBe(await readFile(join(EXAMPLE, 'entities/deco.yaml'), 'utf8'));
+    await discard(dir, ['entities/auth.yaml']);
+    expect(await readFile(join(dir, 'entities/auth.yaml'), 'utf8')).toBe(await readFile(join(EXAMPLE, 'entities/auth.yaml'), 'utf8'));
     expect((await status(dir, 'main', false)).changed).toEqual([]);
   }, 30_000); // spawns git and gh several times; slow on Windows
 });

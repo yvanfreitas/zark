@@ -10,8 +10,8 @@ import { fileURLToPath } from 'node:url';
 import { readTexts } from '@zark/core';
 import { startServer, type Running } from '../src/index.js';
 
-const EXAMPLE = fileURLToPath(new URL('../../../examples/ecommerce/architecture', import.meta.url));
-const FLOW = 'compra-com-estoque-da-loja';
+const EXAMPLE = fileURLToPath(new URL('../../../examples/ai-chat/architecture', import.meta.url));
+const FLOW = 'user-chats-with-the-bot';
 
 let root: string;
 let dir: string;
@@ -67,94 +67,95 @@ afterAll(async () => {
 
 describe('every UI write endpoint keeps the model free of errors', () => {
   it('entities: create (+place), update, move, delete', async () => {
-    await valid('POST', '/api/entities', { entity: { id: 'pix', name: 'Pix', kind: 'system', external: true }, place: { drawing: 'contexto', x: 0, y: -560 } });
+    await valid('POST', '/api/entities', { entity: { id: 'billing', name: 'Billing', kind: 'system', external: true }, place: { drawing: 'context', x: 0, y: -560 } });
     await refused('POST', '/api/entities', { entity: { id: 'solto', name: 'Solto', kind: 'app' } }, 'E011');
     await refused('POST', '/api/entities', { entity: { id: 'Bad Id', name: 'X', kind: 'system' } }, 'E001');
 
-    await valid('PATCH', '/api/entities/deco', { set: { caption: 'Frontend', tags: ['logistica'] } });
-    await valid('PATCH', '/api/entities/deco', { unset: ['tags'] });
-    await refused('PATCH', '/api/entities/deco', { set: { kind: 'app' } }, 'E011');
-    await refused('PATCH', '/api/entities/deco', { set: { owner: 'time-fantasma' } }, 'E022');
-    await refused('PATCH', '/api/entities/gateway', { parent: 'nada' }, 'E010');
-    await refused('PATCH', '/api/entities/gateway', { parent: 'cliente' }, 'E011');
-    await refused('PATCH', '/api/entities/vtex', { unset: ['name'] }, 'E001');
+    await valid('PATCH', '/api/entities/auth', { set: { caption: 'Identity', tags: ['messaging'] } });
+    await valid('PATCH', '/api/entities/auth', { unset: ['tags'] });
+    await refused('PATCH', '/api/entities/auth', { set: { kind: 'app' } }, 'E011');
+    await refused('PATCH', '/api/entities/auth', { set: { owner: 'ghost-team' } }, 'E022');
+    await refused('PATCH', '/api/entities/websocket-api', { parent: 'nada' }, 'E010');
+    await refused('PATCH', '/api/entities/websocket-api', { parent: 'user' }, 'E011');
+    await refused('PATCH', '/api/entities/platform', { unset: ['name'] }, 'E001');
 
-    const impact = await refused('DELETE', '/api/entities/linx');
+    const impact = await refused('DELETE', '/api/entities/llm-provider');
     expect(impact.body.impact.length).toBeGreaterThan(0);
-    await valid('DELETE', '/api/entities/pix?cascade=true');
+    await valid('DELETE', '/api/entities/billing?cascade=true');
   });
 
   it('connections: create, update, reverse, delete', async () => {
-    await valid('POST', '/api/entities/cliente/connections', { connection: { id: 'suporte', to: 'trinio', label: 'Pede ajuda' } });
-    await refused('POST', '/api/entities/cliente/connections', { connection: { id: 'x', to: 'nada', label: 'X' } }, 'E020');
-    await refused('POST', '/api/entities/cliente/connections', { connection: { id: 'y', to: 'cliente', label: 'Y' } }, 'E021');
+    await valid('POST', '/api/entities/user/connections', { connection: { id: 'support', to: 'auth', label: 'Asks for help' } });
+    await refused('POST', '/api/entities/user/connections', { connection: { id: 'x', to: 'nada', label: 'X' } }, 'E020');
+    await refused('POST', '/api/entities/user/connections', { connection: { id: 'y', to: 'user', label: 'Y' } }, 'E021');
 
-    await valid('PATCH', '/api/connections/cliente.suporte', { set: { label: 'Abre chamado', direction: 'bidirectional' } });
-    await valid('PATCH', '/api/connections/cliente.suporte', { reverse: true });
+    await valid('PATCH', '/api/connections/user.support', { set: { label: 'Opens a ticket', direction: 'bidirectional' } });
+    await valid('PATCH', '/api/connections/user.support', { reverse: true });
     // Reversing a connection a flow step walks along would put that step against it.
-    await refused('PATCH', '/api/connections/deco.checkout', { reverse: true }, 'E041');
-    await refused('PATCH', '/api/connections/deco.checkout', { unset: ['label'] }, 'E001');
-    await refused('PATCH', '/api/connections/deco.checkout', { set: { via: 'nada' } }, 'E020');
+    await refused('PATCH', '/api/connections/message-handler.publish', { reverse: true }, 'E041');
+    await refused('PATCH', '/api/connections/message-handler.publish', { unset: ['label'] }, 'E001');
+    await refused('PATCH', '/api/connections/message-handler.publish', { set: { via: 'nada' } }, 'E020');
 
-    const impact = await refused('DELETE', '/api/connections/linx.inventario');
+    const impact = await refused('DELETE', '/api/connections/bot-queue.trigger');
     expect(impact.body.impact.length).toBeGreaterThan(0);
-    await valid('DELETE', '/api/connections/trinio.suporte');
+    await valid('DELETE', '/api/connections/auth.support');
   });
 
   it('drawings: create, update, delete', async () => {
-    await valid('POST', '/api/drawings', { drawing: { id: 'rascunho', name: 'Rascunho', scope: null } });
-    await valid('PATCH', '/api/drawings/rascunho', { set: { name: 'Rascunho 2', scope: 'vtex' } });
-    await refused('PATCH', '/api/drawings/rascunho', { set: { scope: 'nada' } }, 'E033');
-    await refused('DELETE', '/api/drawings/contexto');
-    await valid('DELETE', '/api/drawings/rascunho');
+    await valid('POST', '/api/drawings', { drawing: { id: 'draft', name: 'Draft', scope: null } });
+    await valid('PATCH', '/api/drawings/draft', { set: { name: 'Draft 2', scope: 'platform' } });
+    await refused('PATCH', '/api/drawings/draft', { set: { scope: 'nada' } }, 'E033');
+    // Flows run on the platform drawing, so it cannot go.
+    await refused('DELETE', '/api/drawings/platform');
+    await valid('DELETE', '/api/drawings/draft');
   });
 
   it('canvas ops: place, move, remove, draw, update edge, groups, notes, layout', async () => {
-    await valid(...ops('vtex', [{ op: 'move-nodes', nodes: [{ id: 'stone', x: 400, y: -232 }] }]));
-    await refused(...ops('vtex', [{ op: 'place', nodes: [{ id: 'nada', x: 0, y: 0 }] }]));
-    await valid(...ops('vtex', [{ op: 'place', nodes: [{ id: 'linx', x: -400, y: 400 }] }]));
-    await valid(...ops('vtex', [{ op: 'draw-edges', edges: [{ ref: 'linx.inventario', shape: 'step' }] }]));
-    await refused(...ops('vtex', [{ op: 'draw-edges', edges: [{ ref: 'cliente.nada' }] }]));
-    await valid(...ops('vtex', [{ op: 'update-edge', ref: 'linx.inventario', set: { shape: 'curved', from: 'top', labelAt: 0.3 }, unset: [] }]));
-    await refused(...ops('vtex', [{ op: 'update-edge', ref: 'linx.inventario', set: { from: 'diagonal' } }]), 'E001');
-    await valid(...ops('vtex', [{ op: 'remove-edges', refs: ['linx.inventario'] }]));
-    await valid(...ops('vtex', [{ op: 'remove-nodes', ids: ['linx'] }]));
+    await valid(...ops('platform', [{ op: 'move-nodes', nodes: [{ id: 'moderation', x: 1472, y: -352 }] }]));
+    await refused(...ops('platform', [{ op: 'place', nodes: [{ id: 'nada', x: 0, y: 0 }] }]));
+    await valid(...ops('platform', [{ op: 'place', nodes: [{ id: 'user', x: -448, y: 640 }] }]));
+    await valid(...ops('platform', [{ op: 'draw-edges', edges: [{ ref: 'user.uses', shape: 'step' }] }]));
+    await refused(...ops('platform', [{ op: 'draw-edges', edges: [{ ref: 'user.nada' }] }]));
+    await valid(...ops('platform', [{ op: 'update-edge', ref: 'user.uses', set: { shape: 'curved', from: 'top', labelAt: 0.3 }, unset: [] }]));
+    await refused(...ops('platform', [{ op: 'update-edge', ref: 'user.uses', set: { from: 'diagonal' } }]), 'E001');
+    await valid(...ops('platform', [{ op: 'remove-edges', refs: ['user.uses'] }]));
+    await valid(...ops('platform', [{ op: 'remove-nodes', ids: ['user'] }]));
 
-    // A flow runs on contexto: removing what its steps highlight is refused.
-    await refused(...ops('contexto', [{ op: 'remove-edges', refs: ['cliente.navega'] }]), 'E044');
-    await refused(...ops('contexto', [{ op: 'remove-nodes', ids: ['vtex'] }]), 'E044');
+    // Flows run on the platform drawing: removing what their steps highlight is refused.
+    await refused(...ops('platform', [{ op: 'remove-edges', refs: ['websocket-api.forward'] }]), 'E044');
+    await refused(...ops('platform', [{ op: 'remove-nodes', ids: ['message-handler'] }]), 'E044');
     // A group member removed from the drawing leaves the group with it (no E034).
-    await valid(...ops('vtex', [{ op: 'remove-nodes', ids: ['seller-jardins'] }]));
-    expect((await call('GET', '/api/model')).body.drawings.find((x: { id: string }) => x.id === 'vtex').groups[0].members).toEqual(['seller-phg']);
-    await valid(...ops('vtex', [{ op: 'place', nodes: [{ id: 'seller-jardins', x: 0, y: 192 }] }]));
+    await valid(...ops('context', [{ op: 'remove-nodes', ids: ['moderation'] }]));
+    expect((await call('GET', '/api/model')).body.drawings.find((x: { id: string }) => x.id === 'context').groups[0].members).toEqual(['llm-provider']);
+    await valid(...ops('context', [{ op: 'place', nodes: [{ id: 'moderation', x: 1344, y: 160 }] }]));
 
-    await valid(...ops('contexto', [{ op: 'set-group', group: { id: 'pagamento', label: 'Pagamento', members: ['trinio', 'vtex'], style: 'solid' } }]));
-    await refused(...ops('contexto', [{ op: 'set-group', group: { id: 'fantasma', label: 'X', members: ['nada'] } }]), 'E034');
-    await valid(...ops('contexto', [{ op: 'remove-group', id: 'pagamento' }]));
-    await valid(...ops('contexto', [{ op: 'set-note', note: { id: 'nota-2', text: 'Revisar', x: 120, y: 400, w: 200 } }]));
-    await valid(...ops('contexto', [{ op: 'remove-note', id: 'nota-2' }]));
-    await valid('POST', '/api/drawings/vtex/layout', {});
+    await valid(...ops('context', [{ op: 'set-group', group: { id: 'core', label: 'Core', members: ['papo-app', 'platform'], style: 'solid' } }]));
+    await refused(...ops('context', [{ op: 'set-group', group: { id: 'ghost', label: 'X', members: ['nada'] } }]), 'E034');
+    await valid(...ops('context', [{ op: 'remove-group', id: 'core' }]));
+    await valid(...ops('context', [{ op: 'set-note', note: { id: 'note-2', text: 'Review', x: 120, y: 400, w: 200 } }]));
+    await valid(...ops('context', [{ op: 'remove-note', id: 'note-2' }]));
+    await valid('POST', '/api/drawings/platform/layout', {});
   });
 
   it('flows: create, update, steps, delete', async () => {
     const steps = [
-      { id: 'a', via: 'cliente.navega', text: 'Entra' },
-      { id: 'b', via: 'deco.checkout', text: 'Paga' },
+      { id: 'a', via: 'user.uses', text: 'Opens the app' },
+      { id: 'b', via: 'papo-app.login', text: 'Signs in' },
     ];
-    await valid('POST', '/api/flows', { flow: { id: 'curto', name: 'Curto', drawing: 'contexto', steps } });
+    await valid('POST', '/api/flows', { flow: { id: 'curto', name: 'Curto', drawing: 'context', steps } });
     await refused('POST', '/api/flows', { flow: { id: 'orfao', name: 'Órfão', drawing: 'nada', steps } }, 'E043');
-    await refused('PATCH', '/api/flows/curto', { set: { drawing: 'vtex' } }, 'E044');
+    await refused('PATCH', '/api/flows/curto', { set: { drawing: 'platform' } }, 'E044');
     await valid('PATCH', '/api/flows/curto', { set: { name: 'Curtíssimo' } });
 
-    await valid('POST', '/api/ops', { ops: [{ op: 'flow.add-steps', flow: 'curto', steps: [{ id: 'c', via: 'trinio.pagamento', text: 'Autoriza' }] }] });
+    await valid('POST', '/api/ops', { ops: [{ op: 'flow.add-steps', flow: 'curto', steps: [{ id: 'c', via: 'papo-app.websocket', text: 'Connects' }] }] });
     await refused('POST', '/api/ops', { ops: [{ op: 'flow.add-steps', flow: 'curto', steps: [{ id: 'd', via: 'x.nada', text: 'X' }] }] }, 'E040');
-    await refused('POST', '/api/ops', { ops: [{ op: 'flow.add-steps', flow: 'curto', steps: [{ id: 'a', via: 'cliente.navega', text: 'Dup' }] }] }, 'E003');
+    await refused('POST', '/api/ops', { ops: [{ op: 'flow.add-steps', flow: 'curto', steps: [{ id: 'a', via: 'user.uses', text: 'Dup' }] }] }, 'E003');
     await refused('POST', '/api/ops', { ops: [{ op: 'flow.update-step', flow: 'curto', step: 'b', set: { reverse: true } }] }, 'E041');
     await refused('POST', '/api/ops', { ops: [{ op: 'flow.update-step', flow: 'curto', step: 'b', set: { reply: true, reverse: true } }] }, 'E042');
     // On a bidirectional connection the destination may start: valid.
-    await valid('POST', '/api/ops', { ops: [{ op: 'flow.update-step', flow: FLOW, step: 'cria-pedido', set: { reverse: true } }] });
-    await valid('POST', '/api/ops', { ops: [{ op: 'flow.update-step', flow: FLOW, step: 'cria-pedido', unset: ['reverse'] }] });
-    await valid('POST', '/api/ops', { ops: [{ op: 'flow.update-step', flow: 'curto', step: 'b', set: { text: 'Redireciona' }, unset: [] }] });
+    await valid('POST', '/api/ops', { ops: [{ op: 'flow.update-step', flow: FLOW, step: 'sends-the-message', set: { reverse: true } }] });
+    await valid('POST', '/api/ops', { ops: [{ op: 'flow.update-step', flow: FLOW, step: 'sends-the-message', unset: ['reverse'] }] });
+    await valid('POST', '/api/ops', { ops: [{ op: 'flow.update-step', flow: 'curto', step: 'b', set: { text: 'Signs in again' }, unset: [] }] });
     await valid('POST', '/api/ops', { ops: [{ op: 'flow.move-step', flow: 'curto', step: 'c', index: 0 }] });
     await valid('POST', '/api/ops', { ops: [{ op: 'flow.update', id: 'curto', set: { steps: [{ parallel: [[steps[0]], [steps[1]]] }] } }] });
     await refused('POST', '/api/ops', { ops: [{ op: 'flow.update', id: 'curto', set: { steps: [{ subflow: 'curto' }] } }] }, 'E045');
@@ -163,9 +164,9 @@ describe('every UI write endpoint keeps the model free of errors', () => {
   });
 
   it('catalog, undo and redo', async () => {
-    await valid('POST', '/api/ops', { ops: [{ op: 'catalog.set', list: 'tags', item: { id: 'pagamentos', name: 'Pagamentos' } }] });
-    await refused('POST', '/api/ops', { ops: [{ op: 'catalog.remove', list: 'tags', id: 'logistica' }] }, 'E022');
-    await valid('PATCH', '/api/entities/stone', { set: { tags: ['pagamentos'] } });
+    await valid('POST', '/api/ops', { ops: [{ op: 'catalog.set', list: 'tags', item: { id: 'payments', name: 'Payments' } }] });
+    await refused('POST', '/api/ops', { ops: [{ op: 'catalog.remove', list: 'tags', id: 'messaging' }] }, 'E022');
+    await valid('PATCH', '/api/entities/llm-provider', { set: { tags: ['payments'] } });
     expect((await call('POST', '/api/undo')).body.ok).toBe(true);
     expect(await errors()).toEqual([]);
     expect((await call('POST', '/api/redo')).body.ok).toBe(true);

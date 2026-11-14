@@ -1,0 +1,55 @@
+# yaml-language-server: $schema=https://unpkg.com/zark/schema/flow.json
+
+id: user-chats-with-the-bot
+name: User chats with the bot
+description: A message leaves the app, fans out through the topic and comes back as the bot's answer.
+drawing: platform
+
+steps:
+  - id: sends-the-message
+    via: papo-app.websocket
+    text: Sends the message
+  - id: checks-the-token
+    via: websocket-api.authorize
+    text: Checks the token
+  - id: forwards-the-message
+    via: websocket-api.forward
+    text: Forwards the message
+  - id: publishes-to-the-topic
+    via: message-handler.publish
+    text: Publishes to the topic
+  - parallel:
+      - - id: delivers-to-history
+          via: messages-topic.history
+          text: Delivers to history
+      - - id: delivers-to-the-bot
+          via: messages-topic.bot
+          text: Delivers to the bot
+  - id: triggers-the-bot
+    via: bot-queue.trigger
+    text: Triggers the bot
+  - id: reads-the-context
+    via: bot-orchestrator.context
+    text: Reads the context
+  - id: classifies-the-content
+    via: bot-orchestrator.moderate
+    text: Classifies the content
+  - alternatives:
+      - name: Content approved
+        steps:
+          - id: generates-the-answer
+            via: bot-orchestrator.complete
+            text: Generates the answer
+      - name: Content blocked
+        steps:
+          - id: returns-the-block
+            via: bot-orchestrator.moderate
+            text: Returns the block
+            reply: true
+  - id: sends-the-answer
+    via: bot-orchestrator.reply
+    text: Sends the answer
+  - id: shows-the-answer
+    via: papo-app.websocket
+    text: Shows the answer
+    reverse: true

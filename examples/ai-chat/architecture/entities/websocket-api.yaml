@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=https://unpkg.com/zark/schema/entity.json
+
+id: websocket-api
+name: WebSocket API
+kind: app
+parent: platform
+caption: Client connections
+technologies: [ api-gateway, websocket ]
+
+connections:
+  - id: authorize
+    to: auth
+    label: Checks the token
+  - id: forward
+    to: message-handler
+    label: Forwards the message

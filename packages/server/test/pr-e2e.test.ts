@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const EXAMPLE = fileURLToPath(new URL('../../../examples/ecommerce/architecture', import.meta.url));
+const EXAMPLE = fileURLToPath(new URL('../../../examples/ai-chat/architecture', import.meta.url));
 const UI = fileURLToPath(new URL('../../ui/dist', import.meta.url));
 const hasUi = existsSync(join(UI, 'index.html'));
 
@@ -56,10 +56,10 @@ describe.skipIf(!hasUi)('fase 6: da edição ao PR', () => {
       // An edit made in the UI: new external system, connected and drawn.
       const edit = await service.store.apply(
         [
-          { op: 'entity.create', entity: { id: 'antifraude', name: 'Antifraude', kind: 'system', external: true } },
-          { op: 'connection.create', from: 'trinio', connection: { id: 'score', to: 'antifraude', label: 'Consulta score' } },
-          { op: 'drawing.place', drawing: 'contexto', nodes: [{ id: 'antifraude', x: 0, y: 232 }] },
-          { op: 'drawing.draw-edges', drawing: 'contexto', edges: [{ ref: 'trinio.score', shape: 'straight' }] },
+          { op: 'entity.create', entity: { id: 'spam-filter', name: 'Spam filter', kind: 'system', external: true } },
+          { op: 'connection.create', from: 'papo-app', connection: { id: 'score', to: 'spam-filter', label: 'Checks for spam' } },
+          { op: 'drawing.place', drawing: 'context', nodes: [{ id: 'spam-filter', x: 320, y: 320 }] },
+          { op: 'drawing.draw-edges', drawing: 'context', edges: [{ ref: 'papo-app.score', shape: 'straight' }] },
         ],
         'ui',
       );
@@ -69,9 +69,9 @@ describe.skipIf(!hasUi)('fase 6: da edição ao PR', () => {
 
       const preview = await service.prPreview();
       expect(preview.blockers).toEqual([]);
-      expect(preview.title).toBe('Arquitetura: adiciona Antifraude e uma conexão, ajusta Contexto');
+      expect(preview.title).toBe('Arquitetura: adiciona Spam filter e uma conexão, ajusta Context');
       expect(preview.branch).toMatch(/^zark\//);
-      expect(preview.images.map((i) => i.drawing)).toEqual(['contexto']);
+      expect(preview.images.map((i) => i.drawing)).toEqual(['context']);
 
       // The single confirmation.
       const pr = await service.createPr();
@@ -80,8 +80,8 @@ describe.skipIf(!hasUi)('fase 6: da edição ao PR', () => {
       // Branch pushed, never forced; commit holds architecture/ only, PNG included.
       expect(git('ls-remote', '--heads', 'origin', pr.branch)).toContain(pr.commit);
       const files = git('show', '--name-only', '--format=', pr.commit).split('\n');
-      expect(files).toContain('architecture/rendered/contexto.png');
-      expect(files).toContain('architecture/entities/antifraude.yaml');
+      expect(files).toContain('architecture/rendered/context.png');
+      expect(files).toContain('architecture/entities/spam-filter.yaml');
       expect(files.every((f) => f.startsWith('architecture/'))).toBe(true);
       expect(git('status', '--porcelain', '--', 'app.txt')).toBe('M app.txt');
       expect(git('log', '-1', '--format=%s', pr.commit)).toBe(preview.title);
@@ -92,9 +92,9 @@ describe.skipIf(!hasUi)('fase 6: da edição ao PR', () => {
       const body = create[create.indexOf('--body') + 1];
       expect(create[create.indexOf('--title') + 1]).toBe(preview.title);
       expect(create[create.indexOf('--base') + 1]).toBe('main');
-      expect(body).toContain('## Resumo\n- Entidade adicionada: Antifraude (system, externo)');
-      expect(body).toContain('- Nova conexão: Trinio -> Antifraude ("Consulta score")');
-      expect(body).toContain(`https://github.com/acme/zark/blob/${pr.commit}/architecture/rendered/contexto.png?raw=true`);
+      expect(body).toContain('## Resumo\n- Entidade adicionada: Spam filter (system, externo)');
+      expect(body).toContain('- Nova conexão: Papo app -> Spam filter ("Checks for spam")');
+      expect(body).toContain(`https://github.com/acme/zark/blob/${pr.commit}/architecture/rendered/context.png?raw=true`);
       expect(body).toMatch(/## Validação\n0 erros/);
 
       // The committed PNG is current: `zark render --check` would pass.

@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const EXAMPLE = fileURLToPath(new URL('../../../examples/ecommerce/architecture', import.meta.url));
+const EXAMPLE = fileURLToPath(new URL('../../../examples/ai-chat/architecture', import.meta.url));
 const UI = fileURLToPath(new URL('../../ui/dist', import.meta.url));
 const hasUi = existsSync(join(UI, 'index.html'));
 
@@ -57,10 +57,10 @@ describe.skipIf(!hasUi)('fase 6 com GitLab: da edição ao MR', () => {
       const { service } = running;
       const edit = await service.store.apply(
         [
-          { op: 'entity.create', entity: { id: 'antifraude', name: 'Antifraude', kind: 'system', external: true } },
-          { op: 'connection.create', from: 'trinio', connection: { id: 'score', to: 'antifraude', label: 'Consulta score' } },
-          { op: 'drawing.place', drawing: 'contexto', nodes: [{ id: 'antifraude', x: 0, y: 232 }] },
-          { op: 'drawing.draw-edges', drawing: 'contexto', edges: [{ ref: 'trinio.score', shape: 'straight' }] },
+          { op: 'entity.create', entity: { id: 'spam-filter', name: 'Spam filter', kind: 'system', external: true } },
+          { op: 'connection.create', from: 'papo-app', connection: { id: 'score', to: 'spam-filter', label: 'Checks for spam' } },
+          { op: 'drawing.place', drawing: 'context', nodes: [{ id: 'spam-filter', x: 320, y: 320 }] },
+          { op: 'drawing.draw-edges', drawing: 'context', edges: [{ ref: 'papo-app.score', shape: 'straight' }] },
         ],
         'ui',
       );
@@ -82,8 +82,8 @@ describe.skipIf(!hasUi)('fase 6 com GitLab: da edição ao MR', () => {
       expect(create[create.indexOf('--target-branch') + 1]).toBe('main');
       expect(create[create.indexOf('--source-branch') + 1]).toBe(mr.branch);
       expect(create).toContain('--yes');
-      expect(body).toContain('## Resumo\n- Entidade adicionada: Antifraude (system, externo)');
-      expect(body).toContain(`https://gitlab.com/acme/zark/-/raw/${mr.commit}/architecture/rendered/contexto.png`);
+      expect(body).toContain('## Resumo\n- Entidade adicionada: Spam filter (system, externo)');
+      expect(body).toContain(`https://gitlab.com/acme/zark/-/raw/${mr.commit}/architecture/rendered/context.png`);
     } finally {
       await running.stop();
       delete process.env.ZARK_GLAB;

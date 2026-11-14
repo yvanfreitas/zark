@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=https://unpkg.com/zark/schema/entity.json
+
+id: platform
+name: Papo platform
+kind: system
+caption: Serverless backend on AWS
+description: |
+  Receives messages, fans them out through a topic and wakes up the AI bot.
+owner: platform-team

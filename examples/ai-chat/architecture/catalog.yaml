@@ -1,0 +1,35 @@
+# yaml-language-server: $schema=https://unpkg.com/zark/schema/catalog.json
+
+technologies:
+  - id: api-gateway
+    name: Amazon API Gateway
+  - id: lambda
+    name: AWS Lambda
+  - id: sns
+    name: Amazon SNS
+  - id: sqs
+    name: Amazon SQS
+  - id: dynamodb
+    name: Amazon DynamoDB
+  - id: s3
+    name: Amazon S3
+  - id: cognito
+    name: Amazon Cognito
+  - id: websocket
+    name: WebSocket
+  - id: rest
+    name: REST
+  - id: react-native
+    name: React Native
+tags:
+  - id: messaging
+    name: Messaging
+    color: teal
+  - id: ai
+    name: AI
+    color: purple
+teams:
+  - id: platform-team
+    name: Platform team
+  - id: ai-team
+    name: AI team

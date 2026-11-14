@@ -11,7 +11,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildProject, errorsOf, readTexts, validate, type FlowItem } from '@zark/core';
 import { startServer, type Running } from '../src/index.js';
 
-const EXAMPLE = fileURLToPath(new URL('../../../examples/ecommerce/architecture', import.meta.url));
+const EXAMPLE = fileURLToPath(new URL('../../../examples/ai-chat/architecture', import.meta.url));
 const UI = fileURLToPath(new URL('../../ui/dist', import.meta.url));
 
 /** Flow structure without ids: what the acceptance compares. */
@@ -63,22 +63,29 @@ describe.skipIf(!existsSync(join(UI, 'index.html')))('fase 5: fluxo montado pela
     await page.goto(`${running.url}/?token=${running.token}`);
     await page.locator('.react-flow__node').first().waitFor();
 
+    // The example flow runs on the platform drawing; a new flow is created on the open drawing.
+    await page.getByRole('button', { name: /^Papo platform/ }).first().click();
+    await page.locator('.react-flow__node[data-id="bot-queue"]').waitFor();
     await page.getByRole('tab', { name: 'Fluxos' }).click();
     await page.getByRole('button', { name: 'Novo fluxo' }).click();
-    await page.keyboard.type('Compra montada pela UI');
+    await page.keyboard.type('Chat built in the UI');
     await page.keyboard.press('Enter');
     await page.getByText('Clique numa conexão do canvas para adicionar um passo sobre ela.').waitFor();
 
-    const steps: [string, string, ('reply' | undefined)?][] = [
-      ['Navega e compra', 'Dados da compra'],
-      ['Redireciona para o checkout', 'Redireciona o cliente'],
-      ['Realiza o pagamento', 'Realiza o pagamento'],
-      ['Pedidos', 'Cria o pedido'],
-      ['Cria o pedido de transporte', 'Cria o pedido de transporte'],
-      ['Baixa de estoque', 'Atualiza o inventário'],
-      ['Solicita coleta', 'Solicita coleta'],
-      ['Cria o pedido de transporte', 'Devolve erro de cotação', 'reply'],
-      ['Atualização de inventário', 'Atualiza o estoque'],
+    const steps: [string, string, ('reply' | 'reverse' | undefined)?][] = [
+      ['Real-time messages', 'Sends the message'],
+      ['Checks the token', 'Checks the token'],
+      ['Forwards the message', 'Forwards the message'],
+      ['Publishes the message', 'Publishes to the topic'],
+      ['History subscription', 'Delivers to history'],
+      ['Bot subscription', 'Delivers to the bot'],
+      ['Triggers the bot', 'Triggers the bot'],
+      ['Reads the context', 'Reads the context'],
+      ['Classifies the content', 'Classifies the content'],
+      ['Generates the answer', 'Generates the answer'],
+      ['Classifies the content', 'Returns the block', 'reply'],
+      ['Sends the answer', 'Sends the answer'],
+      ['Real-time messages', 'Shows the answer', 'reverse'],
     ];
     for (const [conn, text, sense] of steps) {
       await addStep(conn, text, sense);
@@ -86,34 +93,34 @@ describe.skipIf(!existsSync(join(UI, 'index.html')))('fase 5: fluxo montado pela
       await stepButton(text).last().waitFor();
     }
 
-    await stepRow('Cria o pedido de transporte').first().getByRole('button', { name: '∥ próximo' }).click();
+    await stepRow('Delivers to history').first().getByRole('button', { name: '∥ próximo' }).click();
     await page.getByText('Em paralelo', { exact: true }).waitFor();
-    await stepRow('Solicita coleta').getByRole('button', { name: 'ou próximo' }).click();
+    await stepRow('Generates the answer').getByRole('button', { name: 'ou próximo' }).click();
     await page.getByText('Alternativas', { exact: true }).waitFor();
 
     const pathName = page.getByLabel('Nome do caminho');
-    await pathName.nth(0).fill('Coleta agendada');
+    await pathName.nth(0).fill('Content approved');
     await pathName.nth(0).press('Enter');
-    await page.getByRole('tab', { name: 'Coleta agendada' }).waitFor();
-    await pathName.nth(1).fill('Sem transportadora disponível');
+    await page.getByRole('tab', { name: 'Content approved' }).waitFor();
+    await pathName.nth(1).fill('Content blocked');
     await pathName.nth(1).press('Enter');
-    await page.getByRole('tab', { name: 'Sem transportadora disponível' }).waitFor();
+    await page.getByRole('tab', { name: 'Content blocked' }).waitFor();
 
     // Same structure as the appendix flow (ids are generated from the text).
     const project = buildProject(dir, await readTexts(dir));
-    const built = project.flows.get('compra-montada-pela-ui')!.flow;
-    const original = project.flows.get('compra-com-estoque-da-loja')!.flow;
+    const built = project.flows.get('chat-built-in-the-ui')!.flow;
+    const original = project.flows.get('user-chats-with-the-bot')!.flow;
     expect(built.drawing).toBe(original.drawing);
     expect(shape(built.steps)).toEqual(shape(original.steps));
     expect(errorsOf(validate(project))).toEqual([]);
 
-    // A step against Linx -> Síntese is refused with the suggested fix.
-    await addStep('Inventário', 'Pede inventário na contramão', 'reverse');
+    // A step against Papo app -> Auth (outgoing) is refused with the suggested fix.
+    await addStep('Signs in', 'Auth calls the app', 'reverse');
     const toast = page.getByText(/E041/);
     await toast.waitFor();
     expect(await toast.textContent()).toContain('Inverta a conexão');
     expect(errorsOf(running.service.store.problems)).toEqual([]);
-    const after = buildProject(dir, await readTexts(dir)).flows.get('compra-montada-pela-ui')!.flow;
+    const after = buildProject(dir, await readTexts(dir)).flows.get('chat-built-in-the-ui')!.flow;
     expect(shape(after.steps)).toEqual(shape(original.steps));
 
     // Playback: the 5th frame shows both parallel steps at once.

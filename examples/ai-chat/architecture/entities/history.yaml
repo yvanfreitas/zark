@@ -1,0 +1,8 @@
+# yaml-language-server: $schema=https://unpkg.com/zark/schema/entity.json
+
+id: history
+name: Conversation history
+kind: store
+parent: platform
+caption: Conversations and messages
+technologies: [ dynamodb ]

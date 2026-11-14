@@ -11,7 +11,7 @@ import {
   type Project,
 } from '../src/index.js';
 
-const EXAMPLE = fileURLToPath(new URL('../../../examples/ecommerce/architecture', import.meta.url));
+const EXAMPLE = fileURLToPath(new URL('../../../examples/ai-chat/architecture', import.meta.url));
 const base = await readTexts(EXAMPLE);
 
 function project(edit?: (t: Map<string, string>) => void): Project {
@@ -32,9 +32,9 @@ const lineDiff = (a: string, b: string) => {
 };
 
 describe('phase 1 acceptance: appendix model', () => {
-  it('loads 13 entities, 17 connections, 2 drawings, 1 flow with no problems', () => {
+  it('loads 16 entities, 19 connections, 2 drawings, 2 flows with no problems', () => {
     const p = project();
-    expect([p.entities.size, p.connections.size, p.drawings.size, p.flows.size]).toEqual([13, 17, 2, 1]);
+    expect([p.entities.size, p.connections.size, p.drawings.size, p.flows.size]).toEqual([16, 19, 2, 2]);
     expect(validate(p)).toEqual([]);
   });
 
@@ -45,69 +45,69 @@ describe('phase 1 acceptance: appendix model', () => {
 
 describe('validation codes', () => {
   const cases: [string, (t: Map<string, string>) => void][] = [
-    ['E001', (t) => replace(t, 'entities/deco.yaml', 'kind: system', 'kind: banana')],
+    ['E001', (t) => replace(t, 'entities/auth.yaml', 'kind: system', 'kind: banana')],
     ['E001', (t) => t.set('entities/broken.yaml', 'id: [unclosed')],
     ['E002', (t) => t.set('entities/x.yaml', 'id: y\nname: Y\nkind: system\n')],
-    ['E003', (t) => replace(t, 'entities/gateway.yaml', 'id: pedido', 'id: autoriza')],
-    ['E010', (t) => replace(t, 'entities/gateway.yaml', 'parent: vtex', 'parent: nada')],
-    ['E011', (t) => replace(t, 'entities/gateway.yaml', 'parent: vtex', 'parent: cliente')],
+    ['E003', (t) => replace(t, 'entities/websocket-api.yaml', 'id: forward', 'id: authorize')],
+    ['E010', (t) => replace(t, 'entities/websocket-api.yaml', 'parent: platform', 'parent: nada')],
+    ['E011', (t) => replace(t, 'entities/websocket-api.yaml', 'parent: platform', 'parent: user')],
     ['E012', (t) => {
       t.set('entities/a.yaml', 'id: a\nname: A\nkind: app\nparent: b\n');
       t.set('entities/b.yaml', 'id: b\nname: B\nkind: app\nparent: a\n');
     }],
-    ['E020', (t) => replace(t, 'entities/cliente.yaml', 'to: deco', 'to: nada')],
-    ['E021', (t) => replace(t, 'entities/cliente.yaml', 'to: deco', 'to: cliente')],
-    ['E022', (t) => replace(t, 'entities/sintese.yaml', 'owner: time-oms', 'owner: time-x')],
-    ['E030', (t) => replace(t, 'drawings/vtex.yaml', 'nodes:\n', 'nodes:\n  fantasma: { x: 800, y: 800 }\n')],
-    ['E031', (t) => replace(t, 'drawings/vtex.yaml', 'edges:\n', 'edges:\n  cliente.nada: { shape: straight }\n')],
-    ['E032', (t) => replace(t, 'drawings/vtex.yaml', 'edges:\n', 'edges:\n  cliente.navega: { shape: straight }\n')],
-    ['E033', (t) => replace(t, 'drawings/vtex.yaml', 'scope: vtex', 'scope: nada')],
-    ['E034', (t) => replace(t, 'drawings/vtex.yaml', 'members: [ seller-phg, seller-jardins ]', 'members: [ seller-phg, linx ]')],
-    ['E040', (t) => replace(t, 'flows/compra-com-estoque-da-loja.yaml', 'via: deco.checkout', 'via: deco.nada')],
-    ['E041', (t) => replace(t, 'flows/compra-com-estoque-da-loja.yaml', '    text: Atualiza o inventário', '    text: Atualiza o inventário\n          reverse: true')],
-    ['E042', (t) => replace(t, 'flows/compra-com-estoque-da-loja.yaml', '    text: Atualiza o inventário', '    text: Atualiza o inventário\n          reply: true\n          reverse: true')],
-    ['E043', (t) => replace(t, 'flows/compra-com-estoque-da-loja.yaml', 'drawing: contexto', 'drawing: nada')],
-    ['E044', (t) => replace(t, 'flows/compra-com-estoque-da-loja.yaml', 'via: deco.checkout', 'via: gateway.pedido')],
+    ['E020', (t) => replace(t, 'entities/user.yaml', 'to: papo-app', 'to: nada')],
+    ['E021', (t) => replace(t, 'entities/user.yaml', 'to: papo-app', 'to: user')],
+    ['E022', (t) => replace(t, 'entities/bot-orchestrator.yaml', 'owner: ai-team', 'owner: time-x')],
+    ['E030', (t) => replace(t, 'drawings/platform.yaml', 'nodes:\n', 'nodes:\n  fantasma: { x: 800, y: 800 }\n')],
+    ['E031', (t) => replace(t, 'drawings/platform.yaml', 'edges:\n', 'edges:\n  user.nada: { shape: straight }\n')],
+    ['E032', (t) => replace(t, 'drawings/platform.yaml', 'edges:\n', 'edges:\n  user.uses: { shape: straight }\n')],
+    ['E033', (t) => replace(t, 'drawings/platform.yaml', 'scope: platform', 'scope: nada')],
+    ['E034', (t) => replace(t, 'drawings/platform.yaml', 'dead-letter-queue ]', 'user ]')],
+    ['E040', (t) => replace(t, 'flows/user-chats-with-the-bot.yaml', 'via: websocket-api.forward', 'via: websocket-api.nada')],
+    ['E041', (t) => replace(t, 'flows/user-chats-with-the-bot.yaml', '    text: Triggers the bot', '    text: Triggers the bot\n    reverse: true')],
+    ['E042', (t) => replace(t, 'flows/user-chats-with-the-bot.yaml', '    text: Triggers the bot', '    text: Triggers the bot\n    reply: true\n    reverse: true')],
+    ['E043', (t) => replace(t, 'flows/user-chats-with-the-bot.yaml', 'drawing: platform', 'drawing: nada')],
+    ['E044', (t) => replace(t, 'flows/user-chats-with-the-bot.yaml', 'via: websocket-api.forward', 'via: user.uses')],
     ['E045', (t) => {
-      t.set('flows/a.yaml', 'id: a\nname: A\ndrawing: contexto\nsteps:\n  - subflow: b\n');
-      t.set('flows/b.yaml', 'id: b\nname: B\ndrawing: contexto\nsteps:\n  - subflow: a\n');
+      t.set('flows/a.yaml', 'id: a\nname: A\ndrawing: platform\nsteps:\n  - subflow: b\n');
+      t.set('flows/b.yaml', 'id: b\nname: B\ndrawing: platform\nsteps:\n  - subflow: a\n');
     }],
     ['W001', (t) => t.set('entities/trin.yaml', 'id: trin\nname: trin\nkind: system\n')],
-    ['W002', (t) => t.set('entities/novo.yaml', 'id: novo\nname: Novo\nkind: system\nconnections:\n  - id: x\n    to: deco\n    label: Chama\n')],
-    ['W003', (t) => replace(t, 'drawings/contexto.yaml', /  cliente\.navega: .*\n/, '')],
-    ['W004', (t) => replace(t, 'entities/cliente.yaml', 'label: Navega e compra', 'label: Sends data to')],
-    ['W005', (t) => replace(t, 'entities/sintese.yaml', 'label: Baixa de estoque', 'label: Inventário')],
-    ['W006', (t) => replace(t, 'entities/stone.yaml', 'external: true', 'external: true\nstatus: removed')],
-    ['W010', (t) => replace(t, 'drawings/contexto.yaml', 'stone: { x: 360, y: -272 }', 'stone: { x: 400, y: -40 }')],
-    ['W011', (t) => replace(t, 'drawings/contexto.yaml', 'stone: { x: 360, y: -272 }', 'stone: { x: 361, y: -272 }')],
+    ['W002', (t) => t.set('entities/novo.yaml', 'id: novo\nname: Novo\nkind: system\nconnections:\n  - id: x\n    to: papo-app\n    label: Chama\n')],
+    ['W003', (t) => replace(t, 'drawings/context.yaml', /  user\.uses: .*\n/, '')],
+    ['W004', (t) => replace(t, 'entities/user.yaml', 'label: Chats in the app', 'label: Sends data to')],
+    ['W005', (t) => replace(t, 'entities/dead-letter-queue.yaml', 'label: Redrives failures', 'label: Bot failures')],
+    ['W006', (t) => replace(t, 'entities/llm-provider.yaml', 'external: true', 'external: true\nstatus: removed')],
+    ['W010', (t) => replace(t, 'drawings/context.yaml', 'auth: { x: 832, y: -320 }', 'auth: { x: 872, y: -40 }')],
+    ['W011', (t) => replace(t, 'drawings/context.yaml', 'auth: { x: 832, y: -320 }', 'auth: { x: 833, y: -320 }')],
     ['W012', (t) => {
-      replace(t, 'drawings/vtex.yaml', 'nodes:\n', 'nodes:\n  vtex: { x: -48, y: -48, w: 256, h: 128, expanded: true }\n');
+      replace(t, 'drawings/platform.yaml', 'nodes:\n', 'nodes:\n  platform: { x: -128, y: -64, w: 256, h: 128, expanded: true }\n');
     }],
-    ['W020', (t) => t.set('flows/curto.yaml', 'id: curto\nname: Curto\ndrawing: contexto\nsteps:\n  - id: a\n    via: cliente.navega\n    text: oi\n')],
-    ['W021', (t) => replace(t, 'flows/compra-com-estoque-da-loja.yaml', '  - id: atualiza-estoque', '  - parallel:\n      - []\n      - - id: x\n          via: cliente.navega\n          text: x\n  - id: atualiza-estoque')],
+    ['W020', (t) => t.set('flows/curto.yaml', 'id: curto\nname: Curto\ndrawing: context\nsteps:\n  - id: a\n    via: user.uses\n    text: oi\n')],
+    ['W021', (t) => replace(t, 'flows/user-chats-with-the-bot.yaml', '  - id: shows-the-answer', '  - parallel:\n      - []\n      - - id: x\n          via: papo-app.websocket\n          text: x\n  - id: shows-the-answer')],
   ];
   it.each(cases)('%s', (code, edit) => {
     expect(codes(project(edit))).toContain(code);
   });
 
   it('reports file and line', () => {
-    const problems = validate(project((t) => replace(t, 'entities/cliente.yaml', 'to: deco', 'to: nada')));
+    const problems = validate(project((t) => replace(t, 'entities/user.yaml', 'to: papo-app', 'to: nada')));
     const p = problems.find((x) => x.code === 'E020')!;
-    expect(p.file).toBe('entities/cliente.yaml');
-    expect(base.get('entities/cliente.yaml')!.split('\n')[p.line! - 1]).toContain('to: deco');
+    expect(p.file).toBe('entities/user.yaml');
+    expect(base.get('entities/user.yaml')!.split('\n')[p.line! - 1]).toContain('to: papo-app');
   });
 
   it('honours rules overrides from zark.yaml', () => {
     const p = project((t) => {
-      replace(t, 'drawings/contexto.yaml', /  cliente\.navega: .*\n/, '');
+      replace(t, 'drawings/context.yaml', /  user\.uses: .*\n/, '');
       replace(t, 'zark.yaml', 'grid: 8', 'grid: 8\nrules: { W003: error }');
     });
     expect(errorsOf(validate(p)).map((x) => x.code)).toContain('W003');
   });
 
   it('tolerates an invalid file and still loads the rest', () => {
-    const p = project((t) => t.set('entities/deco.yaml', ': : :'));
-    expect(p.entities.size).toBe(12);
+    const p = project((t) => t.set('entities/auth.yaml', ': : :'));
+    expect(p.entities.size).toBe(15);
     expect(codes(p)).toContain('E001');
   });
 });
@@ -115,98 +115,98 @@ describe('validation codes', () => {
 describe('operations', () => {
   it('moving a box changes exactly one YAML line', async () => {
     const p = project();
-    const r = await applyOps(p, [{ op: 'drawing.move-nodes', drawing: 'contexto', nodes: [{ id: 'stone', x: 360, y: -296 }] }]);
+    const r = await applyOps(p, [{ op: 'drawing.move-nodes', drawing: 'context', nodes: [{ id: 'auth', x: 832, y: -344 }] }]);
     expect(r.ok).toBe(true);
-    const after = r.files.get('drawings/contexto.yaml')!;
-    expect(lineDiff(base.get('drawings/contexto.yaml')!, after)).toBe(1);
-    expect(r.changes.map((c) => c.text)).toEqual(['Contexto: 1 caixa reposicionada']);
+    const after = r.files.get('drawings/context.yaml')!;
+    expect(lineDiff(base.get('drawings/context.yaml')!, after)).toBe(1);
+    expect(r.changes.map((c) => c.text)).toEqual(['Context: 1 caixa reposicionada']);
   });
 
   it('preserves comments when editing', async () => {
-    const p = project((t) => replace(t, 'entities/sintese.yaml', 'caption: OrderMS e WarehouseMS', 'caption: OrderMS e WarehouseMS # nome interno\n# comentário solto'));
-    const r = await applyOps(p, [{ op: 'entity.update', id: 'sintese', set: { caption: 'OMS' } }]);
+    const p = project((t) => replace(t, 'entities/bot-orchestrator.yaml', 'caption: Builds the prompt and replies', 'caption: Builds the prompt and replies # internal name\n# loose comment'));
+    const r = await applyOps(p, [{ op: 'entity.update', id: 'bot-orchestrator', set: { caption: 'Bot' } }]);
     expect(r.ok).toBe(true);
-    const text = r.files.get('entities/sintese.yaml')!;
-    expect(text).toContain('caption: OMS # nome interno');
-    expect(text).toContain('# comentário solto');
+    const text = r.files.get('entities/bot-orchestrator.yaml')!;
+    expect(text).toContain('caption: Bot # internal name');
+    expect(text).toContain('# loose comment');
   });
 
   it('refuses an operation that introduces an error, with explanation', async () => {
-    const r = await applyOps(project(), [{ op: 'connection.create', from: 'cliente', connection: { id: 'x', to: 'nada', label: 'X' } }]);
+    const r = await applyOps(project(), [{ op: 'connection.create', from: 'user', connection: { id: 'x', to: 'nada', label: 'X' } }]);
     expect(r.ok).toBe(false);
     expect(r.newErrors.map((e) => e.code)).toEqual(['E020']);
   });
 
   it('delete without cascade returns impact and changes nothing; with cascade leaves no broken refs', async () => {
     const p = project();
-    const dry = await applyOps(p, [{ op: 'entity.delete', id: 'linx' }]);
+    const dry = await applyOps(p, [{ op: 'entity.delete', id: 'llm-provider' }]);
     expect(dry.ok).toBe(false);
-    expect(dry.impact!.join('\n')).toMatch(/sintese\.baixa-estoque/);
+    expect(dry.impact!.join('\n')).toMatch(/bot-orchestrator\.complete/);
     expect(dry.files.size).toBe(0);
-    const r = await applyOps(p, [{ op: 'entity.delete', id: 'linx', cascade: true }]);
+    const r = await applyOps(p, [{ op: 'entity.delete', id: 'llm-provider', cascade: true }]);
     expect(r.ok).toBe(true);
-    expect(r.files.get('entities/linx.yaml')).toBeNull();
+    expect(r.files.get('entities/llm-provider.yaml')).toBeNull();
     expect(errorsOf(r.problems)).toEqual([]);
-    expect(r.files.get('flows/compra-com-estoque-da-loja.yaml')).not.toContain('baixa-estoque');
+    expect(r.files.get('flows/user-chats-with-the-bot.yaml')).not.toContain('bot-orchestrator.complete');
   });
 
   it('children block entity deletion unless cascaded', async () => {
-    const dry = await applyOps(project(), [{ op: 'entity.delete', id: 'vtex' }]);
+    const dry = await applyOps(project(), [{ op: 'entity.delete', id: 'platform' }]);
     expect(dry.impact!.join('\n')).toMatch(/Filhos impedem/);
-    const r = await applyOps(project(), [{ op: 'entity.delete', id: 'vtex', cascade: true }]);
+    const r = await applyOps(project(), [{ op: 'entity.delete', id: 'platform', cascade: true }]);
     expect(r.ok).toBe(true);
-    expect([...r.project.entities.keys()]).not.toContain('gateway');
+    expect([...r.project.entities.keys()]).not.toContain('websocket-api');
     expect(errorsOf(r.problems)).toEqual([]);
   });
 
   it('rename-id rewrites every reference in one step', async () => {
-    const r = await applyOps(project(), [{ op: 'rename-id', kind: 'entity', from: 'sintese', to: 'oms' }]);
+    const r = await applyOps(project(), [{ op: 'rename-id', kind: 'entity', from: 'bot-orchestrator', to: 'bot' }]);
     expect(r.ok).toBe(true);
-    expect(r.files.get('entities/sintese.yaml')).toBeNull();
-    expect(r.project.connections.has('oms.coleta')).toBe(true);
-    expect(r.files.get('drawings/contexto.yaml')).toContain('oms.inventario-phg');
-    expect(r.files.get('flows/compra-com-estoque-da-loja.yaml')).toContain('via: oms.baixa-estoque');
+    expect(r.files.get('entities/bot-orchestrator.yaml')).toBeNull();
+    expect(r.project.connections.has('bot.reply')).toBe(true);
+    expect(r.files.get('drawings/context.yaml')).toContain('bot.moderate');
+    expect(r.files.get('flows/user-chats-with-the-bot.yaml')).toContain('via: bot.context');
     expect(validate(r.project)).toEqual([]);
   });
 
   it('reverse moves the connection to the other file and is refused when a flow step would go against it', async () => {
-    const ok = await applyOps(project(), [{ op: 'connection.reverse', ref: 'transportadora.rastreio' }]);
+    const ok = await applyOps(project(), [{ op: 'connection.reverse', ref: 'papo-app.login' }]);
     expect(ok.ok).toBe(true);
-    expect(ok.project.connections.get('intelipost.rastreio')?.conn.to).toBe('transportadora');
-    expect(ok.changes.map((c) => c.text)).toContain('Conexão invertida: agora Intelipost -> Transportadora');
-    const refused = await applyOps(project(), [{ op: 'connection.reverse', ref: 'deco.checkout' }]);
+    expect(ok.project.connections.get('auth.login')?.conn.to).toBe('papo-app');
+    expect(ok.changes.map((c) => c.text)).toContain('Conexão invertida: agora Auth -> Papo app');
+    const refused = await applyOps(project(), [{ op: 'connection.reverse', ref: 'message-handler.publish' }]);
     expect(refused.ok).toBe(false);
     expect(refused.newErrors.map((e) => e.code)).toContain('E041');
   });
 
   it('apply batch: create, connect, place, draw and add a flow step validated as a whole', async () => {
     const r = await applyOps(project(), [
-      { op: 'entity.create', entity: { id: 'antifraude', name: 'Antifraude', kind: 'system', external: true } },
-      { op: 'connection.create', from: 'antifraude', connection: { id: 'score', to: 'trinio', label: 'Devolve score' } },
-      { op: 'drawing.place', drawing: 'contexto', nodes: [{ id: 'antifraude' }] },
-      { op: 'drawing.draw-edges', drawing: 'contexto', edges: [{ ref: 'antifraude.score', shape: 'straight' }] },
-      { op: 'flow.add-steps', flow: 'compra-com-estoque-da-loja', index: 3, steps: [{ id: 'score', via: 'antifraude.score', text: 'Consulta antifraude' }] },
+      { op: 'entity.create', entity: { id: 'spam-filter', name: 'Spam filter', kind: 'system', external: true } },
+      { op: 'connection.create', from: 'spam-filter', connection: { id: 'score', to: 'websocket-api', label: 'Returns a spam score' } },
+      { op: 'drawing.place', drawing: 'platform', nodes: [{ id: 'spam-filter' }] },
+      { op: 'drawing.draw-edges', drawing: 'platform', edges: [{ ref: 'spam-filter.score', shape: 'straight' }] },
+      { op: 'flow.add-steps', flow: 'user-chats-with-the-bot', index: 3, steps: [{ id: 'score', via: 'spam-filter.score', text: 'Checks for spam' }] },
     ]);
     expect(r.ok, r.error).toBe(true);
     expect(errorsOf(r.problems)).toEqual([]);
-    expect(r.files.get('entities/antifraude.yaml')).toMatch(/^# yaml-language-server/);
+    expect(r.files.get('entities/spam-filter.yaml')).toMatch(/^# yaml-language-server/);
     const changes = r.changes.map((c) => c.text);
-    expect(changes).toContain('Entidade adicionada: Antifraude (system, externo)');
-    expect(changes).toContain('Nova conexão: Antifraude -> Trinio ("Devolve score")');
-    expect(changes).toContain('Compra com estoque da loja: 1 passo adicionado');
+    expect(changes).toContain('Entidade adicionada: Spam filter (system, externo)');
+    expect(changes).toContain('Nova conexão: Spam filter -> WebSocket API ("Returns a spam score")');
+    expect(changes).toContain('User chats with the bot: 1 passo adicionado');
     // New files are canonical too.
     for (const [path, text] of r.files) if (text) expect(formatText(fileKind(path)!, text), path).toBe(text);
   });
 
   it('detects hash conflicts', async () => {
-    const r = await applyOps(project(), [{ op: 'entity.update', id: 'deco', set: { caption: 'x' } }], { expect: { 'entities/deco.yaml': 'stale' } });
-    expect(r.conflict?.file).toBe('entities/deco.yaml');
+    const r = await applyOps(project(), [{ op: 'entity.update', id: 'auth', set: { caption: 'x' } }], { expect: { 'entities/auth.yaml': 'stale' } });
+    expect(r.conflict?.file).toBe('entities/auth.yaml');
   });
 
   it('auto-layout snaps to the grid without overlaps', async () => {
-    const r = await applyOps(project(), [{ op: 'drawing.auto-layout', drawing: 'contexto' }]);
+    const r = await applyOps(project(), [{ op: 'drawing.auto-layout', drawing: 'context' }]);
     expect(r.ok).toBe(true);
-    const nodes = r.project.drawings.get('contexto')!.drawing.nodes!;
+    const nodes = r.project.drawings.get('context')!.drawing.nodes!;
     for (const n of Object.values(nodes)) expect(n.x % 8 + n.y % 8).toBe(0);
     expect(validate(r.project).map((p) => p.code)).not.toContain('W010');
   });
@@ -216,7 +216,7 @@ import { flowToMermaid, numberSteps, playbackFrames } from '../src/index.js';
 
 describe('flow text', () => {
   const p = project();
-  const flow = p.flows.get('compra-com-estoque-da-loja')!.flow;
+  const flow = p.flows.get('user-chats-with-the-bot')!.flow;
   const lookup = {
     connection: (ref: string) => {
       const c = p.connections.get(ref);
@@ -226,23 +226,25 @@ describe('flow text', () => {
   };
 
   it('numbers steps 1, 2, 3a, 3b', () => {
-    expect(numberSteps(flow.steps).map((s) => s.number)).toEqual(['1', '2', '3', '4', '5a', '5b', '6a', '6b', '7']);
+    expect(numberSteps(flow.steps).map((s) => s.number)).toEqual(['1', '2', '3', '4', '5a', '5b', '6', '7', '8', '9a', '9b', '10', '11']);
   });
 
   it('plays parallel branches together and picks one alternative', () => {
     const frames = playbackFrames(flow.steps);
     expect(frames.map((f) => f.map((s) => s.id).join('+'))).toEqual([
-      'dados-da-compra', 'redireciona', 'pagamento', 'cria-pedido', 'pedido-transporte+baixa-erp', 'solicita-coleta', 'atualiza-estoque',
+      'sends-the-message', 'checks-the-token', 'forwards-the-message', 'publishes-to-the-topic', 'delivers-to-history+delivers-to-the-bot',
+      'triggers-the-bot', 'reads-the-context', 'classifies-the-content', 'generates-the-answer', 'sends-the-answer', 'shows-the-answer',
     ]);
-    expect(playbackFrames(flow.steps, { 'r.5': 1 })[5][0].id).toBe('avisa-falha');
+    expect(playbackFrames(flow.steps, { 'r.8': 1 })[8][0].id).toBe('returns-the-block');
   });
 
   it('exports an equivalent Mermaid sequenceDiagram', () => {
     const text = flowToMermaid(flow, lookup);
     expect(text).toContain('par\n');
-    expect(text).toContain('alt Coleta agendada');
-    expect(text).toContain('intelipost-->>sintese: Devolve erro de cotação');
-    expect(text).toContain('participant seller_phg as PHG');
+    expect(text).toContain('alt Content approved');
+    expect(text).toContain('moderation-->>bot_orchestrator: Returns the block');
+    expect(text).toContain('websocket_api->>papo_app: Shows the answer');
+    expect(text).toContain('participant bot_orchestrator as Bot orchestrator');
   });
 });
 
@@ -260,10 +262,10 @@ describe('format migration', () => {
     const texts = new Map(base);
     texts.set('zark.yaml', base.get('zark.yaml')!.replace('schema: 1', 'schema: 0'));
     const r = migrate(texts, [
-      { from: 0, to: 1, describe: 'renomeia caption', apply: (t) => new Map([['entities/deco.yaml', t.get('entities/deco.yaml')!.replace('caption: Front', 'caption: Frontend')]]) },
+      { from: 0, to: 1, describe: 'renomeia caption', apply: (t) => new Map([['entities/auth.yaml', t.get('entities/auth.yaml')!.replace('caption: Accounts and tokens', 'caption: Accounts')]]) },
     ]);
     expect(r.steps).toEqual(['0 -> 1: renomeia caption']);
-    expect(r.files.get('entities/deco.yaml')).toContain('caption: Frontend');
+    expect(r.files.get('entities/auth.yaml')).toContain('caption: Accounts\n');
     expect(r.files.get('zark.yaml')).toContain('schema: 1');
   });
 
