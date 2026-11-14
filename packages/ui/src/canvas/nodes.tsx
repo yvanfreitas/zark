@@ -103,6 +103,7 @@ export const EntityNode = memo(function EntityNode({ id, data, selected }: NodeP
   useT(); // re-render on language change
   const kind = tr(`kind.${e.kind}`).toLowerCase();
   const footer = e.kind === 'actor' ? '' : `${tr(e.external ? 'node.footerExternal' : 'node.footer', { kind })}${data.techName ? `: ${data.techName}` : ''}`;
+  const description = data.showDescription ? e.description?.trim() : undefined;
 
   if (e.kind === 'actor') {
     return (
@@ -114,6 +115,7 @@ export const EntityNode = memo(function EntityNode({ id, data, selected }: NodeP
         </div>
         <div className={`px-1 text-[14px] font-semibold leading-tight text-[var(--fg)] ${nameClass}`}>{e.name}</div>
         {e.caption && <div className="px-1 text-[11px] leading-tight text-[var(--muted)]">{e.caption}</div>}
+        {description && <div className="line-clamp-2 px-1 text-[10.5px] leading-tight text-[var(--subtle)]" title={description}>{description}</div>}
       </div>
     );
   }
@@ -139,11 +141,12 @@ export const EntityNode = memo(function EntityNode({ id, data, selected }: NodeP
       {data.resizable && <NodeResizer isVisible={!!selected} minWidth={128} minHeight={64} lineClassName="!border-[var(--accent)]" handleClassName="!bg-[var(--accent)] !size-2" />}
       <Handles interactive={data.interactive} />
       <Indicators data={data} id={id} />
-      <div className="flex min-h-0 items-start gap-2.5">
+      <div className={`flex min-h-0 items-start gap-2.5 ${description ? 'overflow-hidden' : ''}`}>
         {data.iconSvg ? <EntityIcon svg={data.iconSvg} className="grid size-8 place-items-center rounded-lg bg-[var(--badge)] p-1.5 text-[var(--badge-fg)]" /> : <Badge text={e.name} />}
         <div className="min-w-0">
           <div className={`truncate text-[15px] font-semibold leading-snug text-[var(--fg)] ${nameClass}`}>{e.name}</div>
           {e.caption && <div className="line-clamp-2 text-[12px] leading-snug text-[var(--muted)]">{e.caption}</div>}
+          {description && <div className="mt-1 line-clamp-2 text-[11px] leading-snug text-[var(--subtle)]" title={description}>{description}</div>}
         </div>
       </div>
       <div className="truncate font-mono text-[10.5px] uppercase tracking-wide text-[var(--subtle)]">{footer}</div>

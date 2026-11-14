@@ -18,6 +18,8 @@ export interface EntityData extends Record<string, unknown> {
   inActiveFlow: boolean;
   interactive: boolean;
   resizable: boolean;
+  /** Web view only: the render route keeps boxes as they were so committed PNGs don't change. */
+  showDescription: boolean;
 }
 
 export interface EdgeData extends Record<string, unknown> {
@@ -51,6 +53,8 @@ export interface BuildOptions {
   flowRefs?: Set<string>;
   interactive: boolean;
   animate: boolean;
+  /** Show entity descriptions inside boxes (web view, never the render route). */
+  showDescription: boolean;
 }
 
 const GROUP_PAD = 24;
@@ -151,6 +155,7 @@ export function buildGraph(index: Index, drawing: Drawing, catalog: CatalogTechs
         inActiveFlow: !!opts.flowRefs && flowEntities.has(id),
         interactive: opts.interactive,
         resizable: opts.interactive && !opts.flowRefs,
+        showDescription: opts.showDescription,
       } satisfies EntityData,
       style: { width: r.w, height: r.h },
       zIndex: placed[id].expanded ? -10 + depth(id) : depth(id),
