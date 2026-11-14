@@ -52,7 +52,7 @@ interface State {
   view: MainView;
   depsOf?: string;
   depsLevels: number;
-  leftTab: 'drawings' | 'model' | 'flows';
+  leftTab: 'drawings' | 'model';
   filters: Record<string, FilterState>;
   palette: boolean;
   confirm?: ConfirmDialog;
