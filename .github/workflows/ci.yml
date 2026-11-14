@@ -34,3 +34,11 @@ jobs:
           restore-keys: vscode-test-${{ runner.os }}-stable-
       - name: Extensão num VS Code real (xvfb)
         run: xvfb-run -a pnpm --filter zark-vscode test:integration
+      - name: Render no Linux para inspeção visual
+        run: |
+          rm -rf /tmp/look && cp -r examples/ecommerce/architecture /tmp/look && rm -rf /tmp/look/rendered
+          node packages/cli/dist/main.js render --dir /tmp/look
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-render
+          path: /tmp/look/rendered/
