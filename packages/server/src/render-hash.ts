@@ -105,3 +105,44 @@ export async function renderedProblems(project: Project): Promise<Problem[]> {
   }
   return out;
 }
+
+export interface StaleRender {
+  target: RenderTarget;
+  file: string;
+  reason: 'outdated' | 'missing';
+}
+
+export interface RenderStatus {
+  commitMode: 'pr' | 'always' | 'never';
+  stale: StaleRender[];
+}
+
+/**
+ * Committed PNGs that no longer match the model. A drawing's PNG counts as
+ * missing only when the project keeps renders in the repo (`always`, or
+ * rendered/ already holds some); flow PNGs count only if they already exist.
+ * `never` mode commits nothing, so nothing is ever stale.
+ */
+export async function renderStatus(project: Project): Promise<RenderStatus> {
+  const commitMode = project.config.render.commit;
+  if (commitMode === 'never') return { commitMode, stale: [] };
+  const dir = join(project.dir, 'rendered');
+  const names = new Set((await readdir(dir).catch(() => [] as string[])).filter((n) => n.endsWith('.png')));
+  const keepsRenders = commitMode === 'always' || names.size > 0;
+  const stale: StaleRender[] = [];
+  for (const id of [...project.drawings.keys()].sort()) {
+    const target: RenderTarget = { drawing: id };
+    const file = targetFile(target);
+    if (!names.has(file)) {
+      if (keepsRenders) stale.push({ target, file, reason: 'missing' });
+      continue;
+    }
+    if (readHash(await readFile(join(dir, file))) !== renderHash(project, target)) stale.push({ target, file, reason: 'outdated' });
+  }
+  for (const file of [...names].sort()) {
+    const target = parseTarget(project, file);
+    if (!target?.flow) continue;
+    if (readHash(await readFile(join(dir, file))) !== renderHash(project, target)) stale.push({ target, file, reason: 'outdated' });
+  }
+  return { commitMode, stale };
+}

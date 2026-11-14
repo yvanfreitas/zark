@@ -54,6 +54,8 @@ interface State {
   theme: 'light' | 'dark';
   focusRequest: number;
   readOnly: boolean;
+  /** Committed PNGs out of date with the model (server: GET /api/render/status). */
+  renderStatus?: { commitMode: 'pr' | 'always' | 'never'; stale: { file: string; reason: 'outdated' | 'missing' }[] };
 }
 
 interface Actions {

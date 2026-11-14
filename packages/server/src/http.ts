@@ -182,6 +182,16 @@ export function createApp(opts: AppOptions) {
       return c.json({ error: (err as Error).message, changes: [] }, 400);
     }
   });
+  app.get('/api/render/status', async (c) => c.json(await service.renderStatus()));
+  app.post('/api/render/all', async (c) => {
+    if (opts.readOnly) return c.json({ ok: false, error: 'Somente leitura' }, 403);
+    try {
+      const { written, status } = await service.renderStale();
+      return c.json({ ok: true, written, status });
+    } catch (err) {
+      return c.json({ ok: false, error: (err as Error).message }, 500);
+    }
+  });
   app.post('/api/render', async (c) => {
     const b = await body(c);
     try {
@@ -230,7 +240,7 @@ export function createApp(opts: AppOptions) {
   app.get('/api/events', (c) =>
     streamSSE(c, async (stream) => {
       const send = (event: string) => (data: unknown) => void stream.writeSSE({ event, data: JSON.stringify(data) });
-      const handlers = Object.fromEntries(['model.changed', 'problems.changed', 'render.done', 'git.changed'].map((e) => [e, send(e)]));
+      const handlers = Object.fromEntries(['model.changed', 'problems.changed', 'render.done', 'render.status', 'git.changed'].map((e) => [e, send(e)]));
       for (const [e, h] of Object.entries(handlers)) store.on(e, h);
       await stream.writeSSE({ event: 'hello', data: JSON.stringify({ ok: true }) });
       const ping = setInterval(() => void stream.writeSSE({ event: 'ping', data: '{}' }), 20_000);
