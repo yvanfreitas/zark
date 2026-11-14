@@ -39,7 +39,18 @@ async function run() {
     return [...api.panels.values()][0];
   }, 'o painel do Zark');
   assert.equal(panel.title, 'Zark: contexto');
-  log(`webview panel "${panel.title}" in column ${panel.viewColumn}`);
+  // "Ao lado do YAML": the panel's tab must live in a group to the right of the editor's.
+  const editorColumn = vscode.window.activeTextEditor?.viewColumn ?? vscode.ViewColumn.One;
+  const panelGroup = await waitFor(
+    () => vscode.window.tabGroups.all.find((g) => g.tabs.some((t) => t.label === 'Zark: contexto')),
+    'a aba do painel num grupo de editores',
+  );
+  const yamlGroup = vscode.window.tabGroups.all.find((g) => g.tabs.some((t) => t.input && t.input.uri && t.input.uri.fsPath === doc.uri.fsPath));
+  assert.ok(yamlGroup, 'a aba do YAML sumiu');
+  assert.notEqual(panelGroup.viewColumn, yamlGroup.viewColumn, 'o painel abriu no mesmo grupo do YAML, não ao lado');
+  assert.ok(panelGroup.viewColumn > yamlGroup.viewColumn, `o painel ficou à esquerda (painel ${panelGroup.viewColumn}, YAML ${yamlGroup.viewColumn})`);
+  assert.equal(editorColumn, yamlGroup.viewColumn, 'o foco deveria continuar no YAML (preserveFocus)');
+  log(`webview panel "${panel.title}" in column ${panelGroup.viewColumn}, YAML in column ${yamlGroup.viewColumn} (beside)`);
 
   const html = panel.webview.html;
   const m = /<iframe src="(http:\/\/127\.0\.0\.1:(\d+)\/\?token=([0-9a-f]+)#drawing=contexto)"/.exec(html);
