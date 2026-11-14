@@ -1,0 +1,67 @@
+# yaml-language-server: $schema=https://unpkg.com/zark/schema/drawing.json
+
+id: platform
+name: Papo platform
+description: Messages enter through the WebSocket API, fan out through SNS and reach the bot through SQS queues.
+scope: platform
+
+nodes:
+  attachments: { x: 1856, y: 320 }
+  auth: { x: -64, y: 320 }
+  bot-orchestrator: { x: 1472, y: 0 }
+  bot-queue: { x: 1088, y: 0 }
+  dead-letter-queue: { x: 1088, y: 320 }
+  history: { x: 1472, y: 320 }
+  history-queue: { x: 704, y: 320 }
+  history-writer: { x: 704, y: 640 }
+  llm-provider: { x: 1856, y: 0 }
+  message-handler: { x: 320, y: 0 }
+  messages-topic: { x: 704, y: 0 }
+  moderation: { x: 1472, y: -320 }
+  papo-app: { x: -448, y: 0 }
+  websocket-api: { x: -64, y: 0 }
+
+edges:
+  bot-orchestrator.complete: { shape: straight }
+  bot-orchestrator.context: { shape: straight, from: bottom, to: top }
+  bot-orchestrator.moderate: { shape: straight, from: top, to: bottom }
+  bot-orchestrator.reply:
+    shape: step
+    from: top
+    to: top
+    points: [ [ 1600, -96 ], [ 64, -96 ] ]
+  bot-queue.failures: { shape: auto, from: bottom, to: top }
+  bot-queue.trigger: { shape: straight }
+  dead-letter-queue.redrive: { shape: auto, from: top, to: bottom }
+  history-queue.failures: { shape: straight, from: right, to: left }
+  history-queue.trigger: { shape: straight, from: bottom, to: top }
+  history-writer.write:
+    shape: step
+    from: right
+    to: bottom
+    points: [ [ 1600, 704 ] ]
+  message-handler.publish: { shape: straight }
+  messages-topic.bot: { shape: straight }
+  messages-topic.history: { shape: straight, from: bottom, to: top }
+  papo-app.login: { shape: step, from: bottom, to: left }
+  papo-app.upload:
+    shape: step
+    from: bottom
+    to: bottom
+    points: [ [ -320, 864 ], [ 1984, 864 ] ]
+  papo-app.websocket: { shape: straight }
+  websocket-api.authorize: { shape: straight, from: bottom, to: top }
+  websocket-api.forward: { shape: straight }
+
+groups:
+  - id: messaging
+    label: Messaging
+    members: [ messages-topic, bot-queue, history-queue, dead-letter-queue ]
+    style: dashed
+
+notes:
+  - id: serverless-note
+    text: Each SQS queue triggers a Lambda. Failed messages go to the dead-letter queue and are redriven.
+    x: -448
+    y: -320
+    w: 256

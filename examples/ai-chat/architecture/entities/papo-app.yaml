@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=https://unpkg.com/zark/schema/entity.json
+
+id: papo-app
+name: Papo app
+kind: system
+caption: Web and mobile
+icon: lucide:smartphone
+technologies: [ react-native ]
+owner: platform-team
+
+connections:
+  - id: login
+    to: auth
+    label: Signs in
+    technologies: [ rest ]
+  - id: websocket
+    to: websocket-api
+    label: Real-time messages
+    direction: bidirectional
+    technologies: [ websocket ]
+  - id: upload
+    to: attachments
+    label: Uploads attachments
+    technologies: [ rest ]

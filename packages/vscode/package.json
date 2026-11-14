@@ -1,0 +1,62 @@
+{
+  "name": "zark-vscode",
+  "displayName": "Zark",
+  "description": "Opens the Zark drawing beside the architecture YAML",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "publisher": "zark",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Visualization"
+  ],
+  "type": "module",
+  "main": "./dist/extension.cjs",
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "zark.openDrawing",
+        "title": "Zark: Open drawing beside",
+        "icon": "$(type-hierarchy)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "zark.openDrawing",
+          "when": "resourcePath =~ /[\\\\/]architecture[\\\\/].*\\.yaml$/",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "zark.openDrawing",
+          "when": "resourcePath =~ /[\\\\/]architecture[\\\\/].*\\.yaml$/"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Zark",
+      "properties": {
+        "zark.cliPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the Zark CLI main.js, run with node. Empty: uses the workspace node_modules/.bin/zark or npx zark. The ZARK_CLI environment variable has the same effect."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "smoke": "node smoke.cjs",
+    "test:integration": "node test/integration/run.mjs"
+  },
+  "devDependencies": {
+    "@types/vscode": "1.90.0",
+    "@vscode/test-electron": "^3.1.0",
+    "esbuild": "^0.28.2"
+  }
+}

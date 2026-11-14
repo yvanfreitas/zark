@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=https://unpkg.com/zark/schema/entity.json
+
+id: bot-queue
+name: Bot queue
+kind: store
+parent: platform
+caption: Messages for the bot
+icon: lucide:list-ordered
+technologies: [ sqs ]
+tags: [ messaging ]
+
+connections:
+  - id: trigger
+    to: bot-orchestrator
+    label: Triggers the bot
+  - id: failures
+    to: dead-letter-queue
+    label: Bot failures

@@ -1,0 +1,11 @@
+{
+  "$id": "https://api.icepanel.io/v1/schemas/ImportIconNullable",
+  "oneOf": [
+    {
+      "$ref": "https://api.icepanel.io/v1/schemas/ImportIcon"
+    },
+    {
+      "type": "null"
+    }
+  ]
+}

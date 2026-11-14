@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://unpkg.com/zark/schema/entity.json
+
+id: bot-orchestrator
+name: Bot orchestrator
+kind: app
+parent: platform
+caption: Builds the prompt and replies
+icon: lucide:bot
+technologies: [ lambda ]
+tags: [ ai ]
+owner: ai-team
+
+connections:
+  - id: context
+    to: history
+    label: Reads the context
+  - id: moderate
+    to: moderation
+    label: Classifies the content
+    technologies: [ rest ]
+  - id: complete
+    to: llm-provider
+    label: Generates the answer
+    direction: bidirectional
+    technologies: [ rest ]
+  - id: reply
+    to: websocket-api
+    label: Sends the answer

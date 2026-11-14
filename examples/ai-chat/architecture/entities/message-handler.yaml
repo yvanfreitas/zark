@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://unpkg.com/zark/schema/entity.json
+
+id: message-handler
+name: Message handler
+kind: app
+parent: platform
+caption: Validates and publishes
+icon: lucide:square-function
+technologies: [ lambda ]
+
+connections:
+  - id: publish
+    to: messages-topic
+    label: Publishes the message
+    technologies: [ sns ]

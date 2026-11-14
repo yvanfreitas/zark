@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=https://unpkg.com/zark/schema/entity.json
+
+id: history-queue
+name: History queue
+kind: store
+parent: platform
+caption: Messages to save
+icon: lucide:list-ordered
+technologies: [ sqs ]
+tags: [ messaging ]
+
+connections:
+  - id: trigger
+    to: history-writer
+    label: Triggers the writer
+  - id: failures
+    to: dead-letter-queue
+    label: History failures

@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=https://unpkg.com/zark/schema/entity.json
+
+id: history-writer
+name: History writer
+kind: app
+parent: platform
+caption: Saves the conversation
+icon: lucide:square-function
+technologies: [ lambda ]
+
+connections:
+  - id: write
+    to: history
+    label: Writes the message

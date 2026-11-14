@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://unpkg.com/zark/schema/flow.json
+
+id: history-is-saved
+name: History is saved
+description: The topic delivers a copy of every message to the history queue.
+drawing: platform
+
+steps:
+  - id: delivers-to-the-queue
+    via: messages-topic.history
+    text: Delivers to the history queue
+  - id: triggers-the-writer
+    via: history-queue.trigger
+    text: Triggers the writer
+  - id: writes-the-message
+    via: history-writer.write
+    text: Writes the message
+  - note: After three failed attempts the message goes to the dead-letter queue.
+  - id: sends-to-the-dead-letter-queue
+    via: history-queue.failures
+    text: Sends to the dead-letter queue

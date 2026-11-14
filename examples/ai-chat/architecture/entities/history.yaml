@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=https://unpkg.com/zark/schema/entity.json
+
+id: history
+name: Conversation history
+kind: store
+parent: platform
+caption: Conversations and messages
+icon: lucide:database
+technologies: [ dynamodb ]

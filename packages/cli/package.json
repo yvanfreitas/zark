@@ -1,0 +1,28 @@
+{
+  "name": "zark",
+  "version": "0.1.0",
+  "description": "Architecture as code: YAML in the repo, with a UI, MCP server and CLI over the same files",
+  "type": "module",
+  "bin": {
+    "zark": "./dist/main.js"
+  },
+  "files": [
+    "dist",
+    "schema"
+  ],
+  "dependencies": {
+    "@zark/core": "workspace:*",
+    "@zark/mcp": "workspace:*",
+    "@zark/server": "workspace:*",
+    "lucide-static": "1.72.0",
+    "playwright-core": "^1.65.0",
+    "simple-icons": "16.37.0"
+  },
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  },
+  "license": "MIT"
+}

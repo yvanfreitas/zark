@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=https://unpkg.com/zark/schema/entity.json
+
+id: auth
+name: Auth
+kind: system
+caption: Accounts and tokens
+icon: lucide:key-round
+technologies: [ cognito ]
+owner: platform-team

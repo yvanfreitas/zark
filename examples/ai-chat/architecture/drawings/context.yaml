@@ -1,0 +1,36 @@
+# yaml-language-server: $schema=https://unpkg.com/zark/schema/drawing.json
+
+id: context
+name: Context
+description: Papo at a glance, from the user to the AI bot.
+scope: null
+
+nodes:
+  auth: { x: 832, y: -320 }
+  llm-provider: { x: 1344, y: -160 }
+  moderation: { x: 1344, y: 160 }
+  papo-app: { x: 320, y: 0 }
+  platform: { x: 832, y: 0 }
+  user: { x: 0, y: 0 }
+
+edges:
+  bot-orchestrator.complete: { shape: auto }
+  bot-orchestrator.moderate: { shape: auto }
+  papo-app.login: { shape: step, from: top, to: left }
+  papo-app.upload: { shape: auto }
+  papo-app.websocket: { shape: auto }
+  user.uses: { shape: straight }
+  websocket-api.authorize: { shape: straight, from: top, to: bottom }
+
+groups:
+  - id: external
+    label: External services
+    members: [ llm-provider, moderation ]
+    style: dashed
+
+notes:
+  - id: platform-note
+    text: Open the Papo platform (magnifier) to see the queues and Lambdas.
+    x: 0
+    y: -320
+    w: 240

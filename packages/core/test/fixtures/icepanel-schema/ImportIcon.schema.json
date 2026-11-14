@@ -1,0 +1,13 @@
+{
+  "$id": "https://api.icepanel.io/v1/schemas/ImportIcon",
+  "additionalProperties": false,
+  "properties": {
+    "technologyId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "technologyId"
+  ],
+  "type": "object"
+}
