@@ -22,10 +22,15 @@ const run = (cmd, args, opts = {}) => {
 const zark = (...args) => run(npx, ['--no-install', 'zark', ...args]);
 const step = (name) => console.log(`\n== ${name}`);
 // Ends a spawned CLI and its children; the process may already be gone.
+// npx starts `zark` as its own child, so the whole tree must go: taskkill /T on
+// Windows, the process group elsewhere (children are spawned detached).
 const stop = (child) => {
+  child.stdout?.removeAllListeners('data');
+  child.stdout?.destroy();
+  child.stdin?.destroy();
   try {
     if (win) execFileSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
-    else child.kill();
+    else process.kill(-child.pid, 'SIGTERM');
   } catch {
     /* already exited */
   }
@@ -76,13 +81,16 @@ if (withRender) {
 
 step('zark dev serves the UI and the API');
 await new Promise((done, fail) => {
-  const child = spawn(npx, ['--no-install', 'zark', 'dev', '--no-open', '--port', '0'], { cwd: project, shell: win, stdio: ['ignore', 'pipe', 'inherit'] });
+  const child = spawn(npx, ['--no-install', 'zark', 'dev', '--no-open', '--port', '0'], { cwd: project, shell: win, detached: !win, stdio: ['ignore', 'pipe', 'inherit'] });
   let out = '';
   const timer = setTimeout(() => (stop(child), fail(new Error(`zark dev did not start:\n${out}`))), 60_000);
+  let checked = false;
   child.stdout.on('data', async (d) => {
     out += d;
+    if (checked) return;
     const m = /http:\/\/127\.0\.0\.1:(\d+)\/\?token=([0-9a-f]+)/.exec(out);
     if (!m) return;
+    checked = true;
     const base = `http://127.0.0.1:${m[1]}`;
     const token = m[2];
     clearTimeout(timer);
@@ -104,7 +112,7 @@ await new Promise((done, fail) => {
 
 step('zark mcp (stdio handshake)');
 await new Promise((done, fail) => {
-  const child = spawn(npx, ['--no-install', 'zark', 'mcp'], { cwd: project, shell: win, stdio: ['pipe', 'pipe', 'inherit'] });
+  const child = spawn(npx, ['--no-install', 'zark', 'mcp'], { cwd: project, shell: win, detached: !win, stdio: ['pipe', 'pipe', 'inherit'] });
   let buf = '';
   const timer = setTimeout(() => (stop(child), fail(new Error(`no MCP response:\n${buf}`))), 60_000);
   const send = (msg) => child.stdin.write(JSON.stringify(msg) + '\n');
