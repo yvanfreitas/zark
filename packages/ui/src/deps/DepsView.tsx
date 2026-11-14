@@ -3,7 +3,7 @@ import { applyNodeChanges, ConnectionMode, MarkerType, ReactFlow, ReactFlowProvi
 import type { Index } from '../model';
 import { useStore } from '../store';
 import { tr, useT } from '../i18n';
-import { autoSide, type EdgeData, type EntityData } from '../canvas/build';
+import { autoSide, entityIconSvg, type EdgeData, type EntityData } from '../canvas/build';
 import { nodeTypes } from '../canvas/nodes';
 import { edgeTypes } from '../canvas/ZarkEdge';
 import { inputClass } from '../panels/ui';
@@ -54,6 +54,7 @@ function layout(req: Omit<LayoutRequest, 'id'>): Promise<LayoutResponse['positio
 function DepsGraph({ center, levels }: { center: string; levels: number }) {
   const index = useStore((s) => s.index)!;
   const catalog = useStore((s) => s.model!.catalog);
+  const icons = useStore((s) => s.model!.icons);
   const sub = useMemo(() => dependencySubgraph(index, center, levels), [index, center, levels]);
   const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>();
   const [error, setError] = useState<string>();
@@ -94,7 +95,7 @@ function DepsGraph({ center, levels }: { center: string; levels: number }) {
           expanded: false,
           dim: false,
           techName: tech?.name,
-          techIcon: tech?.icon,
+          iconSvg: entityIconSvg(e, catalog, icons),
           inActiveFlow: false,
           interactive: false,
           resizable: false,
@@ -124,7 +125,7 @@ function DepsGraph({ center, levels }: { center: string; levels: number }) {
       };
     });
     return { nodes, edges };
-  }, [positions, sub, index, catalog, center]);
+  }, [positions, sub, index, catalog, icons, center]);
 
   // Local copy so React Flow can store node measurements; without them it draws no connectors.
   const [nodes, setNodes] = useState<Node[]>([]);

@@ -5,4 +5,5 @@ name: Attachments
 kind: store
 parent: platform
 caption: Images and files
+icon: lucide:archive
 technologies: [ s3 ]

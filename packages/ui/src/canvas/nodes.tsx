@@ -42,6 +42,11 @@ export function initials(name: string): string {
   return one.slice(0, 1).toUpperCase() + one.slice(1, 2).toLowerCase();
 }
 
+/** Inline, sanitized SVG (server-side): no fetch, so the render route stays deterministic. */
+function EntityIcon({ svg, className }: { svg: string; className: string }) {
+  return <span aria-hidden="true" className={`zark-icon shrink-0 ${className}`} dangerouslySetInnerHTML={{ __html: svg }} />;
+}
+
 function Badge({ text }: { text: string }) {
   return (
     <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[var(--badge)] text-[13px] font-semibold text-[var(--badge-fg)]" aria-hidden="true">
@@ -105,7 +110,7 @@ export const EntityNode = memo(function EntityNode({ id, data, selected }: NodeP
         <Handles interactive={data.interactive} />
         <Indicators data={data} id={id} />
         <div className={`text-[var(--actor)] ${e.external ? 'opacity-70' : ''}`}>
-          <PersonIcon />
+          {data.iconSvg ? <EntityIcon svg={data.iconSvg} className="block size-11" /> : <PersonIcon />}
         </div>
         <div className={`px-1 text-[14px] font-semibold leading-tight text-[var(--fg)] ${nameClass}`}>{e.name}</div>
         {e.caption && <div className="px-1 text-[11px] leading-tight text-[var(--muted)]">{e.caption}</div>}
@@ -135,7 +140,7 @@ export const EntityNode = memo(function EntityNode({ id, data, selected }: NodeP
       <Handles interactive={data.interactive} />
       <Indicators data={data} id={id} />
       <div className="flex min-h-0 items-start gap-2.5">
-        {data.techIcon ? <img src={data.techIcon} alt="" className="size-8 shrink-0 rounded-lg object-contain" /> : <Badge text={e.name} />}
+        {data.iconSvg ? <EntityIcon svg={data.iconSvg} className="grid size-8 place-items-center rounded-lg bg-[var(--badge)] p-1.5 text-[var(--badge-fg)]" /> : <Badge text={e.name} />}
         <div className="min-w-0">
           <div className={`truncate text-[15px] font-semibold leading-snug text-[var(--fg)] ${nameClass}`}>{e.name}</div>
           {e.caption && <div className="line-clamp-2 text-[12px] leading-snug text-[var(--muted)]">{e.caption}</div>}

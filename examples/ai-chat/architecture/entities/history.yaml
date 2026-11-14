@@ -5,4 +5,5 @@ name: Conversation history
 kind: store
 parent: platform
 caption: Conversations and messages
+icon: lucide:database
 technologies: [ dynamodb ]

@@ -4,5 +4,6 @@ id: llm-provider
 name: LLM provider
 kind: system
 caption: Language model
+icon: lucide:brain
 external: true
 tags: [ ai ]

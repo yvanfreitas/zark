@@ -10,3 +10,5 @@ export * from './route.js';
 export * from './interop/index.js';
 export * from './migrate.js';
 export * from './messages.js';
+export * from './icons/registry.js';
+export * from './icon-suggest.js';

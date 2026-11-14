@@ -17,7 +17,8 @@ await build({
   target: 'node22',
   format: 'esm',
   // playwright-core stays a real dependency: it locates its browsers relative to itself.
-  external: ['playwright-core'],
+  // Read from disk at runtime (icon SVGs and metadata), so they stay real dependencies.
+  external: ['playwright-core', 'lucide-static', 'simple-icons'],
   // Some bundled CommonJS deps call require(); give ESM output a real one.
   banner: { js: "import { createRequire as __zarkCreateRequire } from 'node:module';\nglobalThis.require ??= __zarkCreateRequire(import.meta.url);" },
   logLevel: 'warning',

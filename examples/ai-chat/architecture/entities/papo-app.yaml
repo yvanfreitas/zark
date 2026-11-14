@@ -4,6 +4,7 @@ id: papo-app
 name: Papo app
 kind: system
 caption: Web and mobile
+icon: lucide:smartphone
 technologies: [ react-native ]
 owner: platform-team
 

@@ -5,6 +5,7 @@ name: Message handler
 kind: app
 parent: platform
 caption: Validates and publishes
+icon: lucide:square-function
 technologies: [ lambda ]
 
 connections:

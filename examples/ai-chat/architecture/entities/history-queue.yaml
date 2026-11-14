@@ -5,6 +5,7 @@ name: History queue
 kind: store
 parent: platform
 caption: Messages to save
+icon: lucide:list-ordered
 technologies: [ sqs ]
 tags: [ messaging ]
 

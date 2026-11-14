@@ -20,7 +20,7 @@ import { CatalogCollector, chain, slugify, uniqueSlug, ZARK_KINDS, type ImportCo
 export const ICEPANEL_SCHEMA = 'https://api.icepanel.io/v1/schemas/LandscapeImportData';
 /** A TagGroupIcon enum value (the guide's example uses "tag", which the schema rejects). */
 const TAG_GROUP_ICON = 'toolbox';
-const LABEL = { technologies: 'zark:technologies', owner: 'zark:owner' } as const;
+const LABEL = { technologies: 'zark:technologies', owner: 'zark:owner', icon: 'zark:icon' } as const;
 const TYPE_ALIASES: Record<string, Kind> = { database: 'store' };
 const TAG_COLORS = ['blue', 'green', 'yellow', 'orange', 'red', 'beaver', 'dark-blue', 'purple', 'pink', 'white', 'grey', 'black'];
 
@@ -94,6 +94,7 @@ export function fromIcePanel(data: IcePanelData, ctx: ImportContext, opts: { dra
   const ops: Op[] = [];
   const depth = (o: IceObject) => chain(parents, ids.get(o.id)!).length;
   for (const o of [...objects].sort((a, b) => depth(a) - depth(b))) {
+    if ((o as { icon?: unknown }).icon) warn('icon', 'IcePanel icon (a technologyId from their catalog) has no equivalent and was ignored');
     if (Object.keys(o.labels ?? {}).some((k) => !k.startsWith('zark:'))) warn('labels', 'IcePanel labels have no equivalent and were ignored');
     if (o.groupIds?.length) warn('group', 'IcePanel groups were not imported: in Zark groups are frames of each drawing');
     if (o.teamIds && o.teamIds.length > 1) warn('teams', 'Only the first team of each object becomes the owner in Zark');
@@ -107,6 +108,7 @@ export function fromIcePanel(data: IcePanelData, ctx: ImportContext, opts: { dra
         kind: o.type as Kind,
         ...(parent ? { parent } : {}),
         ...(o.caption ? { caption: o.caption } : {}),
+        ...(o.labels?.[LABEL.icon] && /^[a-z0-9-]+:[a-z0-9._-]+$/.test(o.labels[LABEL.icon]) ? { icon: o.labels[LABEL.icon] } : {}),
         ...(o.description ? { description: o.description } : {}),
         ...(o.external ? { external: true } : {}),
         ...(o.status && o.status !== 'live' && STATUSES.includes(o.status) ? { status: o.status as 'future' } : {}),
@@ -203,8 +205,10 @@ function tagRef(catalog: CatalogCollector, tag: { id: string; name: string; colo
 export function toIcePanel(project: Project): IcePanelData {
   const tags = (project.catalog.tags ?? []).map((t) => ({ id: t.id, name: t.name, color: TAG_COLORS.includes(t.color ?? '') ? t.color! : 'grey', groupId: 'zark' }));
   const named = (list: 'technologies' | 'teams', ids: string[]) => ids.map((id) => ({ id, name: project.catalog[list]?.find((i) => i.id === id)?.name ?? id }));
-  const labelsOf = (techs?: string[], owner?: string) => {
+  const labelsOf = (techs?: string[], owner?: string, icon?: string) => {
     const labels: Record<string, string> = {};
+    // IcePanel's own icon is a technologyId of its catalog; ours travels as a label.
+    if (icon) labels[LABEL.icon] = icon;
     if (techs?.length) labels[LABEL.technologies] = encodePairs(named('technologies', techs));
     if (owner) labels[LABEL.owner] = encodePairs(named('teams', [owner]));
     return Object.keys(labels).length ? { labels } : {};
@@ -222,7 +226,7 @@ export function toIcePanel(project: Project): IcePanelData {
     ...(e.external ? { external: true } : {}),
     ...(e.status ? { status: e.status } : {}),
     ...(e.tags?.length ? { tagIds: e.tags } : {}),
-    ...labelsOf(e.technologies, e.owner),
+    ...labelsOf(e.technologies, e.owner, e.icon),
     ...(e.links?.length ? { links: e.links.map((l) => ({ url: l.url, customName: l.label })) } : {}),
   }))];
   const modelConnections: IceConnection[] = [...project.connections.values()].map(({ ref, from, conn: c }) => ({

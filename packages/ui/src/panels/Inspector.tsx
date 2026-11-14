@@ -4,6 +4,7 @@ import { tr, useT } from '../i18n';
 import { currentDrawing, useStore } from '../store';
 import type { Conn, Drawing, Entity, WithFile } from '../types';
 import { Button, Field, inputClass, SectionTitle, Tabs } from './ui';
+import { IconField } from './IconPicker';
 
 /** Text input that commits on blur or Enter, not on every keystroke. */
 function CommitInput({ value, onCommit, multiline, placeholder, label }: { value: string; onCommit: (v: string) => void; multiline?: boolean; placeholder?: string; label: string }) {
@@ -144,6 +145,13 @@ function EntityInspector({ entity }: { entity: WithFile<Entity> }) {
           <Field label={t('insp.caption')}>
             <CommitInput label={t('insp.caption')} value={entity.caption ?? ''} onCommit={(v) => setField('caption', v.trim())} placeholder={t('insp.captionPlaceholder')} />
           </Field>
+          {/* Not a <label>: it would hijack clicks and the accessible name of the buttons inside. */}
+          <div role="group" aria-labelledby="icon-field-label" className="flex flex-col gap-1">
+            <span id="icon-field-label" className="text-[11.5px] font-medium text-[var(--muted)]">
+              {t('icon.field')}
+            </span>
+            <IconField entity={entity} onChange={(v) => setField('icon', v)} />
+          </div>
           <div className="grid grid-cols-2 gap-2">
             <Field label={t('common.kind')}>
               <select className={inputClass} value={entity.kind} onChange={(e) => setField('kind', e.target.value)}>

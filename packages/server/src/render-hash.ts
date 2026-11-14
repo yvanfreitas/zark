@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { crc32 } from 'node:zlib';
-import { allSteps, ancestors, PROBLEM_EN, type Problem, type Project } from '@zark/core';
+import { allSteps, ancestors, iconSvg, PROBLEM_EN, usedIconRefs, type Problem, type Project } from '@zark/core';
 
 /** Bump when the canvas look changes, so committed PNGs are re-rendered. */
 export const RENDERER_VERSION = '4';
@@ -41,6 +41,8 @@ export function renderHash(project: Project, target: RenderTarget): string {
     entities,
     edges: edges.map((c) => c && { ref: c.ref, from: c.from, ...c.conn }),
     catalog: project.catalog,
+    // The pictures themselves: a pack SVG edited in place changes the PNG.
+    icons: Object.fromEntries(usedIconRefs(project).map((ref) => [ref, iconSvg(project, ref) ?? null])),
     scopes,
     flow: flow && { ...flow, steps: allSteps(flow) },
     step: target.step,

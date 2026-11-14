@@ -4,6 +4,7 @@ id: platform
 name: Papo platform
 kind: system
 caption: Serverless backend on AWS
+icon: lucide:cloud
 description: |
   Receives messages, fans them out through a topic and wakes up the AI bot.
 owner: platform-team

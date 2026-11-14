@@ -5,6 +5,7 @@ name: Dead-letter queue
 kind: store
 parent: platform
 caption: Failed messages
+icon: lucide:archive-x
 technologies: [ sqs ]
 tags: [ messaging ]
 

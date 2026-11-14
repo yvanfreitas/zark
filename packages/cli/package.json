@@ -12,9 +12,11 @@
   ],
   "dependencies": {
     "@zark/core": "workspace:*",
-    "@zark/server": "workspace:*",
     "@zark/mcp": "workspace:*",
-    "playwright-core": "^1.65.0"
+    "@zark/server": "workspace:*",
+    "lucide-static": "1.72.0",
+    "playwright-core": "^1.65.0",
+    "simple-icons": "16.37.0"
   },
   "scripts": {
     "build": "node build.mjs"

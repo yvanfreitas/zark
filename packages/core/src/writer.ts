@@ -14,7 +14,7 @@ type Shape =
   | 'steps' | 'flowItem' | 'catalogItems' | 'block' | 'leaf';
 
 const CHILDREN: Partial<Record<Shape, Record<string, Shape>>> = {
-  config: { render: 'block', git: 'block', rules: 'block', mcp: 'block' },
+  config: { render: 'block', git: 'block', rules: 'block', mcp: 'block', icons: 'block' },
   catalog: { technologies: 'catalogItems', tags: 'catalogItems', teams: 'catalogItems' },
   entity: { technologies: 'ids', tags: 'ids', links: 'links', connections: 'connections' },
   connection: { technologies: 'ids', tags: 'ids' },

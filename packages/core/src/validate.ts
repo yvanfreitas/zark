@@ -1,6 +1,7 @@
 import { ALLOWED_PARENTS, type Drawing, type FlowItem } from './schema.js';
 import { ancestors, lineOf, resolveEndpoint, walkSteps, type Project, type SourceFile } from './project.js';
 import { PROBLEM_EN, type Params } from './messages.js';
+import { hasIcon, iconSets } from './icons/registry.js';
 
 export type Severity = 'error' | 'warning';
 
@@ -67,6 +68,14 @@ export function validate(project: Project, extra: Problem[] = []): Problem[] {
     if (obj.owner && !catalogIds.teams.has(obj.owner)) add('E022', file, 'E022.team', { id: obj.owner, valid: [...catalogIds.teams] }, [...base, 'owner'], ref);
   };
 
+  // W040: technology icons given as <set>:<name>
+  const catalogFile = project.files.get('catalog.yaml');
+  (project.catalog.technologies ?? []).forEach((t, i) => {
+    if (catalogFile && t.icon && /^[a-z0-9-]+:[a-z0-9._-]+$/.test(t.icon) && !hasIcon(project, t.icon)) {
+      add('W040', catalogFile, 'W040.technology', { id: t.id, icon: t.icon, sets: unknownSetHint(project, t.icon) }, ['technologies', i, 'icon'], t.id);
+    }
+  });
+
   // Entities and connections
   const pairLabels = new Map<string, string>();
   for (const [id, { entity, file: path }] of project.entities) {
@@ -86,6 +95,7 @@ export function validate(project: Project, extra: Problem[] = []): Problem[] {
       add('E011', file, 'E011.needsParent', { kind: entity.kind, allowed: ALLOWED_PARENTS[entity.kind].map((k) => k ?? 'root') }, ['kind'], id);
     }
     checkCatalog(file, [], entity, id);
+    if (entity.icon && !hasIcon(project, entity.icon)) add('W040', file, 'W040', { icon: entity.icon, sets: unknownSetHint(project, entity.icon) }, ['icon'], id);
 
     (entity.connections ?? []).forEach((conn, i) => {
       const ref = `${id}.${conn.id}`;
@@ -274,6 +284,13 @@ function applyRules(project: Project, problems: Problem[]): Problem[] {
 function siblings(ref: string, keys: Iterable<string>): Params {
   const [from] = ref.split('.');
   return { from, siblings: [...keys].filter((k) => k.startsWith(from + '.')) };
+}
+
+/** Known icon sets, listed only when the icon's set itself is unknown. */
+function unknownSetHint(project: Project, ref: string): string[] {
+  const set = ref.split(':')[0];
+  const sets = iconSets(project).map((s) => s.id);
+  return sets.includes(set) ? [] : sets;
 }
 
 export const errorsOf = (problems: Problem[]) => problems.filter((p) => p.severity === 'error');

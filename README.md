@@ -5,7 +5,7 @@ Architecture documentation as code. The YAML files in `architecture/` are the on
 - **Entities** (`entities/<id>.yaml`): actors, systems, apps, stores and components, in the C4 hierarchy. Outgoing connections live in the source entity's file.
 - **Drawings** (`drawings/<id>.yaml`): box positions and connector routing. Presentation only, always by reference to the model.
 - **Flows** (`flows/<id>.yaml`): step-by-step walks over the connections, with parallel branches, alternatives and subflows, played back on a drawing.
-- **Validation**: every problem has a code (`E001`…`W030`), a file and a line. Errors fail CI and block writes from the UI and the MCP server.
+- **Validation**: every problem has a code (`E001`…`W040`), a file and a line. Errors fail CI and block writes from the UI and the MCP server.
 
 The CLI, the MCP server, PR texts and validation messages are in English. The web UI is in English by default and can be switched to Portuguese with the **EN | PT** control in the top bar (the choice is kept per browser). Rendered PNGs are always drawn in English, since they are committed artifacts.
 
@@ -55,6 +55,10 @@ The Chromium used to render PNGs is downloaded on the first render, not at insta
 Every command accepts `--dir <folder>` (default: `architecture`).
 
 Git and PRs use the `git` and provider CLI already authenticated on the machine: `gh` on GitHub, `glab` on GitLab (where the PR becomes an MR). The provider comes from `git.provider: github | gitlab` in `zark.yaml`; without it, a remote whose host contains `gitlab` picks GitLab. Zark never asks for, reads or stores a token, and never runs `push --force`.
+
+## Icons
+
+Entities accept `icon: <set>:<name>`: generic icons from [Lucide](https://lucide.dev) (`lucide:database`), brands, languages and frameworks from [Simple Icons](https://simpleicons.org) (`si:python`, `si:kubernetes`), and your own packs declared in `zark.yaml` (`aws:sqs`). The inspector suggests icons from the entity's technologies, name and kind; the MCP server has `search_icons` and `suggest_icons`. The official AWS, Azure and Google Cloud sets are not bundled because their terms do not allow redistribution inside third-party software: download one and point a pack at it. Licenses and details in [ICONS.md](ICONS.md).
 
 ## Import and export
 
