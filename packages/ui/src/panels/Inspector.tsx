@@ -201,6 +201,9 @@ function EntityInspector({ entity }: { entity: WithFile<Entity> }) {
                 Remover do desenho
               </Button>
             )}
+            <Button variant="subtle" onClick={() => useStore.getState().set({ view: 'deps', depsOf: entity.id })}>
+              Ver dependências
+            </Button>
             <Button variant="ghost" className="!text-[var(--danger)]" onClick={() => deleteWithImpact(`/api/entities/${entity.id}`, entity.name, [entity.file])}>
               Excluir do modelo
             </Button>

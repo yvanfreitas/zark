@@ -12,6 +12,8 @@ import { CommandPalette, ConfirmDialogView, Toasts } from './panels/Overlays';
 import { BottomBar, ChangesPanel, PrDialog, ProblemsPanel } from './panels/Side';
 import { TopBar, useGitStatus } from './panels/TopBar';
 import { Button } from './panels/ui';
+import { ModelList } from './panels/ModelList';
+import { DepsView } from './deps/DepsView';
 
 const isTyping = (t: EventTarget | null) => t instanceof HTMLElement && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName));
 
@@ -49,6 +51,10 @@ function useShortcuts() {
       const key = e.key.toLowerCase();
       if (mod && key === 'k') return e.preventDefault(), s.set({ palette: !s.palette });
       if (isTyping(e.target) || s.palette || s.confirm || s.prDialog) return;
+      if (s.view !== 'canvas') {
+        if (e.key === 'Escape') s.set({ view: 'canvas' });
+        return;
+      }
       const drawing = currentDrawing(s);
       const sel = s.selection;
       const view = s.model && s.index ? flowView(s.model, s.index, s.flow) : undefined;
@@ -198,6 +204,7 @@ export function App() {
   const right = useStore((s) => s.right);
   const flow = useStore((s) => s.flow);
   const theme = useStore((s) => s.theme);
+  const view = useStore((s) => s.view);
   const git = useGitStatus();
   useShortcuts();
   useLiveUpdates();
@@ -225,10 +232,18 @@ export function App() {
         <TopBar git={git} />
         <div className="flex min-h-0 flex-1">
           <LeftPanel />
-          <main className="relative min-w-0 flex-1" aria-label="Canvas">
-            <InvalidFilesBanner />
-            <EmptyState />
-            <Canvas />
+          <main className="relative min-w-0 flex-1" aria-label={view === 'list' ? 'Lista do modelo' : view === 'deps' ? 'Dependências' : 'Canvas'}>
+            {view === 'list' ? (
+              <ModelList />
+            ) : view === 'deps' ? (
+              <DepsView />
+            ) : (
+              <>
+                <InvalidFilesBanner />
+                <EmptyState />
+                <Canvas />
+              </>
+            )}
           </main>
           <aside className="w-[340px] shrink-0 overflow-y-auto border-l border-[var(--border)] bg-[var(--panel)]" aria-label="Painel direito">
             {right === 'problems' ? <ProblemsPanel /> : right === 'changes' ? <ChangesPanel git={git} /> : flow ? <FlowPanel /> : <Inspector />}

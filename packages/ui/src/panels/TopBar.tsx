@@ -52,6 +52,37 @@ function Breadcrumb() {
   );
 }
 
+function ViewSwitch() {
+  const view = useStore((s) => s.view);
+  const set = useStore((s) => s.set);
+  const items: [typeof view, string][] = [
+    ['canvas', 'Canvas'],
+    ['list', 'Lista'],
+    ['deps', 'Dependências'],
+  ];
+  return (
+    <div role="tablist" aria-label="Visão" className="flex gap-0.5 rounded-lg bg-[var(--tabs)] p-0.5">
+      {items.map(([id, label]) => (
+        <button
+          key={id}
+          role="tab"
+          type="button"
+          aria-selected={view === id}
+          onClick={() => {
+            const s = useStore.getState();
+            // Dependencies start from the selected entity when there is one.
+            const selected = s.selection.nodes.find((n) => s.index?.entities.has(n));
+            set(id === 'deps' && selected ? { view: id, depsOf: selected } : { view: id });
+          }}
+          className={`rounded-md px-2.5 py-1 text-[12.5px] font-medium transition-colors ${view === id ? 'bg-[var(--surface)] text-[var(--fg)] shadow-sm' : 'text-[var(--muted)] hover:text-[var(--fg)]'}`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function TopBar({ git }: { git?: GitStatus }) {
   const model = useStore((s) => s.model)!;
   const saving = useStore((s) => s.saving);
@@ -72,6 +103,7 @@ export function TopBar({ git }: { git?: GitStatus }) {
         <span className="text-[14px] font-semibold text-[var(--fg)]">{model.config.name}</span>
       </div>
       <div className="h-5 w-px bg-[var(--border)]" />
+      <ViewSwitch />
       <Breadcrumb />
       <div className="flex-1" />
       <button
