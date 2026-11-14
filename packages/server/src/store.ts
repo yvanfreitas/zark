@@ -9,6 +9,7 @@ import {
   validate,
   writeResult,
   type ApplyOptions,
+  type Change,
   type ApplyResult,
   type Op,
   type Problem,
@@ -18,11 +19,24 @@ import { renderedProblems } from './render-hash.js';
 
 export type Origin = 'ui' | 'mcp' | 'external' | 'cli';
 
+export interface ChangeItem {
+  key: string;
+  params: Change['params'];
+  text: string;
+}
+
+const changePayload = (changes: Change[]) => ({
+  changes: changes.map((c) => c.text),
+  items: changes.map(({ key, params, text }) => ({ key, params, text })),
+});
+
 export interface ModelChanged {
   files: string[];
   hashes: Record<string, string | null>;
   origin: Origin;
+  /** English texts; `items` carries key + params so UIs can localize. */
   changes: string[];
+  items: ChangeItem[];
 }
 
 interface HistoryItem {
@@ -71,7 +85,7 @@ export class ProjectStore extends EventEmitter {
       const result = await applyOps(this.project, ops, options);
       if (!result.ok || options.dryRun || !result.files.size) return result;
       const before = new Map([...result.files.keys()].map((p) => [p, this.project.files.get(p)?.text ?? null]));
-      await this.commit(result.files, result.project, origin, result.changes.map((c) => c.text));
+      await this.commit(result.files, result.project, origin, result.changes);
       this.undoStack.push({ before, after: result.files });
       if (this.undoStack.length > 200) this.undoStack.shift();
       this.redoStack = [];
@@ -80,14 +94,14 @@ export class ProjectStore extends EventEmitter {
     });
   }
 
-  private async commit(files: Map<string, string | null>, project: Project, origin: Origin, changes: string[]) {
+  private async commit(files: Map<string, string | null>, project: Project, origin: Origin, changes: Change[]) {
     for (const [path, text] of files) this.ownWrites.set(path, text === null ? null : hashText(text));
     await writeResult(this.dir, files);
     this.project = project;
     const oldProblems = JSON.stringify(this.problems);
     this.problems = await this.computeProblems(project);
     const hashes = Object.fromEntries([...files].map(([p, t]) => [p, t === null ? null : hashText(t)]));
-    this.emit('model.changed', { files: [...files.keys()], hashes, origin, changes } satisfies ModelChanged);
+    this.emit('model.changed', { files: [...files.keys()], hashes, origin, ...changePayload(changes) } satisfies ModelChanged);
     if (JSON.stringify(this.problems) !== oldProblems) this.emit('problems.changed', this.problems);
   }
 
@@ -101,20 +115,20 @@ export class ProjectStore extends EventEmitter {
   private history(from: HistoryItem[], to: HistoryItem[], side: 'before' | 'after', origin: Origin) {
     return this.exclusive(async () => {
       const item = from.pop();
-      if (!item) return { ok: false as const, error: 'Nada para desfazer' };
+      if (!item) return { ok: false as const, error: 'Nothing to undo' };
       const expected = side === 'before' ? item.after : item.before;
       // Only undo when files still match what the operation produced.
       for (const [path, text] of expected) {
         if ((this.project.files.get(path)?.text ?? null) !== text) {
           from.length = 0;
-          return { ok: false as const, error: `${path} mudou fora desta sessão; histórico descartado` };
+          return { ok: false as const, error: `${path} changed outside this session; history discarded` };
         }
       }
       const target = item[side];
       const texts = new Map([...this.project.files].map(([p, f]) => [p, f.text]));
       for (const [path, text] of target) text === null ? texts.delete(path) : texts.set(path, text);
       const project = buildProject(this.dir, texts);
-      await this.commit(target, project, origin, diffProjects(this.project, project).map((c) => c.text));
+      await this.commit(target, project, origin, diffProjects(this.project, project));
       to.push(item);
       return { ok: true as const };
     });
@@ -145,7 +159,7 @@ export class ProjectStore extends EventEmitter {
       for (const p of changed.keys()) this.ownWrites.delete(p);
       if (!external.length) return;
       const project = buildProject(this.dir, texts);
-      const changes = diffProjects(this.project, project).map((c) => c.text);
+      const changes = diffProjects(this.project, project);
       this.project = project;
       const oldProblems = JSON.stringify(this.problems);
       this.problems = await this.computeProblems(project);
@@ -153,7 +167,7 @@ export class ProjectStore extends EventEmitter {
         files: external.map(([p]) => p),
         hashes: Object.fromEntries(external.map(([p, t]) => [p, t === null ? null : hashText(t)])),
         origin: 'external',
-        changes,
+        ...changePayload(changes),
       } satisfies ModelChanged);
       if (JSON.stringify(this.problems) !== oldProblems) this.emit('problems.changed', this.problems);
     });

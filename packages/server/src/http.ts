@@ -60,23 +60,23 @@ export function createApp(opts: AppOptions) {
     const port = opts.port();
     const allowed = [`127.0.0.1:${port}`, `localhost:${port}`];
     const host = c.req.header('host');
-    if (!host || !allowed.includes(host)) return c.text('Host não permitido', 403);
+    if (!host || !allowed.includes(host)) return c.text('Host not allowed', 403);
     const origin = c.req.header('origin');
-    if (origin && !allowed.map((h) => `http://${h}`).includes(origin)) return c.text('Origin não permitida', 403);
+    if (origin && !allowed.map((h) => `http://${h}`).includes(origin)) return c.text('Origin not allowed', 403);
     await next();
   });
   const guarded = ['/api/*', '/mcp', '/mcp/*'];
   for (const path of guarded) {
     app.use(path, async (c, next) => {
       const token = c.req.header('x-zark-token') ?? c.req.query('token') ?? c.req.header('authorization')?.replace(/^Bearer /, '');
-      if (token !== service.token) return c.json({ error: 'Token de sessão ausente ou inválido' }, 401);
+      if (token !== service.token) return c.json({ error: 'Missing or invalid session token' }, 401);
       await next();
     });
   }
 
   const reply = (c: Context, result: ApplyResult) => {
     if (result.conflict) return c.json({ ok: false, error: result.error, conflict: result.conflict, model: store.snapshot() }, 409);
-    if (result.impact) return c.json({ ok: false, error: result.error, impact: result.impact }, 200);
+    if (result.impact) return c.json({ ok: false, error: result.error, impact: result.impact, impactItems: result.impactItems }, 200);
     if (result.newErrors.length) return c.json({ ok: false, error: result.error, problems: result.newErrors, changes: result.changes.map((x) => x.text) }, 422);
     if (!result.ok) return c.json({ ok: false, error: result.error }, 400);
     return c.json({
@@ -88,7 +88,7 @@ export function createApp(opts: AppOptions) {
     });
   };
   const apply = async (c: Context, ops: Op[], primary?: string) => {
-    if (opts.readOnly) return c.json({ ok: false, error: 'Somente leitura' }, 403);
+    if (opts.readOnly) return c.json({ ok: false, error: 'Read-only' }, 403);
     return reply(c, await store.apply(ops, 'ui', { expect: expectFrom(c, primary) }));
   };
   const body = async (c: Context) => (await c.req.json().catch(() => ({}))) as any;
@@ -134,7 +134,7 @@ export function createApp(opts: AppOptions) {
   app.post('/api/drawings/:id/ops', async (c) => {
     const drawing = c.req.param('id');
     const ops = ((await body(c)).ops ?? []).map((o: any) => ({ ...o, op: o.op.startsWith('drawing.') ? o.op : `drawing.${o.op}`, drawing }));
-    if (ops.some((o: any) => !String(o.op).startsWith('drawing.'))) return c.json({ ok: false, error: 'Só operações de desenho' }, 400);
+    if (ops.some((o: any) => !String(o.op).startsWith('drawing.'))) return c.json({ ok: false, error: 'Drawing operations only' }, 400);
     return apply(c, ops, drawingFile(drawing));
   });
   app.post('/api/drawings/:id/layout', async (c) => apply(c, [{ op: 'drawing.auto-layout', drawing: c.req.param('id'), ids: (await body(c)).ids }], drawingFile(c.req.param('id'))));
@@ -152,14 +152,14 @@ export function createApp(opts: AppOptions) {
   // Generic batch and history (used by the UI for multi-file edits and undo).
   app.post('/api/ops', async (c) => {
     const b = await body(c);
-    if (opts.readOnly) return c.json({ ok: false, error: 'Somente leitura' }, 403);
+    if (opts.readOnly) return c.json({ ok: false, error: 'Read-only' }, 403);
     return reply(c, await store.apply(b.ops ?? [], 'ui', { expect: b.expect ?? expectFrom(c), dryRun: b.dryRun }));
   });
   // Import a Structurizr workspace or an IcePanel model (format "auto" detects it). Same rules as any write.
   app.post('/api/import', async (c) => {
-    if (opts.readOnly) return c.json({ ok: false, error: 'Somente leitura' }, 403);
+    if (opts.readOnly) return c.json({ ok: false, error: 'Read-only' }, 403);
     const b = await body(c);
-    if (typeof b.content !== 'string' || !b.content.trim()) return c.json({ ok: false, error: 'Envie o conteúdo do arquivo em "content"' }, 400);
+    if (typeof b.content !== 'string' || !b.content.trim()) return c.json({ ok: false, error: 'Send the file content in "content"' }, 400);
     let plan: ReturnType<typeof planImport>;
     try {
       plan = planImport(b.content, b.format, store.project);
@@ -204,7 +204,7 @@ export function createApp(opts: AppOptions) {
   app.get('/api/render/file', async (c) => {
     const path = resolve(c.req.query('path') ?? '');
     const roots = [resolve(service.dir, 'rendered'), resolve(service.dir, '..', '.zark', 'cache')];
-    if (!roots.some((r) => path.startsWith(r + (process.platform === 'win32' ? '\\' : '/'))) || !path.endsWith('.png')) return c.text('Caminho não permitido', 403);
+    if (!roots.some((r) => path.startsWith(r + (process.platform === 'win32' ? '\\' : '/'))) || !path.endsWith('.png')) return c.text('Path not allowed', 403);
     const data = await readFile(path).catch(() => undefined);
     return data ? c.body(new Uint8Array(data), 200, { 'content-type': 'image/png', 'cache-control': 'no-store' }) : c.notFound();
   });
@@ -228,7 +228,7 @@ export function createApp(opts: AppOptions) {
     }
   });
   app.post('/api/pr', async (c) => {
-    if (opts.readOnly) return c.json({ ok: false, error: 'Somente leitura' }, 403);
+    if (opts.readOnly) return c.json({ ok: false, error: 'Read-only' }, 403);
     try {
       return c.json({ ok: true, ...(await service.createPr(await body(c))) });
     } catch (err) {
@@ -263,7 +263,7 @@ export function createApp(opts: AppOptions) {
 
   // UI (SPA). Static files need no token; the API does.
   app.get('*', async (c) => {
-    if (!opts.uiDir || !existsSync(opts.uiDir)) return c.text('UI não encontrada. Rode "pnpm --filter @zark/ui build".', 404);
+    if (!opts.uiDir || !existsSync(opts.uiDir)) return c.text('UI not found. Run "pnpm --filter @zark/ui build".', 404);
     const rel = normalize(decodeURIComponent(new URL(c.req.url).pathname)).replace(/^[\\/]+/, '');
     const file = join(opts.uiDir, rel);
     if (rel && file.startsWith(opts.uiDir) && existsSync(file) && extname(file)) {

@@ -1,7 +1,7 @@
 {
   "name": "zark",
   "version": "0.1.0",
-  "description": "Documentação de arquitetura as code: YAML no repo, UI, MCP e CLI sobre os mesmos arquivos",
+  "description": "Architecture as code: YAML in the repo, with a UI, MCP server and CLI over the same files",
   "type": "module",
   "bin": {
     "zark": "./dist/main.js"

@@ -148,7 +148,7 @@ export function stripUndefined<T>(value: T): T {
  */
 export function setKey(doc: Document, mapPath: (string | number)[], key: string | number, value: unknown, mapShape: Shape) {
   const map = mapPath.length ? doc.getIn(mapPath, true) : doc.contents;
-  if (!isMap(map)) throw new Error(`Esperava um mapa em ${mapPath.join('.') || '(raiz)'}`);
+  if (!isMap(map)) throw new Error(`Expected a map at ${mapPath.join('.') || '(root)'}`);
   if (value === undefined) {
     map.delete(key);
     return;
@@ -178,7 +178,7 @@ export function pushItem(doc: Document, seqPath: (string | number)[], value: unk
     setKey(doc, seqPath.slice(0, -1), seqPath[seqPath.length - 1], [], parentShape);
     seq = doc.getIn(seqPath, true);
   }
-  if (!isSeq(seq)) throw new Error(`Esperava uma lista em ${seqPath.join('.')}`);
+  if (!isSeq(seq)) throw new Error(`Expected a list at ${seqPath.join('.')}`);
   const node = doc.createNode(stripUndefined(value));
   shape(node, itemShape);
   if (index === undefined || index >= seq.items.length) seq.items.push(node);

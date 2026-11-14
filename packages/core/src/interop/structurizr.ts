@@ -87,7 +87,7 @@ export function fromStructurizr(ws: StructurizrWorkspace, ctx: ImportContext): I
   };
   for (const p of ws.model.people ?? []) visit(p, 'actor');
   for (const s of ws.model.softwareSystems ?? []) visit(s, 'system');
-  if (ws.model.deploymentNodes?.length) warn('deploy', 'Nós de implantação (deployment) não foram importados');
+  if (ws.model.deploymentNodes?.length) warn('deploy', 'Deployment nodes were not imported');
 
   const ops: Op[] = [];
   for (const { el, kind, parent } of elements) {
@@ -99,7 +99,7 @@ export function fromStructurizr(ws: StructurizrWorkspace, ctx: ImportContext): I
     try {
       links = p['zark:links'] ? JSON.parse(p['zark:links']) : el.url ? [{ label: 'Link', url: el.url }] : undefined;
     } catch {
-      warn(`links:${el.id}`, `Links inválidos em ${el.name}`);
+      warn(`links:${el.id}`, `Invalid links in ${el.name}`);
     }
     ops.push({
       op: 'entity.create',
@@ -128,7 +128,7 @@ export function fromStructurizr(ws: StructurizrWorkspace, ctx: ImportContext): I
     const from = ids.get(r.sourceId);
     const to = ids.get(r.destinationId);
     if (!from || !to || from === to) {
-      warn(`rel:${r.id}`, `Relacionamento "${r.description ?? r.id}" ignorado: ponta ausente ou laço`);
+      warn(`rel:${r.id}`, `Relationship "${r.description ?? r.id}" ignored: missing end or self-loop`);
       continue;
     }
     const p = r.properties ?? {};
@@ -167,7 +167,7 @@ export function fromStructurizr(ws: StructurizrWorkspace, ctx: ImportContext): I
     ...(ws.views?.componentViews ?? []).map((v) => ({ v, scope: (v.containerId && ids.get(v.containerId)) || null })),
   ];
   for (const k of ['dynamicViews', 'deploymentViews', 'filteredViews', 'imageViews', 'customViews']) {
-    if ((ws.views?.[k] as unknown[] | undefined)?.length) warn(k, `Views do tipo ${k} não foram importadas (os fluxos do Zark são feitos à parte)`);
+    if ((ws.views?.[k] as unknown[] | undefined)?.length) warn(k, `Views of type ${k} were not imported (Zark flows are built separately)`);
   }
   const drawingTaken = new Set(ctx.drawings);
   const g = ctx.grid;

@@ -9,3 +9,4 @@ export * from './flow-text.js';
 export * from './route.js';
 export * from './interop/index.js';
 export * from './migrate.js';
+export * from './messages.js';

@@ -48,7 +48,7 @@ export interface Ctx {
 type Command = (ctx: Ctx) => Promise<number | void>;
 
 async function requireProject(dir: string) {
-  if (!existsSync(join(dir, 'zark.yaml'))) throw new Error(`Nenhum projeto Zark em ${dir}. Rode "zark init" ou passe --dir`);
+  if (!existsSync(join(dir, 'zark.yaml'))) throw new Error(`No Zark project in ${dir}. Run "zark init" or pass --dir`);
   return loadProject(dir);
 }
 
@@ -60,7 +60,7 @@ function findUiDir(): string | undefined {
 
 function requireUi(): string {
   const ui = findUiDir();
-  if (!ui) throw new Error('UI não encontrada. Rode "pnpm --filter @zark/ui build" (ou "pnpm build") antes.');
+  if (!ui) throw new Error('UI not found. Run "pnpm --filter @zark/ui build" (or "pnpm build") first.');
   return ui;
 }
 
@@ -72,15 +72,15 @@ function openBrowser(url: string) {
 
 function changesText(changes: Change[], format?: string): string {
   if (format === 'markdown') {
-    const body = changes.length ? changes.map((c) => `- ${c.text}`).join('\n') : '- Sem mudanças no modelo';
-    return `## Alterações de arquitetura\n\n${body}\n`;
+    const body = changes.length ? changes.map((c) => `- ${c.text}`).join('\n') : '- No model changes';
+    return `## Architecture changes\n\n${body}\n`;
   }
-  return changes.length ? changes.map((c) => c.text).join('\n') + '\n' : 'Sem mudanças no modelo\n';
+  return changes.length ? changes.map((c) => c.text).join('\n') + '\n' : 'No model changes\n';
 }
 
 function mermaidFor(project: Project, flowId: string): string {
   const flow = project.flows.get(flowId)?.flow;
-  if (!flow) throw new Error(`Fluxo "${flowId}" não existe. Fluxos: ${[...project.flows.keys()].join(', ') || '(nenhum)'}`);
+  if (!flow) throw new Error(`Flow "${flowId}" does not exist. Flows: ${[...project.flows.keys()].join(', ') || '(none)'}`);
   return flowToMermaid(flow, {
     connection: (ref) => {
       const c = project.connections.get(ref);
@@ -100,7 +100,7 @@ async function appendLineOnce(file: string, line: string) {
 async function confirm(question: string): Promise<boolean> {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   try {
-    return /^(s|sim|y|yes)$/i.test((await rl.question(`${question} [s/N] `)).trim());
+    return /^(y|yes|s|sim)$/i.test((await rl.question(`${question} [y/N] `)).trim());
   } finally {
     rl.close();
   }
@@ -108,11 +108,11 @@ async function confirm(question: string): Promise<boolean> {
 
 export const commands: Record<string, Command> = {
   async init({ dir }) {
-    if (existsSync(join(dir, 'zark.yaml'))) throw new Error(`Já existe um projeto em ${dir}`);
+    if (existsSync(join(dir, 'zark.yaml'))) throw new Error(`A project already exists in ${dir}`);
     const files: [string, Parameters<typeof createDoc>[0], unknown][] = [
-      ['zark.yaml', 'config', { schema: 1, name: 'Arquitetura', defaultDrawing: 'contexto', grid: 8, render: { commit: 'pr', scale: 2, theme: 'light' }, git: { baseBranch: 'main', branchPrefix: 'zark/' } }],
+      ['zark.yaml', 'config', { schema: 1, name: 'Architecture', defaultDrawing: 'context', grid: 8, render: { commit: 'pr', scale: 2, theme: 'light' }, git: { baseBranch: 'main', branchPrefix: 'zark/' } }],
       ['catalog.yaml', 'catalog', { technologies: [], tags: [], teams: [] }],
-      ['drawings/contexto.yaml', 'drawing', { id: 'contexto', name: 'Contexto', scope: null, nodes: {}, edges: {} }],
+      ['drawings/context.yaml', 'drawing', { id: 'context', name: 'Context', scope: null, nodes: {}, edges: {} }],
     ];
     for (const [path, kind, data] of files) await writeAtomic(join(dir, path), toText(createDoc(kind, data)));
     await mkdir(join(dir, 'entities'), { recursive: true });
@@ -120,7 +120,7 @@ export const commands: Record<string, Command> = {
     await appendLineOnce(join(dirname(dir), '.gitignore'), '.zark/');
     // Keep YAML as LF on every OS, or core.autocrlf turns one-line diffs into whole-file ones.
     await appendLineOnce(join(dirname(dir), '.gitattributes'), `${basename(dir)}/**/*.yaml text eol=lf`);
-    console.log(`Projeto criado em ${dir}. Próximo passo: zark dev`);
+    console.log(`Project created in ${dir}. Next step: zark dev`);
   },
 
   async validate({ dir, format }) {
@@ -130,7 +130,7 @@ export const commands: Record<string, Command> = {
     if (format === 'json') console.log(JSON.stringify({ errors: errors.length, warnings: warningsOf(problems).length, problems }, null, 2));
     else {
       for (const p of problems) console.log(formatProblem(p));
-      console.log(`${errors.length} erro(s), ${problems.length - errors.length} aviso(s)`);
+      console.log(`${errors.length} error(s), ${problems.length - errors.length} warning(s)`);
     }
     return errors.length ? 1 : 0;
   },
@@ -145,50 +145,50 @@ export const commands: Record<string, Command> = {
       if (!check) await writeAtomic(join(dir, path), out);
     }
     if (check) {
-      for (const path of dirty) console.log(`fora do formato canônico: ${path}`);
-      if (dirty.length) console.log('Rode "zark fmt" para corrigir');
+      for (const path of dirty) console.log(`not in canonical format: ${path}`);
+      if (dirty.length) console.log('Run "zark fmt" to fix');
       return dirty.length ? 1 : 0;
     }
-    console.log(dirty.length ? `${dirty.length} arquivo(s) formatado(s)` : 'Nada a formatar');
+    console.log(dirty.length ? `${dirty.length} file(s) formatted` : 'Nothing to format');
   },
 
   async migrate({ dir, check }) {
-    if (!existsSync(join(dir, 'zark.yaml'))) throw new Error(`Nenhum projeto Zark em ${dir}`);
+    if (!existsSync(join(dir, 'zark.yaml'))) throw new Error(`No Zark project in ${dir}`);
     const result = migrate(await readTexts(dir));
     if (!result.steps.length) {
-      console.log(`Formato já na versão ${result.from}. Nada a migrar`);
+      console.log(`Format already at version ${result.from}. Nothing to migrate`);
       return 0;
     }
     for (const step of result.steps) console.log(`schema ${step}`);
     if (check) {
-      console.log(`${result.files.size} arquivo(s) seriam alterados. Rode "zark migrate" para aplicar`);
+      console.log(`${result.files.size} file(s) would change. Run "zark migrate" to apply`);
       return 1;
     }
     for (const [path, text] of result.files) {
       if (text === null) await rm(join(dir, path), { force: true });
       else await writeAtomic(join(dir, path), text);
     }
-    console.log(`Migrado do schema ${result.from} para ${result.to} (${result.files.size} arquivo(s))`);
+    console.log(`Migrated from schema ${result.from} to ${result.to} (${result.files.size} file(s))`);
   },
 
   async schema({ out }) {
-    if (!out) throw new Error('Use --out <pasta>');
+    if (!out) throw new Error('Use --out <folder>');
     await mkdir(out, { recursive: true });
     for (const [name, schema] of Object.entries(jsonSchemas())) await writeFile(join(out, `${name}.json`), JSON.stringify(schema, null, 2) + '\n');
-    console.log(`Schemas gravados em ${out}`);
+    console.log(`Schemas written to ${out}`);
   },
 
   async dev({ dir, port, host, 'no-open': noOpen }) {
     await requireProject(dir);
     const uiDir = findUiDir();
-    if (!uiDir) console.warn('Aviso: UI não encontrada. Rode "pnpm --filter @zark/ui build". A API e o MCP funcionam mesmo assim.');
-    if (host && host !== '127.0.0.1' && host !== 'localhost') console.warn(`Aviso: escutando em ${host}. O servidor grava arquivos e abre PRs; exponha só em rede confiável.`);
+    if (!uiDir) console.warn('Warning: UI not found. Run "pnpm --filter @zark/ui build". The API and MCP still work.');
+    if (host && host !== '127.0.0.1' && host !== 'localhost') console.warn(`Warning: listening on ${host}. The server writes files and opens PRs; expose it only on a trusted network.`);
     const { mcpHttpHandler } = await import('@zark/mcp');
     const running = await startServer({ dir, port: port ? Number(port) : 4317, host, uiDir, watch: true, advertise: true, mcp: mcpHttpHandler });
     const url = `${running.url}/?token=${running.token}`;
-    console.log(`Zark rodando em ${url}`);
-    console.log(`MCP por HTTP: ${running.url}/mcp (header "Authorization: Bearer ${running.token}")`);
-    console.log('Ctrl+C para parar.');
+    console.log(`Zark running at ${url}`);
+    console.log(`MCP over HTTP: ${running.url}/mcp (header "Authorization: Bearer ${running.token}")`);
+    console.log('Ctrl+C to stop.');
     if (!noOpen) openBrowser(url);
     await new Promise<void>((done) => {
       const stop = () => {
@@ -213,15 +213,15 @@ export const commands: Record<string, Command> = {
       // Only PNGs already in rendered/ count; no browser needed, hashes say it all.
       const stale = (await renderedProblems(project)).filter((p) => !args.length || (p.ref && args.includes(p.ref.replace(/^rendered:/, ''))));
       for (const p of stale) console.log(`${p.file}: ${p.message}`);
-      console.log(stale.length ? `${stale.length} PNG(s) desatualizado(s). Rode "zark render --write"` : 'PNGs em rendered/ atualizados');
+      console.log(stale.length ? `${stale.length} PNG(s) out of date. Run "zark render --write"` : 'PNGs in rendered/ are up to date');
       return stale.length ? 1 : 0;
     }
-    for (const id of args) if (!project.drawings.has(id)) throw new Error(`Desenho "${id}" não existe. Desenhos: ${[...project.drawings.keys()].join(', ')}`);
+    for (const id of args) if (!project.drawings.has(id)) throw new Error(`Drawing "${id}" does not exist. Drawings: ${[...project.drawings.keys()].join(', ')}`);
     const running = await startServer({ dir, port: 0, uiDir: requireUi() });
     try {
       const results = await running.service.renderAll(true, args);
-      for (const r of results) console.log(`${r.skipped ? 'inalterado' : 'gerado    '} ${r.path}`);
-      console.log(`${results.filter((r) => !r.skipped).length} gerado(s), ${results.filter((r) => r.skipped).length} já atualizado(s)`);
+      for (const r of results) console.log(`${r.skipped ? 'unchanged' : 'rendered '} ${r.path}`);
+      console.log(`${results.filter((r) => !r.skipped).length} rendered, ${results.filter((r) => r.skipped).length} already up to date`);
     } finally {
       await running.stop();
     }
@@ -238,31 +238,31 @@ export const commands: Record<string, Command> = {
     const project = await requireProject(dir);
     const problems = validate(project, await renderedProblems(project));
     const preview = await prPreview(dir, project, problems, { title });
-    console.log(`Título: ${preview.title}`);
+    console.log(`Title: ${preview.title}`);
     console.log(`Branch: ${preview.branch} -> ${preview.base}`);
-    if (preview.existingPr) console.log(`PR existente: ${preview.existingPr.url} (a descrição será atualizada)`);
-    console.log(`Arquivos: ${preview.files.join(', ') || '(nenhum)'}`);
-    if (preview.images.length) console.log(`Imagens: ${preview.images.map((i) => i.path).join(', ')}`);
+    if (preview.existingPr) console.log(`Existing ${preview.provider.noun}: ${preview.existingPr.url} (the description will be updated)`);
+    console.log(`Files: ${preview.files.join(', ') || '(none)'}`);
+    if (preview.images.length) console.log(`Images: ${preview.images.map((i) => i.path).join(', ')}`);
     console.log(`\n${preview.body}`);
     if (!preview.ok) {
-      for (const b of preview.blockers) console.error(`Bloqueado: ${b}`);
+      for (const b of preview.blockers) console.error(`Blocked: ${b}`);
       return 1;
     }
-    if (!yes && !(await confirm('Criar o PR?'))) {
-      console.log('Cancelado. Nada foi alterado.');
+    if (!yes && !(await confirm(`Create the ${preview.provider.noun}?`))) {
+      console.log('Cancelled. Nothing was changed.');
       return 1;
     }
     const running = await startServer({ dir, port: 0, uiDir: findUiDir() });
     try {
       const result = await running.service.createPr({ title });
-      console.log(`${result.updated ? 'PR atualizado' : 'PR criado'}: ${result.url}`);
+      console.log(`${preview.provider.noun} ${result.updated ? 'updated' : 'created'}: ${result.url}`);
     } finally {
       await running.stop();
     }
   },
 
   async build({ dir, out }) {
-    if (!out) throw new Error('Use --out <pasta>');
+    if (!out) throw new Error('Use --out <folder>');
     const ui = requireUi();
     const store = await new ProjectStore(dir).load();
     const target = resolve(out);
@@ -270,7 +270,7 @@ export const commands: Record<string, Command> = {
     // Read-only contract with the UI: no session token -> it loads ./model.json next to index.html.
     // root is a local absolute path; it has no meaning on a published site.
     await writeFile(join(target, 'model.json'), JSON.stringify({ ...store.snapshot(), root: '', readOnly: true }) + '\n');
-    console.log(`Site estático gravado em ${target}`);
+    console.log(`Static site written to ${target}`);
   },
 
   async export({ dir, args, out }) {
@@ -278,7 +278,7 @@ export const commands: Record<string, Command> = {
     const emit = async (text: string) => {
       if (out) {
         await writeAtomic(resolve(out), text);
-        console.error(`Exportado em ${resolve(out)}`);
+        console.error(`Exported to ${resolve(out)}`);
       } else process.stdout.write(text);
     };
     if (format === 'json') {
@@ -288,30 +288,30 @@ export const commands: Record<string, Command> = {
     if (format === 'mermaid') {
       const project = await requireProject(dir);
       const ids = id ? [id] : [...project.flows.keys()];
-      if (!ids.length) throw new Error('Nenhum fluxo para exportar');
+      if (!ids.length) throw new Error('No flow to export');
       return emit(ids.map((f) => `%% ${f}\n${mermaidFor(project, f)}`).join('\n'));
     }
     if (format === 'structurizr') return emit(JSON.stringify(toStructurizr(await requireProject(dir)), null, 2) + '\n');
     if (format === 'icepanel-yaml' || format === 'icepanel') return emit(toIcePanelYaml(await requireProject(dir)));
-    throw new Error('Formatos: mermaid, json, structurizr, icepanel-yaml');
+    throw new Error('Formats: mermaid, json, structurizr, icepanel-yaml');
   },
 
   async import({ dir, args, yes }) {
     const [format, file] = args.length === 1 ? ['auto', args[0]] : args;
-    if (!file) throw new Error('Uso: zark import <icepanel-json|icepanel-yaml|structurizr|auto> <arquivo>');
+    if (!file) throw new Error('Usage: zark import <icepanel-json|icepanel-yaml|structurizr|auto> <file>');
     const project = await requireProject(dir);
     const plan = planImport(await readFile(resolve(file), 'utf8'), format, project);
     const result = await applyOps(project, plan.ops);
-    for (const w of plan.warnings) console.log(`aviso: ${w}`);
+    for (const w of plan.warnings) console.log(`warning: ${w}`);
     if (!result.ok) {
       for (const p of result.newErrors) console.log(formatProblem(p));
-      throw new Error(`Importação recusada: ${result.error}`);
+      throw new Error(`Import refused: ${result.error}`);
     }
     for (const c of result.changes) console.log(c.text);
-    console.log(`${result.files.size} arquivo(s) a gravar a partir de ${plan.format}`);
-    if (!yes && !(await confirm('Gravar os arquivos?'))) return 1;
+    console.log(`${result.files.size} file(s) to write from ${plan.format}`);
+    if (!yes && !(await confirm('Write the files?'))) return 1;
     await writeResult(dir, result.files);
-    console.log('Importado. Rode "zark validate" para ver os avisos.');
+    console.log('Imported. Run "zark validate" to see the warnings.');
   },
 };
 

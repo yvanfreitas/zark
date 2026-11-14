@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { crc32 } from 'node:zlib';
-import { allSteps, ancestors, type Problem, type Project } from '@zark/core';
+import { allSteps, ancestors, PROBLEM_EN, type Problem, type Project } from '@zark/core';
 
 /** Bump when the canvas look changes, so committed PNGs are re-rendered. */
 export const RENDERER_VERSION = '4';
@@ -98,9 +98,9 @@ export async function renderedProblems(project: Project): Promise<Problem[]> {
     const target = parseTarget(project, name);
     const stored = readHash(await readFile(join(dir, name)));
     if (!target) {
-      out.push({ code: 'W030', severity: 'warning', file: `rendered/${name}`, message: `${name} não corresponde a nenhum desenho ou fluxo` });
+      out.push({ code: 'W030', severity: 'warning', file: `rendered/${name}`, message: PROBLEM_EN['W030.orphan']({ file: name }), key: 'W030.orphan', params: { file: name } });
     } else if (stored !== renderHash(project, target)) {
-      out.push({ code: 'W030', severity: 'warning', file: `rendered/${name}`, message: `${name} desatualizado. Rode "zark render"`, ref: `rendered:${target.drawing ?? target.flow}` });
+      out.push({ code: 'W030', severity: 'warning', file: `rendered/${name}`, message: PROBLEM_EN.W030({ file: name }), key: 'W030', params: { file: name }, ref: `rendered:${target.drawing ?? target.flow}` });
     }
   }
   return out;

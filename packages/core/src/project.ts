@@ -13,6 +13,7 @@ import {
   type FlowItem,
   type Step,
 } from './schema.js';
+import { PROBLEM_EN, type Params } from './messages.js';
 
 export type FileKind = 'config' | 'catalog' | 'entity' | 'drawing' | 'flow';
 
@@ -28,7 +29,7 @@ export interface SourceFile {
   lc: LineCounter;
   /** Parsed and schema-valid data; undefined when the file is invalid (E001). */
   data?: any;
-  error?: { message: string; line?: number };
+  error?: { message: string; line?: number; key?: string; params?: Params };
 }
 
 export interface ResolvedConnection {
@@ -85,7 +86,7 @@ export async function readTexts(dir: string): Promise<Map<string, string>> {
 
 export function parseFile(path: string, text: string): SourceFile {
   const kind = fileKind(path);
-  if (!kind) throw new Error(`Arquivo fora da estrutura do Zark: ${path}`);
+  if (!kind) throw new Error(`File outside the Zark structure: ${path}`);
   const lc = new LineCounter();
   const doc = parseDocument(text, { lineCounter: lc, keepSourceTokens: false, uniqueKeys: true });
   const nameId = path.split('/').pop()!.replace(/\.yaml$/, '');
@@ -96,13 +97,15 @@ export function parseFile(path: string, text: string): SourceFile {
     return file;
   }
   if (hasAlias(doc)) {
-    file.error = { message: 'anchors e aliases não são permitidos' };
+    file.error = { message: PROBLEM_EN['E001.alias']({}), key: 'E001.alias', params: {} };
     return file;
   }
   const raw = doc.toJS() ?? {};
   if (kind === 'config' && typeof raw.schema === 'number' && raw.schema !== 1) {
     file.error = {
-      message: raw.schema > 1 ? `schema ${raw.schema} é mais novo que este Zark (suporta 1). Atualize o Zark` : `schema ${raw.schema} é antigo. Rode "zark migrate"`,
+      key: raw.schema > 1 ? 'E001.schemaNewer' : 'E001.schemaOlder',
+      params: { schema: raw.schema, supported: 1 },
+      message: PROBLEM_EN[raw.schema > 1 ? 'E001.schemaNewer' : 'E001.schemaOlder']({ schema: raw.schema, supported: 1 }),
       line: lineOf(file, ['schema']),
     };
     return file;
@@ -144,7 +147,7 @@ export function buildProject(dir: string, texts: Map<string, string>): Project {
   const files = new Map<string, SourceFile>();
   for (const [path, text] of texts) if (fileKind(path)) files.set(path, parseFile(path, text));
 
-  const cfg: Config = files.get('zark.yaml')?.data ?? { schema: 1, name: 'Arquitetura' };
+  const cfg: Config = files.get('zark.yaml')?.data ?? { schema: 1, name: 'Architecture' };
   const project: Project = {
     dir,
     files,

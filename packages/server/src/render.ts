@@ -33,7 +33,7 @@ export class Renderer {
       return await chromium.launch();
     } catch (err) {
       if (!/Executable doesn't exist|executable.*not found|install/i.test(String(err))) throw err;
-      process.stderr.write('Baixando o Chromium do Playwright (só na primeira vez)...\n');
+      process.stderr.write('Downloading Playwright Chromium (first time only)...\n');
       const cli = join(require.resolve('playwright-core/package.json'), '..', 'cli.js');
       await exec(process.execPath, [cli, 'install', 'chromium'], { windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
       return chromium.launch();

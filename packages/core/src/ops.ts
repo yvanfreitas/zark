@@ -6,6 +6,12 @@ import { errorsOf, nodeSize, validate, type Problem } from './validate.js';
 import { createDoc, pushItem, removeFile, setKey, toText, writeAtomic } from './writer.js';
 import { autoLayout } from './layout.js';
 import { diffProjects, type Change } from './diff.js';
+import { IMPACT_EN, type Params } from './messages.js';
+
+export interface ImpactItem {
+  key: string;
+  params: Params;
+}
 
 type Fields = Record<string, unknown>;
 type CatalogList = 'technologies' | 'tags' | 'teams';
@@ -55,8 +61,10 @@ export interface ApplyResult {
   /** Errors present after the change but not before. */
   newErrors: Problem[];
   changes: Change[];
-  /** Cascade impact; set when a delete needs `cascade: true`. */
+  /** Cascade impact (English lines); set when a delete needs `cascade: true`. */
   impact?: string[];
+  /** Same impact as message keys + params, for localized UIs. */
+  impactItems?: ImpactItem[];
   conflict?: { file: string; expected: string; actual: string };
   error?: string;
 }
@@ -74,7 +82,7 @@ class Tx {
   texts: Map<string, string>;
   project: Project;
   private docs = new Map<string, Document>();
-  impact: string[] = [];
+  impact: ImpactItem[] = [];
 
   constructor(base: Project) {
     this.project = base;
@@ -89,7 +97,7 @@ class Tx {
     let doc = this.docs.get(path);
     if (!doc) {
       const text = this.texts.get(path);
-      if (text === undefined) throw new OpError(`Arquivo não encontrado: ${path}`);
+      if (text === undefined) throw new OpError(`File not found: ${path}`);
       doc = parseFile(path, text).doc;
       this.docs.set(path, doc);
     }
@@ -97,7 +105,7 @@ class Tx {
   }
 
   create(path: string, kind: FileKind, data: unknown) {
-    if (this.texts.has(path)) throw new OpError(`Já existe: ${path}`);
+    if (this.texts.has(path)) throw new OpError(`Already exists: ${path}`);
     this.docs.set(path, createDoc(kind, data));
     this.texts.set(path, '');
   }
@@ -119,37 +127,37 @@ class Tx {
 
 function entityFile(tx: Tx, id: string) {
   const e = tx.project.entities.get(id);
-  if (!e) throw new OpError(`Entidade "${id}" não existe${valid(tx.project.entities.keys())}`);
+  if (!e) throw new OpError(`Entity "${id}" does not exist${valid(tx.project.entities.keys())}`);
   return e;
 }
 function drawingFile(tx: Tx, id: string) {
   const d = tx.project.drawings.get(id);
-  if (!d) throw new OpError(`Desenho "${id}" não existe${valid(tx.project.drawings.keys())}`);
+  if (!d) throw new OpError(`Drawing "${id}" does not exist${valid(tx.project.drawings.keys())}`);
   return d;
 }
 function flowFile(tx: Tx, id: string) {
   const f = tx.project.flows.get(id);
-  if (!f) throw new OpError(`Fluxo "${id}" não existe${valid(tx.project.flows.keys())}`);
+  if (!f) throw new OpError(`Flow "${id}" does not exist${valid(tx.project.flows.keys())}`);
   return f;
 }
 function connection(tx: Tx, ref: string) {
   const c = tx.project.connections.get(ref);
-  if (!c) throw new OpError(`Conexão "${ref}" não existe${valid(tx.project.connections.keys())}`);
+  if (!c) throw new OpError(`Connection "${ref}" does not exist${valid(tx.project.connections.keys())}`);
   const index = tx.project.entities.get(c.from)!.entity.connections!.findIndex((x) => x.id === c.conn.id);
   return { ...c, index };
 }
 function valid(keys: Iterable<string>) {
   const all = [...keys];
-  return all.length ? `. Válidos: ${all.slice(0, 20).join(', ')}${all.length > 20 ? ', ...' : ''}` : '';
+  return all.length ? `. Valid: ${all.slice(0, 20).join(', ')}${all.length > 20 ? ', ...' : ''}` : '';
 }
 
 function applyFields(doc: Document, path: (string | number)[], shapeName: Parameters<typeof setKey>[4], allowed: string[], set: Fields = {}, unset: string[] = []) {
   for (const [key, value] of Object.entries(set)) {
-    if (!allowed.includes(key)) throw new OpError(`Campo "${key}" não pode ser alterado aqui. Campos: ${allowed.join(', ')}`);
+    if (!allowed.includes(key)) throw new OpError(`Field "${key}" cannot be changed here. Fields: ${allowed.join(', ')}`);
     setKey(doc, path, key, value, shapeName);
   }
   for (const key of unset) {
-    if (!allowed.includes(key)) throw new OpError(`Campo "${key}" não pode ser removido aqui`);
+    if (!allowed.includes(key)) throw new OpError(`Field "${key}" cannot be removed here`);
     setKey(doc, path, key, undefined, shapeName);
   }
 }
@@ -243,7 +251,7 @@ async function run(tx: Tx, op: Op): Promise<void> {
   switch (op.op) {
     case 'entity.create': {
       const e = op.entity;
-      if (p.entities.has(e.id)) throw new OpError(`Entidade "${e.id}" já existe`);
+      if (p.entities.has(e.id)) throw new OpError(`Entity "${e.id}" already exists`);
       tx.create(`entities/${e.id}.yaml`, 'entity', { ...e, parent: e.parent ?? undefined });
       return;
     }
@@ -261,7 +269,7 @@ async function run(tx: Tx, op: Op): Promise<void> {
       return deleteEntity(tx, op.id, !!op.cascade);
     case 'connection.create': {
       const { file, entity } = entityFile(tx, op.from);
-      if (entity.connections?.some((c) => c.id === op.connection.id)) throw new OpError(`Conexão "${op.from}.${op.connection.id}" já existe`);
+      if (entity.connections?.some((c) => c.id === op.connection.id)) throw new OpError(`Connection "${op.from}.${op.connection.id}" already exists`);
       pushItem(tx.doc(file), ['connections'], op.connection, 'connection', 'entity');
       return;
     }
@@ -277,7 +285,7 @@ async function run(tx: Tx, op: Op): Promise<void> {
     case 'rename-id':
       return renameId(tx, op.kind, op.from, op.to);
     case 'drawing.create': {
-      if (p.drawings.has(op.drawing.id)) throw new OpError(`Desenho "${op.drawing.id}" já existe`);
+      if (p.drawings.has(op.drawing.id)) throw new OpError(`Drawing "${op.drawing.id}" already exists`);
       tx.create(`drawings/${op.drawing.id}.yaml`, 'drawing', { scope: null, ...op.drawing, nodes: {}, edges: {} });
       return;
     }
@@ -289,7 +297,7 @@ async function run(tx: Tx, op: Op): Promise<void> {
     case 'drawing.delete': {
       const { file } = drawingFile(tx, op.id);
       const users = [...p.flows.values()].filter((f) => f.flow.drawing === op.id).map((f) => f.flow.id);
-      if (users.length) throw new OpError(`Desenho "${op.id}" é usado pelos fluxos ${users.join(', ')}. Aponte-os para outro desenho antes de excluir`);
+      if (users.length) throw new OpError(`Drawing "${op.id}" is used by flows ${users.join(', ')}. Point them to another drawing before deleting`);
       tx.remove(file);
       return;
     }
@@ -309,7 +317,7 @@ async function run(tx: Tx, op: Op): Promise<void> {
       const { file, drawing } = drawingFile(tx, op.drawing);
       const doc = tx.doc(file);
       for (const n of op.nodes) {
-        if (!drawing.nodes?.[n.id]) throw new OpError(`"${n.id}" não está no desenho ${op.drawing}`);
+        if (!drawing.nodes?.[n.id]) throw new OpError(`"${n.id}" is not in drawing ${op.drawing}`);
         for (const key of ['x', 'y', 'w', 'h'] as const) if (n[key] !== undefined) setKey(doc, ['nodes', n.id], key, Math.round(n[key]!), 'node');
       }
       return;
@@ -339,7 +347,7 @@ async function run(tx: Tx, op: Op): Promise<void> {
     }
     case 'drawing.update-edge': {
       const { file, drawing } = drawingFile(tx, op.drawing);
-      if (!drawing.edges?.[op.ref]) throw new OpError(`"${op.ref}" não está traçada no desenho ${op.drawing}`);
+      if (!drawing.edges?.[op.ref]) throw new OpError(`"${op.ref}" is not drawn in drawing ${op.drawing}`);
       applyFields(tx.doc(file), ['edges', op.ref], 'edge', EDGE_FIELDS, op.set, op.unset);
       const edge = tx.doc(file).getIn(['edges', op.ref], true);
       if (isMap(edge)) edge.flow = !edge.has('points');
@@ -380,12 +388,12 @@ async function run(tx: Tx, op: Op): Promise<void> {
       const key = op.op === 'drawing.remove-group' ? 'groups' : 'notes';
       const seq = doc.getIn([key], true);
       const index = isSeq(seq) ? seq.items.findIndex((i) => isMap(i) && i.get('id') === op.id) : -1;
-      if (index < 0) throw new OpError(`${key === 'groups' ? 'Grupo' : 'Nota'} "${op.id}" não existe no desenho ${op.drawing}`);
+      if (index < 0) throw new OpError(`${key === 'groups' ? 'Group' : 'Note'} "${op.id}" does not exist in drawing ${op.drawing}`);
       (seq as any).items.splice(index, 1);
       return;
     }
     case 'flow.create': {
-      if (p.flows.has(op.flow.id)) throw new OpError(`Fluxo "${op.flow.id}" já existe`);
+      if (p.flows.has(op.flow.id)) throw new OpError(`Flow "${op.flow.id}" already exists`);
       tx.create(`flows/${op.flow.id}.yaml`, 'flow', { ...op.flow, steps: op.flow.steps ?? [] });
       return;
     }
@@ -397,7 +405,7 @@ async function run(tx: Tx, op: Op): Promise<void> {
     case 'flow.delete': {
       const { file } = flowFile(tx, op.id);
       const users = [...p.flows.values()].filter((f) => JSON.stringify(f.flow.steps ?? []).includes(`"subflow":"${op.id}"`)).map((f) => f.flow.id);
-      if (users.length) throw new OpError(`Fluxo "${op.id}" é subfluxo de ${users.join(', ')}`);
+      if (users.length) throw new OpError(`Flow "${op.id}" is a subflow of ${users.join(', ')}`);
       tx.remove(file);
       return;
     }
@@ -411,7 +419,7 @@ async function run(tx: Tx, op: Op): Promise<void> {
       const { file } = flowFile(tx, op.flow);
       const doc = tx.doc(file);
       const at = findStep(doc, op.step);
-      if (!at) throw new OpError(`Passo "${op.step}" não existe no fluxo ${op.flow}`);
+      if (!at) throw new OpError(`Step "${op.step}" does not exist in flow ${op.flow}`);
       applyFields(doc, [...at.seq, at.index], 'step', STEP_FIELDS, op.set, op.unset);
       return;
     }
@@ -419,7 +427,7 @@ async function run(tx: Tx, op: Op): Promise<void> {
       const { file } = flowFile(tx, op.flow);
       const doc = tx.doc(file);
       const at = findStep(doc, op.step);
-      if (!at) throw new OpError(`Passo "${op.step}" não existe no fluxo ${op.flow}`);
+      if (!at) throw new OpError(`Step "${op.step}" does not exist in flow ${op.flow}`);
       const seq = doc.getIn(at.seq, true) as any;
       const [item] = seq.items.splice(at.index, 1);
       seq.items.splice(Math.max(0, Math.min(op.index, seq.items.length)), 0, item);
@@ -430,7 +438,7 @@ async function run(tx: Tx, op: Op): Promise<void> {
       const doc = tx.doc(file);
       for (const id of op.steps) {
         const at = findStep(doc, id);
-        if (!at) throw new OpError(`Passo "${id}" não existe no fluxo ${op.flow}`);
+        if (!at) throw new OpError(`Step "${id}" does not exist in flow ${op.flow}`);
         (doc.getIn(at.seq, true) as any).items.splice(at.index, 1);
       }
       return;
@@ -448,12 +456,12 @@ async function run(tx: Tx, op: Op): Promise<void> {
       const doc = tx.doc('catalog.yaml');
       const seq = doc.getIn([op.list], true);
       const index = isSeq(seq) ? seq.items.findIndex((i) => isMap(i) && i.get('id') === op.id) : -1;
-      if (index < 0) throw new OpError(`"${op.id}" não existe em ${op.list}`);
+      if (index < 0) throw new OpError(`"${op.id}" does not exist in ${op.list}`);
       (seq as any).items.splice(index, 1);
       return;
     }
     default:
-      throw new OpError(`Operação desconhecida: ${(op as { op: string }).op}`);
+      throw new OpError(`Unknown operation: ${(op as { op: string }).op}`);
   }
 }
 
@@ -478,17 +486,17 @@ function deleteEntity(tx: Tx, id: string, cascade: boolean) {
   collect(id);
   const children = doomed.slice(1);
   if (children.length && !cascade) {
-    tx.impact.push(`Filhos impedem a exclusão: ${children.join(', ')}`);
+    tx.impact.push({ key: 'children', params: { ids: children } });
   }
   const doomedRefs = [...p.connections.values()].filter((c) => doomed.includes(c.from) || doomed.includes(c.conn.to)).map((c) => c.ref);
   const incoming = doomedRefs.filter((r) => !doomed.includes(p.connections.get(r)!.from));
-  if (incoming.length) tx.impact.push(`Conexões removidas: ${incoming.join(', ')}`);
+  if (incoming.length) tx.impact.push({ key: 'incoming', params: { refs: incoming } });
   for (const [did, { drawing, file }] of p.drawings) {
     const nodes = doomed.filter((e) => drawing.nodes?.[e]);
     const edges = doomedRefs.filter((r) => drawing.edges?.[r]);
-    if (nodes.length) tx.impact.push(`Desenho ${did}: remove ${nodes.join(', ')}`);
-    if (edges.length) tx.impact.push(`Desenho ${did}: remove traçados ${edges.join(', ')}`);
-    if (drawing.scope && doomed.includes(drawing.scope)) tx.impact.push(`Desenho ${did}: perde o scope ${drawing.scope}`);
+    if (nodes.length) tx.impact.push({ key: 'nodes', params: { drawing: did, ids: nodes } });
+    if (edges.length) tx.impact.push({ key: 'edges', params: { drawing: did, refs: edges } });
+    if (drawing.scope && doomed.includes(drawing.scope)) tx.impact.push({ key: 'scope', params: { drawing: did, scope: drawing.scope } });
     if (cascade) {
       const doc = tx.doc(file);
       deleteMapKeys(doc, ['nodes'], nodes);
@@ -500,13 +508,13 @@ function deleteEntity(tx: Tx, id: string, cascade: boolean) {
   for (const [fid, { flow, file }] of p.flows) {
     const uses = JSON.stringify(flow.steps ?? []);
     const hit = doomedRefs.filter((r) => uses.includes(`"via":"${r}"`));
-    if (hit.length) tx.impact.push(`Fluxo ${fid}: remove passos sobre ${hit.join(', ')}`);
+    if (hit.length) tx.impact.push({ key: 'steps', params: { flow: fid, refs: hit } });
     if (cascade && hit.length) removeStepsWhere(tx.doc(file), (via) => hit.includes(via));
   }
   for (const [eid, { entity, file }] of p.entities) {
     if (doomed.includes(eid)) continue;
     const vias = (entity.connections ?? []).map((c, i) => ({ c, i })).filter(({ c }) => c.via && doomed.includes(c.via));
-    if (vias.length) tx.impact.push(`${eid}: remove via de ${vias.map(({ c }) => c.id).join(', ')}`);
+    if (vias.length) tx.impact.push({ key: 'via', params: { entity: eid, ids: vias.map(({ c }) => c.id) } });
     if (!cascade) continue;
     const doc = tx.doc(file);
     for (const { i } of vias) setKey(doc, ['connections', i], 'via', undefined, 'connection');
@@ -528,12 +536,12 @@ function deleteConnection(tx: Tx, ref: string, cascade: boolean) {
   const c = connection(tx, ref);
   for (const [did, { drawing, file }] of p.drawings) {
     if (!drawing.edges?.[ref]) continue;
-    tx.impact.push(`Desenho ${did}: remove o traçado`);
+    tx.impact.push({ key: 'edge', params: { drawing: did } });
     if (cascade) deleteMapKeys(tx.doc(file), ['edges'], [ref]);
   }
   for (const [fid, { flow, file }] of p.flows) {
     if (!JSON.stringify(flow.steps ?? []).includes(`"via":"${ref}"`)) continue;
-    tx.impact.push(`Fluxo ${fid}: remove os passos sobre ${ref}`);
+    tx.impact.push({ key: 'stepsOn', params: { flow: fid, ref } });
     if (cascade) removeStepsWhere(tx.doc(file), (via) => via === ref);
   }
   if (tx.impact.length && !cascade) return;
@@ -587,10 +595,10 @@ function flipReverse(doc: Document, ref: string, path: (string | number)[] = ['s
 
 function renameId(tx: Tx, kind: 'entity' | 'connection' | 'drawing' | 'flow', from: string, to: string) {
   const p = tx.project;
-  if (!/^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/.test(to)) throw new OpError(`"${to}" não é um slug válido (a-z, 0-9, hífen)`);
+  if (!/^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/.test(to)) throw new OpError(`"${to}" is not a valid slug (a-z, 0-9, hyphen)`);
   if (kind === 'entity') {
     const { file } = entityFile(tx, from);
-    if (p.entities.has(to)) throw new OpError(`Entidade "${to}" já existe`);
+    if (p.entities.has(to)) throw new OpError(`Entity "${to}" already exists`);
     const doc = tx.doc(file);
     setKey(doc, [], 'id', to, 'entity');
     const text = toText(doc);
@@ -626,7 +634,7 @@ function renameId(tx: Tx, kind: 'entity' | 'connection' | 'drawing' | 'flow', fr
   if (kind === 'connection') {
     const c = connection(tx, from);
     const newRef = `${c.from}.${to}`;
-    if (p.connections.has(newRef)) throw new OpError(`Conexão "${newRef}" já existe`);
+    if (p.connections.has(newRef)) throw new OpError(`Connection "${newRef}" already exists`);
     setKey(tx.doc(c.file), ['connections', c.index], 'id', to, 'connection');
     for (const { drawing, file } of p.drawings.values()) if (drawing.edges?.[from]) renameMapKey(tx.doc(file), ['edges'], from, newRef);
     for (const { file } of p.flows.values()) mapStepVia(tx.doc(file), (via) => (via === from ? newRef : undefined));
@@ -634,7 +642,7 @@ function renameId(tx: Tx, kind: 'entity' | 'connection' | 'drawing' | 'flow', fr
   }
   if (kind === 'drawing') {
     const { file } = drawingFile(tx, from);
-    if (p.drawings.has(to)) throw new OpError(`Desenho "${to}" já existe`);
+    if (p.drawings.has(to)) throw new OpError(`Drawing "${to}" already exists`);
     const doc = tx.doc(file);
     setKey(doc, [], 'id', to, 'drawing');
     const text = toText(doc);
@@ -645,7 +653,7 @@ function renameId(tx: Tx, kind: 'entity' | 'connection' | 'drawing' | 'flow', fr
     return;
   }
   const { file } = flowFile(tx, from);
-  if (p.flows.has(to)) throw new OpError(`Fluxo "${to}" já existe`);
+  if (p.flows.has(to)) throw new OpError(`Flow "${to}" already exists`);
   const doc = tx.doc(file);
   setKey(doc, [], 'id', to, 'flow');
   const text = toText(doc);
@@ -704,14 +712,17 @@ export async function applyOps(base: Project, ops: Op[], options: ApplyOptions =
 
   for (const [file, expected] of Object.entries(options.expect ?? {})) {
     const actual = base.files.get(file)?.hash ?? '';
-    if (actual !== expected) return fail({ conflict: { file, expected, actual }, error: `Conflito: ${file} mudou no disco. Recarregue e tente de novo` });
+    if (actual !== expected) return fail({ conflict: { file, expected, actual }, error: `Conflict: ${file} changed on disk. Reload and try again` });
   }
 
   const tx = new Tx(base);
   try {
     for (const op of ops) {
       await run(tx, op);
-      if (tx.impact.length) return fail({ impact: tx.impact, error: 'A exclusão afeta outros itens. Repita com cascade: true para confirmar' });
+      if (tx.impact.length) {
+        const impactItems = tx.impact;
+        return fail({ impact: impactItems.map((i) => IMPACT_EN[i.key](i.params)), impactItems, error: 'The deletion affects other items. Repeat with cascade: true to confirm' });
+      }
       tx.refresh();
     }
   } catch (err) {
@@ -730,7 +741,7 @@ export async function applyOps(base: Project, ops: Op[], options: ApplyOptions =
   const newErrors = errorsOf(problems).filter((p) => !old.has(key(p)));
   const changes = diffProjects(base, project);
   if (newErrors.length && !options.allowErrors) {
-    return { ok: false, files: new Map(), project: base, problems: before, newErrors, changes, error: `A operação introduz ${newErrors.length} erro(s)` };
+    return { ok: false, files: new Map(), project: base, problems: before, newErrors, changes, error: `The operation introduces ${newErrors.length} error(s)` };
   }
   return { ok: true, files, project, problems, newErrors, changes };
 }

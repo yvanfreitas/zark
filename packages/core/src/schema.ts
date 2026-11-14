@@ -1,9 +1,9 @@
 import { z } from 'zod';
 
 // Section 3: slug ids, 1-64 chars, a-z 0-9 and hyphen.
-export const Slug = z.string().regex(/^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/, 'slug: a-z, 0-9 e hífen, 1 a 64 caracteres');
-// `<origem>.<conexão>`
-export const ConnectionRef = z.string().regex(/^[a-z0-9-]{1,64}\.[a-z0-9-]{1,64}$/, 'ref de conexão: <origem>.<conexão>');
+export const Slug = z.string().regex(/^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/, 'slug: a-z, 0-9 and hyphen, 1 to 64 characters');
+// `<source>.<connection>`
+export const ConnectionRef = z.string().regex(/^[a-z0-9-]{1,64}\.[a-z0-9-]{1,64}$/, 'connection ref: <source>.<connection>');
 
 export const Kind = z.enum(['actor', 'system', 'app', 'store', 'component']);
 export const Status = z.enum(['live', 'future', 'deprecated', 'removed']);
@@ -169,7 +169,7 @@ export type Flow = z.infer<typeof Flow>;
 export type Catalog = z.infer<typeof Catalog>;
 export type Config = z.infer<typeof Config>;
 
-// Canonical key order (section 9, "Formato canônico"). Unknown keys keep their place at the end.
+// Canonical key order (section 9, "canonical format"). Unknown keys keep their place at the end.
 export const KEY_ORDER: Record<string, string[]> = {
   config: ['schema', 'name', 'defaultDrawing', 'grid', 'render', 'git', 'rules', 'mcp'],
   catalog: ['technologies', 'tags', 'teams'],

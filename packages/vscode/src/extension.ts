@@ -62,7 +62,7 @@ async function ensureServer(archDir: string, log: vscode.OutputChannel): Promise
   child.stdout?.on('data', (d) => log.append(String(d)));
   child.stderr?.on('data', (d) => log.append(String(d)));
   spawned.set(archDir, child);
-  const exited = new Promise<never>((_, reject) => child.once('exit', (code) => reject(new Error(`zark dev saiu com código ${code}. Veja o canal de saída "Zark".`))));
+  const exited = new Promise<never>((_, reject) => child.once('exit', (code) => reject(new Error(`zark dev exited with code ${code}. See the "Zark" output channel.`))));
   const deadline = Date.now() + 30_000;
   while (Date.now() < deadline) {
     const info = await Promise.race([readServer(archDir), exited]);
@@ -70,7 +70,7 @@ async function ensureServer(archDir: string, log: vscode.OutputChannel): Promise
     await new Promise((r) => setTimeout(r, 300));
   }
   child.kill();
-  throw new Error('O zark dev não respondeu em 30 s. Veja o canal de saída "Zark".');
+  throw new Error('zark dev did not respond within 30 s. See the "Zark" output channel.');
 }
 
 async function modelSummary(info: ServerInfo): Promise<ModelSummary | undefined> {
@@ -101,12 +101,12 @@ export function activate(context: vscode.ExtensionContext): ZarkApi {
     log,
     vscode.commands.registerCommand('zark.openDrawing', async (uri?: vscode.Uri) => {
       const file = (uri ?? vscode.window.activeTextEditor?.document.uri)?.fsPath;
-      if (!file) return void vscode.window.showWarningMessage('Abra um arquivo YAML da pasta architecture/.');
+      if (!file) return void vscode.window.showWarningMessage('Open a YAML file from the architecture/ folder.');
       const archDir = findArchitectureDir(file, existsSync);
-      if (!archDir) return void vscode.window.showWarningMessage('Nenhum zark.yaml acima deste arquivo. Rode "zark init" primeiro.');
+      if (!archDir) return void vscode.window.showWarningMessage('No zark.yaml above this file. Run "zark init" first.');
       try {
         const info = await vscode.window.withProgress(
-          { location: vscode.ProgressLocation.Notification, title: 'Zark: abrindo o desenho…' },
+          { location: vscode.ProgressLocation.Notification, title: 'Zark: opening the drawing…' },
           () => ensureServer(archDir, log),
         );
         const fragment = fragmentFor(archDir, file, await modelSummary(info));
