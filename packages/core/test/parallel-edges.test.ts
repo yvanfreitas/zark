@@ -106,3 +106,35 @@ describe('parallel connectors between the same two boxes', () => {
     expect(r.some((p) => p[0] === 400 && p[1] === 304)).toBe(true);
   });
 });
+
+describe('connector ends on a shared box side', () => {
+  const hub: GeometryBox = { id: 'hub', x: 600, y: 200, w: 256, h: 128 };
+  const up: GeometryBox = { id: 'up', x: 0, y: 0, w: 256, h: 128 };
+  const down: GeometryBox = { id: 'down', x: 0, y: 400, w: 256, h: 128 };
+  const left = (ref: string, target: string, shape: Shape): GeometryEdge => ({ ref, source: 'hub', target, spec: { shape, from: 'left' }, label: '' });
+
+  for (const shape of ['straight', 'step', 'curved', 'auto'] as Shape[]) {
+    it(`${shape}: two connectors leaving the left side to different boxes get distinct, non-crossing ends`, () => {
+      // Ref order (hub.a first) is the reverse of the geometric order, so the sort must follow the other ends.
+      const g = drawingGeometry([hub, up, down], [left('hub.z', 'up', shape), left('hub.a', 'down', shape)]);
+      const toUp = g.get('hub.z')!.route, toDown = g.get('hub.a')!.route;
+      expect(toUp[0][0]).toBeCloseTo(toDown[0][0], 6);
+      // Distinct points on the side, the one heading up sits higher, both inside the side.
+      expect(toUp[0][1]).toBeLessThan(toDown[0][1]);
+      for (const y of [toUp[0][1], toDown[0][1]]) expect(y > hub.y + 8 && y < hub.y + hub.h - 8).toBe(true);
+      expect(routesClash(toUp, toDown)).toBe(false);
+    });
+  }
+
+  it('spreads an incoming and an outgoing end on the same side, single ends stay mid side', () => {
+    const g = drawingGeometry([hub, up, down], [
+      { ref: 'up.calls', source: 'up', target: 'hub', spec: { to: 'left' }, label: '' },
+      { ref: 'hub.calls', source: 'hub', target: 'down', spec: { from: 'left' }, label: '' },
+    ]);
+    expect(g.get('up.calls')!.offsets.t).toBeLessThan(0);
+    expect(g.get('hub.calls')!.offsets.s).toBeGreaterThan(0);
+    // The far ends are alone on their sides.
+    expect(g.get('up.calls')!.offsets.s).toBe(0);
+    expect(g.get('hub.calls')!.offsets.t).toBe(0);
+  });
+});
