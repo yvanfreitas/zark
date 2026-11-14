@@ -295,22 +295,32 @@ function StepList({
               </div>
             ))}
             {fixes(step, issues.map((p) => p.code))}
-          </div>
-          <div className="hidden shrink-0 flex-col items-end gap-0.5 text-[11px] group-focus-within:flex group-hover:flex">
-            <button type="button" className="text-[var(--muted)] hover:text-[var(--fg)]" onClick={() => setEditing(step.id)}>
-              Editar
-            </button>
-            <button type="button" className="text-[var(--muted)] hover:text-[var(--fg)]" onClick={() => (step.reply ? updateStep(step.id, {}, ['reply']) : updateStep(step.id, { reply: true }))}>
-              {step.reply ? 'Não é resposta' : 'Resposta'}
-            </button>
-            {c?.conn.direction === 'bidirectional' && (
-              <button type="button" className="text-[var(--muted)] hover:text-[var(--fg)]" onClick={() => (step.reverse ? updateStep(step.id, {}, ['reverse']) : updateStep(step.id, { reverse: true }))}>
-                {step.reverse ? 'Sentido normal' : 'Destino inicia'}
+            <div className="mt-1 flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11px]">
+              <button type="button" className="text-[var(--muted)] hover:text-[var(--fg)]" onClick={() => setEditing(step.id)}>
+                Editar
               </button>
-            )}
-            <button type="button" className="text-[var(--muted)] hover:text-[var(--danger)]" onClick={() => removeStep(step.id)}>
-              Excluir
-            </button>
+              <button type="button" className="text-[var(--muted)] hover:text-[var(--fg)]" onClick={() => (step.reply ? updateStep(step.id, {}, ['reply']) : updateStep(step.id, { reply: true }))}>
+                {step.reply ? 'Não é resposta' : 'Resposta'}
+              </button>
+              {c?.conn.direction === 'bidirectional' && (
+                <button type="button" className="text-[var(--muted)] hover:text-[var(--fg)]" onClick={() => (step.reverse ? updateStep(step.id, {}, ['reverse']) : updateStep(step.id, { reverse: true }))}>
+                  {step.reverse ? 'Sentido normal' : 'Destino inicia'}
+                </button>
+              )}
+              {topIndex !== undefined && topIndex < items.length - 1 && (
+                <>
+                  <button type="button" className="text-[var(--muted)] hover:text-[var(--fg)]" onClick={() => groupWithNext(topIndex, 'parallel')} title="Agrupa com o próximo item em paralelo">
+                    ∥ próximo
+                  </button>
+                  <button type="button" className="text-[var(--muted)] hover:text-[var(--fg)]" onClick={() => groupWithNext(topIndex, 'alternatives')} title="Agrupa com o próximo item como caminhos alternativos">
+                    ou próximo
+                  </button>
+                </>
+              )}
+              <button type="button" className="text-[var(--muted)] hover:text-[var(--danger)]" onClick={() => removeStep(step.id)}>
+                Excluir
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -347,7 +357,23 @@ function StepList({
           <Block title="Alternativas" onUngroup={top ? () => ungroup(i) : undefined}>
             {item.alternatives.map((alt, a) => (
               <div key={a} className="border-l-2 border-dashed border-[var(--border-strong)] pl-2">
-                <div className="px-1 pb-0.5 text-[11.5px] font-medium text-[var(--muted)]">{alt.name}</div>
+                {top ? (
+                  <input
+                    aria-label="Nome do caminho"
+                    defaultValue={alt.name}
+                    key={alt.name}
+                    className="w-full rounded bg-transparent px-1 pb-0.5 text-[11.5px] font-medium text-[var(--muted)] hover:bg-[var(--hover)] focus:bg-[var(--input)] focus:text-[var(--fg)] focus:outline-none"
+                    onBlur={(e) => {
+                      const name = e.target.value.trim();
+                      if (!name || name === alt.name) return;
+                      const alternatives = item.alternatives.map((x, xi) => (xi === a ? { ...x, name } : x));
+                      void save(items.map((x, xi) => (xi === i ? { alternatives } : x)));
+                    }}
+                    onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+                  />
+                ) : (
+                  <div className="px-1 pb-0.5 text-[11.5px] font-medium text-[var(--muted)]">{alt.name}</div>
+                )}
                 {renderItems(alt.steps, false)}
               </div>
             ))}
@@ -358,16 +384,6 @@ function StepList({
       return (
         <div key={i} {...dnd} className="relative">
           {body}
-          {top && i < list.length - 1 && (
-            <div className="hidden justify-end gap-2 px-2 pb-1 text-[11px] [div:hover>&]:flex">
-              <button type="button" className="text-[var(--muted)] hover:text-[var(--accent)]" onClick={() => groupWithNext(i, 'parallel')}>
-                Paralelo com o próximo
-              </button>
-              <button type="button" className="text-[var(--muted)] hover:text-[var(--accent)]" onClick={() => groupWithNext(i, 'alternatives')}>
-                Alternativa com o próximo
-              </button>
-            </div>
-          )}
         </div>
       );
     });

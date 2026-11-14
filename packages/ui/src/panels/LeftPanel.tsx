@@ -3,7 +3,7 @@ import { numberSteps } from '@core/flow-text';
 import { freeId, KIND_LABEL } from '../model';
 import { currentDrawing, useStore } from '../store';
 import type { Drawing, WithFile } from '../types';
-import { Button, Icon, inputClass, Svg, Tabs } from './ui';
+import { Button, Icon, IconButton, inputClass, Svg, Tabs } from './ui';
 
 function InlineForm({ placeholder, onSubmit, onCancel, extra }: { placeholder: string; onSubmit: (v: string) => void; onCancel: () => void; extra?: ReactNode }) {
   const [value, setValue] = useState('');
@@ -106,16 +106,16 @@ function DrawingsTab() {
                   <span className={`truncate text-[13px] ${active?.id === d.id ? 'font-semibold text-[var(--accent)]' : 'text-[var(--fg)]'}`}>{d.name}</span>
                   <span className="shrink-0 text-[11px] text-[var(--muted)]">{Object.keys(d.nodes ?? {}).length}</span>
                 </button>
-                <div className="hidden gap-0.5 group-focus-within:flex group-hover:flex">
-                  <button type="button" className="rounded px-1 text-[11px] text-[var(--muted)] hover:text-[var(--fg)]" onClick={() => setRenaming(d.id)} title="Renomear">
-                    Ren.
-                  </button>
-                  <button type="button" className="rounded px-1 text-[11px] text-[var(--muted)] hover:text-[var(--fg)]" onClick={() => duplicate(d)} title="Duplicar">
-                    Dup.
-                  </button>
-                  <button type="button" className="rounded px-1 text-[11px] text-[var(--muted)] hover:text-[var(--danger)]" onClick={() => remove(d)} title="Excluir">
-                    Excl.
-                  </button>
+                <div className="flex text-[var(--subtle)]">
+                  <IconButton label={`Renomear ${d.name}`} className="!size-6" onClick={() => setRenaming(d.id)}>
+                    <Svg icon={Icon.pencil} size={13} />
+                  </IconButton>
+                  <IconButton label={`Duplicar ${d.name}`} className="!size-6" onClick={() => duplicate(d)}>
+                    <Svg icon={Icon.copy} size={13} />
+                  </IconButton>
+                  <IconButton label={`Excluir ${d.name}`} className="!size-6 hover:!text-[var(--danger)]" onClick={() => remove(d)}>
+                    <Svg icon={Icon.trash} size={13} />
+                  </IconButton>
                 </div>
               </div>
             ),
@@ -233,7 +233,7 @@ function FlowsTab() {
   const flow = useStore((s) => s.flow);
   const [creating, setCreating] = useState(false);
   const open = (id: string) => {
-    const f = model.flows.find((x) => x.id === id)!;
+    const f = useStore.getState().model!.flows.find((x) => x.id === id)!;
     const s = useStore.getState();
     s.openDrawing(f.drawing);
     s.set({ flow: { id, frame: 0, playing: false, speed: 1, choice: {} }, selection: { nodes: [], edges: [] } });

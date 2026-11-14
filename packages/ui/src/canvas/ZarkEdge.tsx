@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, Position, type EdgeProps } from '@xyflow/react';
+import { useStore } from '../store';
 import type { EdgeData } from './build';
 
 type Pt = [number, number];
@@ -99,7 +100,15 @@ export const ZarkEdge = memo(function ZarkEdge(props: EdgeProps & { data: EdgeDa
           style={{ transform: `translate(-50%, -50%) translate(${label[0]}px, ${label[1]}px)`, opacity, zIndex: active ? 30 : 10 }}
         >
           {data.label && (
-            <span className={`max-w-[220px] truncate rounded-full border px-2.5 py-0.5 text-[11px] leading-5 ${selected ? 'border-[var(--accent)]' : 'border-[var(--border)]'} bg-[var(--surface)] text-[var(--fg-soft)]`}>
+            <span
+              role="button"
+              tabIndex={-1}
+              onClick={(e) => {
+                e.stopPropagation();
+                useStore.getState().select([], [data.ref]);
+              }}
+              className={`cursor-pointer max-w-[220px] truncate rounded-full border px-2.5 py-0.5 text-[11px] leading-5 ${selected ? 'border-[var(--accent)]' : 'border-[var(--border)]'} bg-[var(--surface)] text-[var(--fg-soft)]`}
+            >
               {data.label}
             </span>
           )}
