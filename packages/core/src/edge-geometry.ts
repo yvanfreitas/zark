@@ -127,9 +127,10 @@ export function bezierRoute(s: Pt, sp: Side, t: Pt, tp: Side, samples = 32): Pt[
 const routeCache = new WeakMap<object, Map<string, Pt[]>>();
 
 /**
- * Sideways offsets of one connector among several between the same two boxes:
- * `s`/`t` slide each end along its box side (px), `mid` moves the middle
- * segment of a step route so parallel corridors don't cross.
+ * Sideways offsets of one connector: `s`/`t` slide each end along its box
+ * side (px) so no two ends share a point on a side, `mid` moves the middle
+ * segment of a step route so parallel corridors between the same two boxes
+ * don't cross.
  */
 export interface EdgeOffsets {
   s: number;
@@ -253,6 +254,43 @@ function segmentMidFractions(route: Pt[]): number[] {
   return out;
 }
 
+/** Evenly spaced offsets for `n` ends on a side of length `len`, centred on zero. */
+function sideSlots(n: number, len: number): number[] {
+  if (n < 2) return [0];
+  const spacing = Math.min(PARALLEL_SPACING, Math.max(0, len - 2 * SIDE_MARGIN) / (n - 1));
+  return Array.from({ length: n }, (_, k) => (k - (n - 1) / 2) * spacing);
+}
+
+/**
+ * Every end landing on the same box side gets its own point along it. Ends
+ * are ordered by where the other end sits along the side's axis, so lines
+ * fan out without crossing; ends whose other end is the same anchor (same
+ * pair) keep the relative order of their parallel offsets, which already
+ * nest and run side by side. Replaces `s`/`t` in `fan`, keeps `mid`/`ix`/`iy`/`flip`.
+ */
+function spreadEnds(usable: GeometryEdge[], byId: Map<string, GeometryBox>, sides: Map<string, [Side, Side]>, fan: Map<string, { offsets: EdgeOffsets; at?: number }>) {
+  interface End { ref: string; role: 's' | 't'; key: number; pair: number }
+  const perSide = new Map<string, End[]>();
+  for (const e of usable) {
+    const [ss, ts] = sides.get(e.ref)!;
+    const pa = anchor(byId.get(e.source)!, ss), pb = anchor(byId.get(e.target)!, ts);
+    const offsets = fan.get(e.ref)!.offsets;
+    const add = (box: string, side: Side, end: End) => {
+      const k = `${box}:${side}`;
+      perSide.set(k, [...(perSide.get(k) ?? []), end]);
+    };
+    add(e.source, ss, { ref: e.ref, role: 's', key: horizontal(ss) ? pb[1] : pb[0], pair: offsets.s });
+    add(e.target, ts, { ref: e.ref, role: 't', key: horizontal(ts) ? pa[1] : pa[0], pair: offsets.t });
+  }
+  for (const [k, ends] of perSide) {
+    const sep = k.lastIndexOf(':');
+    const side = k.slice(sep + 1) as Side;
+    ends.sort((x, y) => x.key - y.key || x.pair - y.pair || x.ref.localeCompare(y.ref) || x.role.localeCompare(y.role));
+    const slots = sideSlots(ends.length, sideLength(byId.get(k.slice(0, sep))!, side));
+    ends.forEach((end, i) => (fan.get(end.ref)!.offsets[end.role] = slots[i]));
+  }
+}
+
 // ---------- whole drawing ----------
 
 export interface GeometryBox extends Rect {
@@ -274,7 +312,7 @@ export interface EdgeGeometry {
   ref: string;
   sourceSide: Side;
   targetSide: Side;
-  /** Sideways offsets among parallel connectors between the same two boxes. */
+  /** Sideways offsets: ends spread along shared box sides, corridors of parallel connectors. */
   offsets: EdgeOffsets;
   route: Pt[];
   /** Final label position: explicit `labelAt`, or the automatic placement. */
@@ -355,6 +393,7 @@ export function drawingGeometry(boxes: GeometryBox[], edges: GeometryEdge[], opt
       fan.set(e.ref, { offsets, at: frac === undefined ? undefined : forward ? frac : 1 - frac });
     });
   }
+  spreadEnds(usable, byId, sides, fan);
 
   for (const e of usable) {
     const a = byId.get(e.source)!, b = byId.get(e.target)!;

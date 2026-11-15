@@ -214,6 +214,15 @@ body {
   pointer-events: none;
 }
 
+/* Hover highlight (canvas/hover.ts): fades in and out quickly. */
+.react-flow__node,
+.react-flow__edge {
+  transition: opacity 120ms ease;
+}
+[data-edge-label] {
+  transition: filter 120ms ease;
+}
+
 .zark-icon > svg {
   display: block;
   width: 100%;
@@ -235,6 +244,21 @@ body {
   animation: zark-pulse 1.4s ease-in-out infinite;
 }
 
+/* Data direction on connections: dashoffset shrinking moves the beads toward the path end (target). */
+@keyframes zark-flow {
+  to {
+    stroke-dashoffset: -16;
+  }
+}
+
+.zark-flow {
+  stroke-width: 3.5;
+  stroke-dasharray: 0.5 15.5;
+  stroke-linecap: round;
+  pointer-events: none;
+  animation: zark-flow 1.6s linear infinite;
+}
+
 /* `zark build` site: same UI, no editing controls. */
 [data-readonly] [data-edit] {
   display: none !important;
@@ -250,5 +274,8 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .zark-pulse {
     animation: none;
+  }
+  .zark-flow {
+    display: none;
   }
 }

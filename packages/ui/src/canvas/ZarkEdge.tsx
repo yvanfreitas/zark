@@ -34,6 +34,11 @@ export const ZarkEdge = memo(function ZarkEdge(props: EdgeProps & { data: EdgeDa
         style={{ stroke, strokeWidth: active || selected ? 2.25 : 1.5, strokeDasharray: data.inherited ? '2 5' : undefined, strokeLinecap: 'round', opacity }}
         className={data.pulse && data.animate ? 'zark-pulse' : undefined}
       />
+      {/* Subtle data direction (source → target): faint beads drift along the path. Skipped when
+          the flow dot already shows direction, and on bidirectional links where it would mislead. */}
+      {data.animate && !active && !data.bidirectional && (
+        <path d={d} className="zark-flow" fill="none" style={{ stroke: data.pulse ? 'var(--accent)' : stroke, opacity: opacity * 0.4 }} />
+      )}
       {active && data.animate &&
         active.map((a, i) => (
           <circle key={i} r="5" fill="var(--accent)">
@@ -42,6 +47,7 @@ export const ZarkEdge = memo(function ZarkEdge(props: EdgeProps & { data: EdgeDa
         ))}
       <EdgeLabelRenderer>
         <div
+          data-edge-label={props.id}
           className="nodrag nopan pointer-events-auto absolute flex flex-col items-center gap-1"
           style={{ transform: `translate(-50%, -50%) translate(${label[0]}px, ${label[1]}px)`, opacity, zIndex: active ? 30 : 10 }}
         >
