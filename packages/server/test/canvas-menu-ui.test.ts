@@ -106,7 +106,6 @@ describe.skipIf(!existsSync(join(UI, 'index.html')))('canvas menus and shortcuts
   });
 
   it('the step menu reorders a flow, and a refused step says why next to the form', async () => {
-    await page.getByRole('tab', { name: 'Flows' }).click();
     await page.getByRole('button', { name: /^History is saved/ }).click();
     const steps = page.getByRole('complementary', { name: 'Right panel' }).locator('div.group');
     await steps.first().waitFor();

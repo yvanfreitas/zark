@@ -52,7 +52,8 @@ interface State {
   view: MainView;
   depsOf?: string;
   depsLevels: number;
-  leftTab: 'drawings' | 'model';
+  /** With nothing selected, the right panel shows the current drawing's properties instead of the model list. */
+  drawingDetails: boolean;
   filters: Record<string, FilterState>;
   palette: boolean;
   confirm?: ConfirmDialog;
@@ -121,7 +122,7 @@ export const useStore = create<State & Actions>((set, get) => ({
   right: 'inspector',
   view: 'canvas',
   depsLevels: 1,
-  leftTab: 'drawings',
+  drawingDetails: false,
   filters: {},
   palette: false,
   prDialog: false,
@@ -177,7 +178,7 @@ export const useStore = create<State & Actions>((set, get) => ({
     // Opening a drawing always brings the canvas back from the list/deps views.
     if (get().view !== 'canvas') set({ view: 'canvas' });
     if (id === drawingId) return;
-    set({ drawingId: id, trail: push && drawingId ? [...trail, drawingId] : trail, selection: { nodes: [], edges: [] }, flow: null });
+    set({ drawingId: id, trail: push && drawingId ? [...trail, drawingId] : trail, selection: { nodes: [], edges: [] }, flow: null, drawingDetails: false });
     history.replaceState(null, '', `#drawing=${id}`);
   },
 
@@ -185,7 +186,7 @@ export const useStore = create<State & Actions>((set, get) => ({
     const { trail, index, drawingId } = get();
     if (trail.length) {
       const prev = trail[trail.length - 1];
-      set({ drawingId: prev, trail: trail.slice(0, -1), selection: { nodes: [], edges: [] }, flow: null });
+      set({ drawingId: prev, trail: trail.slice(0, -1), selection: { nodes: [], edges: [] }, flow: null, drawingDetails: false });
       return;
     }
     // No history: go to a drawing of the parent scope.
@@ -196,7 +197,7 @@ export const useStore = create<State & Actions>((set, get) => ({
     if (target) get().openDrawing(target.id, false);
   },
 
-  select: (nodes, edges = []) => set({ selection: { nodes, edges }, right: 'inspector' }),
+  select: (nodes, edges = []) => set({ selection: { nodes, edges }, right: 'inspector', drawingDetails: false }),
 
   toast(text, kind = 'info', extra = {}) {
     const id = ++toastId;

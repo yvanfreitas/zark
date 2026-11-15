@@ -35,11 +35,11 @@ describe.skipIf(!existsSync(join(UI, 'index.html')))('UI language toggle', () =>
     await page.goto(`${running.url}/?token=${running.token}`);
     await page.getByRole('button', { name: 'New drawing' }).waitFor();
     expect(await page.getAttribute('html', 'lang')).toBe('en');
-    expect(await page.getByRole('tab', { name: 'Flows' }).isVisible()).toBe(true);
+    expect(await page.getByRole('heading', { name: 'Model', exact: true }).isVisible()).toBe(true);
 
     await page.getByRole('radio', { name: 'PT' }).click();
     await page.getByRole('button', { name: 'Novo desenho' }).waitFor();
-    expect(await page.getByRole('tab', { name: 'Fluxos' }).isVisible()).toBe(true);
+    expect(await page.getByRole('heading', { name: 'Modelo', exact: true }).isVisible()).toBe(true);
     expect(await page.getAttribute('html', 'lang')).toBe('pt-BR');
 
     // The token was moved to sessionStorage, so a plain reload keeps the session.

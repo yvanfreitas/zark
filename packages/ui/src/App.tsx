@@ -5,8 +5,8 @@ import { Canvas } from './canvas/Canvas';
 import { currentDrawing, useStore } from './store';
 import { flowView } from './flow';
 import { FlowPanel } from './panels/FlowPanel';
-import { Inspector } from './panels/Inspector';
 import { LeftPanel } from './panels/LeftPanel';
+import { ModelPanel } from './panels/ModelPanel';
 import { CommandPalette, ConfirmDialogView, ShortcutsDialog, Toasts } from './panels/Overlays';
 import { MenuHost } from './panels/Menu';
 import { deleteSelectionFromModel, drillDown, duplicateDrawing, groupSelection, removeSelectionFromDrawing } from './actions';
@@ -215,7 +215,7 @@ export function App() {
           {/* Outside the canvas the drawing inspector has nothing on screen to describe: show the panel only for a selection or a side view. */}
           {(view === 'canvas' || right !== 'inspector' || hasSelection) && (
             <aside className="w-[340px] shrink-0 overflow-y-auto border-l border-[var(--border)] bg-[var(--panel)]" aria-label={t('app.rightPanel')}>
-              {right === 'problems' ? <ProblemsPanel /> : right === 'changes' ? <ChangesPanel git={git} /> : flow && view === 'canvas' ? <FlowPanel /> : <Inspector />}
+              {right === 'problems' ? <ProblemsPanel /> : right === 'changes' ? <ChangesPanel git={git} /> : flow && view === 'canvas' ? <FlowPanel /> : <ModelPanel />}
             </aside>
           )}
         </div>

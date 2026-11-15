@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { numberSteps } from '@core/flow-text';
 import { buildDrawingTree, type DrawingTreeNode } from '../drawingTree';
-import { freeId, KINDS } from '../model';
+import { freeId } from '../model';
 import { tr, useT } from '../i18n';
 import { currentDrawing, useStore } from '../store';
 import type { Drawing, Flow, WithFile } from '../types';
-import { Button, Icon, IconButton, inputClass, Svg, Tabs } from './ui';
+import { Button, Icon, IconButton, inputClass, Svg } from './ui';
 
-function InlineForm({ placeholder, onSubmit, onCancel, extra }: { placeholder: string; onSubmit: (v: string) => void; onCancel: () => void; extra?: ReactNode }) {
+export function InlineForm({ placeholder, onSubmit, onCancel, extra }: { placeholder: string; onSubmit: (v: string) => void; onCancel: () => void; extra?: ReactNode }) {
   const [value, setValue] = useState('');
   const t = useT();
   return (
@@ -67,7 +67,7 @@ function openFlowMode(id: string) {
   history.replaceState(null, '', `#flow=${id}`);
 }
 
-function DrawingsTab() {
+function DrawingsTree() {
   const model = useStore((s) => s.model)!;
   const index = useStore((s) => s.index)!;
   const active = useStore(currentDrawing);
@@ -180,8 +180,17 @@ function DrawingsTab() {
         ) : (
           <div className={`${ROW} ${isActive && !flow ? 'bg-[var(--accent-soft)]' : 'hover:bg-[var(--hover)]'}`} style={{ paddingLeft: depth * INDENT }}>
             {hasChildren ? <Chevron open={open} label={t(open ? 'left.collapse' : 'left.expand', { name: d.name })} onToggle={() => toggle(d.id)} /> : <span className="size-5 shrink-0" />}
-            <button type="button" onClick={() => openDrawing(d.id)} aria-current={(isActive && !flow) || undefined} className="flex min-w-0 flex-1 items-center justify-between gap-2 py-1.5 pl-1 pr-2 text-left">
-              <span className={`truncate text-[13px] ${isActive ? 'font-semibold text-[var(--accent)]' : 'text-[var(--fg)]'}`}>{d.name}</span>
+            <button
+              type="button"
+              // Clicking the drawing already open shows its properties in the right panel.
+              onClick={() => (isActive && !flow ? set({ drawingDetails: true, selection: { nodes: [], edges: [] }, right: 'inspector' }) : openDrawing(d.id))}
+              aria-current={(isActive && !flow) || undefined}
+              className="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pl-1 pr-2 text-left"
+            >
+              <span className={isActive ? 'text-[var(--accent)]' : 'text-[var(--subtle)]'}>
+                <Svg icon={Icon.drawing} size={12} />
+              </span>
+              <span className={`min-w-0 flex-1 truncate text-[13px] ${isActive ? 'font-semibold text-[var(--accent)]' : 'text-[var(--fg)]'}`}>{d.name}</span>
               <span className="shrink-0 text-[11px] text-[var(--muted)]">{Object.keys(d.nodes ?? {}).length}</span>
             </button>
             <div data-edit className="flex text-[var(--subtle)]">
@@ -257,120 +266,13 @@ function DrawingsTab() {
   );
 }
 
-function ModelTab() {
-  const index = useStore((s) => s.index)!;
-  const drawing = useStore(currentDrawing);
-  const selection = useStore((s) => s.selection);
-  const [query, setQuery] = useState('');
-  const [kind, setKind] = useState('');
-  const [creating, setCreating] = useState(false);
-  const [newKind, setNewKind] = useState('system');
-  const t = useT();
-  const q = query.trim().toLowerCase();
-  const visible = useMemo(() => {
-    const match = (id: string) => {
-      const e = index.entities.get(id)!;
-      return (!q || e.name.toLowerCase().includes(q) || id.includes(q)) && (!kind || e.kind === kind);
-    };
-    const keep = new Set<string>();
-    for (const id of index.entities.keys()) if (match(id)) index.ancestors(id).forEach((a) => keep.add(a));
-    return keep;
-  }, [index, q, kind]);
-  const roots = [...index.entities.values()].filter((e) => !e.parent || !index.entities.has(e.parent)).map((e) => e.id);
-
-  const renderItem = (id: string, depth: number): ReactNode => {
-    if (!visible.has(id)) return null;
-    const e = index.entities.get(id)!;
-    const count = index.entityDrawings.get(id)?.length ?? 0;
-    const present = !!drawing?.nodes?.[id];
-    const kids = (index.children.get(id) ?? []).slice().sort((a, b) => index.name(a).localeCompare(index.name(b)));
-    return (
-      <li key={id}>
-        <button
-          type="button"
-          draggable
-          onDragStart={(ev) => {
-            ev.dataTransfer.setData('application/zark-entity', id);
-            ev.dataTransfer.effectAllowed = 'copy';
-          }}
-          onClick={() => useStore.getState().select([id])}
-          className={`flex w-full items-center gap-2 rounded-md py-1.5 pr-2 text-left ${selection.nodes.includes(id) ? 'bg-[var(--accent-soft)]' : 'hover:bg-[var(--hover)]'}`}
-          style={{ paddingLeft: 8 + depth * 14 }}
-          title={present ? t('left.inDrawing') : t('left.dragHint')}
-        >
-          <span className={`size-1.5 shrink-0 rounded-full ${present ? 'bg-[var(--accent)]' : 'bg-transparent ring-1 ring-[var(--subtle)]'}`} aria-label={present ? t('left.placed') : t('left.notPlaced')} />
-          <span className="min-w-0 flex-1 truncate text-[13px] text-[var(--fg)]">{e.name}</span>
-          <span className="font-mono text-[10px] uppercase text-[var(--subtle)]">{t(`kind.${e.kind}`)}</span>
-          <span className="w-4 text-right text-[11px] text-[var(--muted)]" title={t('left.appearsIn', { n: count })}>
-            {count}
-          </span>
-        </button>
-        {kids.length > 0 && <ul>{kids.map((k) => renderItem(k, depth + 1))}</ul>}
-      </li>
-    );
-  };
-
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex gap-1.5">
-        <input className={inputClass} placeholder={t('left.searchModel')} value={query} onChange={(e) => setQuery(e.target.value)} aria-label={t('left.searchModel')} />
-        <select className={`${inputClass} !w-[92px]`} value={kind} onChange={(e) => setKind(e.target.value)} aria-label={t('left.filterKind')}>
-          <option value="">{t('common.kind')}</option>
-          {KINDS.map((k) => (
-            <option key={k} value={k}>
-              {t(`kind.${k}`)}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="flex justify-end">
-        <Button variant="ghost" onClick={() => setCreating(true)}>
-          <Svg icon={Icon.plus} size={14} /> {t('left.newEntity')}
-        </Button>
-      </div>
-      {creating && (
-        <InlineForm
-          placeholder={t('quick.name')}
-          onCancel={() => setCreating(false)}
-          extra={
-            <select className={inputClass} value={newKind} onChange={(e) => setNewKind(e.target.value)} aria-label={t('common.kind')}>
-              {['actor', 'system'].map((k) => (
-                <option key={k} value={k}>
-                  {t(`kind.${k}`)}
-                </option>
-              ))}
-            </select>
-          }
-          onSubmit={async (name) => {
-            const id = freeId(name, (x) => index.entities.has(x));
-            const r = await useStore.getState().write('POST', '/api/entities', { entity: { id, name, kind: newKind } });
-            if (r) {
-              setCreating(false);
-              useStore.getState().select([id]);
-            }
-          }}
-        />
-      )}
-      <ul>{roots.sort((a, b) => index.name(a).localeCompare(index.name(b))).map((id) => renderItem(id, 0))}</ul>
-      {!index.entities.size && <p className="px-2 py-4 text-[13px] text-[var(--muted)]">{t('left.emptyModel')}</p>}
-    </div>
-  );
-}
-
 export function LeftPanel() {
-  const tab = useStore((s) => s.leftTab);
-  const set = useStore((s) => s.set);
   const t = useT();
   return (
     <aside className="flex w-[280px] shrink-0 flex-col border-r border-[var(--border)] bg-[var(--panel)]" aria-label={t('left.panel')}>
-      <div className="p-2">
-        <Tabs value={tab} onChange={(v) => set({ leftTab: v })} items={[['drawings', t('left.tabDrawings')], ['model', t('left.tabModel')]]} />
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
-        {tab === 'drawings' && <DrawingsTab />}
-        {tab === 'model' && <ModelTab />}
+      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4 pt-2">
+        <DrawingsTree />
       </div>
     </aside>
   );
 }
-

@@ -66,7 +66,6 @@ describe.skipIf(!existsSync(join(UI, 'index.html')))('fase 5: fluxo montado pela
     // The example flow runs on the platform drawing; a new flow is created on the open drawing.
     await page.getByRole('button', { name: /^Papo platform/ }).first().click();
     await page.locator('.react-flow__node[data-id="bot-queue"]').waitFor();
-    await page.getByRole('tab', { name: 'Flows' }).click();
     await page.getByRole('button', { name: 'New flow' }).click();
     await page.keyboard.type('Chat built in the UI');
     await page.keyboard.press('Enter');
