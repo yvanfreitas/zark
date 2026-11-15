@@ -88,6 +88,13 @@ export const Icon = {
   ),
   layout: <path d="M2 3h5v4H2zM9 9h5v4H9zM7 5h3v4" />,
   play: <path d="M5 3v10l8-5z" />,
+  drawing: (
+    <>
+      <rect x="1.5" y="2" width="6" height="4.5" rx="1" />
+      <rect x="8.5" y="9.5" width="6" height="4.5" rx="1" />
+      <path d="M4.5 6.5v3.5a1.5 1.5 0 0 0 1.5 1.5h2.5" />
+    </>
+  ),
   pause: <path d="M5 3v10M11 3v10" />,
   prev: <path d="M10 3 5 8l5 5" />,
   next: <path d="m6 3 5 5-5 5" />,
