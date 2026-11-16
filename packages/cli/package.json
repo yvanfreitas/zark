@@ -1,6 +1,6 @@
 {
   "name": "@ewcodes/zark",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Architecture as code: YAML in the repo, with a UI, MCP server and CLI over the same files",
   "keywords": [
     "architecture",
