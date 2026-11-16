@@ -31,6 +31,7 @@ export const PROBLEM_EN: Record<string, Template> = {
   E012: (p) => `cycle in the hierarchy: ${(p.chain as string[]).join(' -> ')}`,
   E013: (p) => `${p.id} is a ${p.kind}: only components can have a source`,
   E014: (p) => `${p.id}: source "${p.source}" matches no file or folder`,
+  'E014.outside': (p) => `${p.id}: source "${p.source}" must be a path inside the repository (no absolute path, no "..")`,
   E015: (p) => `${p.file} is claimed by ${list(p.components)} with equally specific sources`,
   E020: (p) => `connection ${p.ref}: target "${p.target}" does not exist`,
   'E020.via': (p) => `connection ${p.ref}: via "${p.via}" does not exist`,

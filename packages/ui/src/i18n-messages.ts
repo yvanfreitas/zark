@@ -38,6 +38,7 @@ export const PROBLEM_PT: Record<string, Template> = {
   E034: (p) => `grupo ${p.group}: membro "${p.member}" não está em nodes`,
   E013: (p) => `${p.id} é ${p.kind}: só componentes podem ter source`,
   E014: (p) => `${p.id}: source "${p.source}" não corresponde a nenhum arquivo ou pasta`,
+  'E014.outside': (p) => `${p.id}: source "${p.source}" precisa ser um caminho dentro do repositório (sem caminho absoluto, sem "..")`,
   E015: (p) => `${p.file} é reivindicado por ${(p.components as string[]).join(', ')} com sources igualmente específicos`,
   E040: (p) => `passo ${p.step}: conexão "${p.via}" não existe${validSuffix(`Conexões de ${p.from}`, p.siblings)}`,
   E041: (p) => `passo ${p.step} anda na contramão de ${p.via} (${p.source} -> ${p.target}). Inverta a conexão ou marque reply: true`,

@@ -1,11 +1,11 @@
 import { existsSync } from 'node:fs';
 import { glob, readdir } from 'node:fs/promises';
-import { dirname, join, posix, relative, sep } from 'node:path';
+import { dirname, isAbsolute, join, posix, relative, sep, win32 } from 'node:path';
 import { lineOf, type Project } from '../project.js';
 import { PROBLEM_EN, type Params } from '../messages.js';
 import type { Problem } from '../validate.js';
 
-export const DEFAULT_EXCLUDE = ['**/*.test.ts', '**/*.spec.ts', '**/__tests__/**', '**/*.d.ts', '**/generated/**'];
+export const DEFAULT_EXCLUDE = ['**/*.{test,spec}.*', '**/__tests__/**', '**/*.d.ts', '**/generated/**'];
 const EXTENSIONS = /\.(ts|tsx|mts|cts|js|jsx|mjs)$/;
 
 /** Nearest ancestor of `dir` that holds a `.git`, else the parent of `dir`. */
@@ -40,14 +40,29 @@ export async function listSourceFiles(repoRoot: string, exclude: string[]): Prom
   return [...out].filter((f) => EXTENSIONS.test(f) && !exclude.some((g) => posix.matchesGlob(f, g))).sort();
 }
 
+/** A component's `source` entries with `\` normalised to `/` (also what the generated header shows). */
+export function sourceEntries(source: string | string[]): string[] {
+  return (typeof source === 'string' ? [source] : source).map((e) => e.replaceAll('\\', '/'));
+}
+
+/** An entry that could reach outside the repo: absolute (posix or Windows) or with a `..` segment. */
+export function escapesRepo(entry: string): boolean {
+  return posix.isAbsolute(entry) || win32.isAbsolute(entry) || entry.split('/').includes('..');
+}
+
+/** Repo-relative paths are never absolute and never climb out of the root. */
+const insideRepo = (rel: string) => !isAbsolute(rel) && rel !== '..' && !rel.startsWith(`..${sep}`);
+
 /** Repo-relative posix paths of every file an entry matches (folders expand to everything below). */
 async function filesMatching(repoRoot: string, entry: string): Promise<string[] | undefined> {
   const out = new Set<string>();
   const seen = new Set<string>();
   let matched = false;
   for await (const hit of glob(entry, { cwd: repoRoot, withFileTypes: true, exclude: skipped })) {
-    matched = true;
     const full = join(hit.parentPath, hit.name);
+    // Second line of defence after `escapesRepo` (e.g. a symlinked folder pointing elsewhere).
+    if (!insideRepo(relative(repoRoot, full))) continue;
+    matched = true;
     if (hit.isDirectory()) await walk(repoRoot, full, seen, out);
     else if (hit.isFile()) out.add(posixPath(relative(repoRoot, full)));
   }
@@ -72,11 +87,15 @@ export async function claimFiles(repoRoot: string, project: Project): Promise<{ 
 
   for (const [id, { entity }] of project.entities) {
     if (entity.kind !== 'component' || !entity.source) continue;
-    const entries = typeof entity.source === 'string' ? [entity.source] : entity.source;
-    for (const [i, entry] of entries.entries()) {
+    for (const [i, entry] of sourceEntries(entity.source).entries()) {
+      const at = typeof entity.source === 'string' ? ['source'] : ['source', i];
+      if (escapesRepo(entry)) {
+        problem('E014', 'E014.outside', { id, source: entry }, id, at);
+        continue;
+      }
       const files = await filesMatching(repoRoot, entry);
       if (!files) {
-        problem('E014', 'E014', { id, source: entry }, id, typeof entity.source === 'string' ? ['source'] : ['source', i]);
+        problem('E014', 'E014', { id, source: entry }, id, at);
         continue;
       }
       for (const file of files) {

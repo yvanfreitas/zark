@@ -119,6 +119,42 @@ describe('claimFiles', () => {
     expect([...owner.keys()].sort()).toEqual(['src/a.ts', 'src/deep/b.ts', 'src/deep/er/c.ts']);
   });
 
+  it('E014.outside: an absolute source entry is rejected, even one pointing inside the repo', async () => {
+    const root = await repo(['src/a.ts']);
+    const inside = join(root, 'src').replaceAll('\\', '/');
+    const p = project({ sys, api, a: comp('a', '/etc'), b: comp('b', 'C:/Windows/win.ini'), c: comp('c', `"${inside}"`) });
+    const { owner, problems } = await claimFiles(root, p);
+    expect(owner.size).toBe(0);
+    expect(problems.map((x) => [x.code, x.key, x.ref])).toEqual([
+      ['E014', 'E014.outside', 'a'],
+      ['E014', 'E014.outside', 'b'],
+      ['E014', 'E014.outside', 'c'],
+    ]);
+    expect(problems[0].message).toContain('inside the repository');
+  });
+
+  it('E014.outside: a source entry with a ".." segment is rejected', async () => {
+    const root = await repo(['repo/src/a.ts', 'outside.mjs']);
+    const p = project({ sys, api, up: comp('up', '"../*.mjs"'), mid: comp('mid', 'src/../src/a.ts'), back: comp('back', '"..\\\\outside.mjs"') });
+    const { owner, problems } = await claimFiles(join(root, 'repo'), p);
+    expect(owner.size).toBe(0);
+    expect(problems.map((x) => x.key)).toEqual(['E014.outside', 'E014.outside', 'E014.outside']);
+    expect(problems.find((x) => x.ref === 'back')!.params!.source).toBe('../outside.mjs');
+  });
+
+  it('backslash source entries are normalised to /', async () => {
+    const root = await repo(['src/bot/a.ts']);
+    const { owner, problems } = await claimFiles(root, project({ sys, api, bot: comp('bot', 'src\\bot') }));
+    expect(problems).toEqual([]);
+    expect(Object.fromEntries(owner)).toEqual({ 'src/bot/a.ts': 'bot' });
+  });
+
+  it('default excludes skip test and spec files of every extension', async () => {
+    const root = await repo(['src/a.ts', 'src/a.test.tsx', 'src/b.spec.tsx', 'src/c.test.js', 'src/d.spec.mjs', 'src/e.test.ts']);
+    const { owner } = await claimFiles(root, project({ sys, api, bot: comp('bot', 'src') }));
+    expect([...owner.keys()]).toEqual(['src/a.ts']);
+  });
+
   it('E015: equally specific sources tie', async () => {
     const root = await repo(['src/a.ts']);
     const p = project({ sys, api, one: comp('one', 'src/*.ts'), two: comp('two', 'src/a.ts') });
