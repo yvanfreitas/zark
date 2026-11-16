@@ -1,0 +1,5 @@
+id: moderation
+name: Moderation
+kind: component
+parent: bot-service
+source: [services/moderation/src/client.ts, services/moderation/src/index.ts]

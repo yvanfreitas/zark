@@ -1,0 +1,4 @@
+id: bot-service
+name: Bot service
+kind: app
+parent: chat

@@ -33,6 +33,13 @@ async function walk(repoRoot: string, dir: string, seen: Set<string>, out: Set<s
   }
 }
 
+/** Every source-language file of the repo (repo-relative posix, sorted), minus `exclude`. */
+export async function listSourceFiles(repoRoot: string, exclude: string[]): Promise<string[]> {
+  const out = new Set<string>();
+  await walk(repoRoot, repoRoot, new Set(), out);
+  return [...out].filter((f) => EXTENSIONS.test(f) && !exclude.some((g) => posix.matchesGlob(f, g))).sort();
+}
+
 /** Repo-relative posix paths of every file an entry matches (folders expand to everything below). */
 async function filesMatching(repoRoot: string, entry: string): Promise<string[] | undefined> {
   const out = new Set<string>();
