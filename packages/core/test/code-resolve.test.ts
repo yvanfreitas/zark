@@ -55,6 +55,16 @@ describe('resolveSpecifier', () => {
     expect(resolveSpecifier('src/a.ts', '@lib/nope', files, aliases)).toBe('external');
   });
 
+  it('paths uses the most specific pattern without fall-through', () => {
+    const aliases: Aliases = { paths: [['*', ['types/*']], ['@/*', ['src/*']]] };
+    const files = set('src/a.ts', 'src/x.ts', 'types/@/x.ts', 'src/$&.ts');
+    expect(resolveSpecifier('src/a.ts', '@/x', files, aliases)).toBe('src/x.ts');
+    expect(resolveSpecifier('src/a.ts', '@/$&', files, aliases)).toBe('src/$&.ts');
+    // best match '@/*' has no file: must not fall through to '*' even though types/@/y.ts exists
+    expect(resolveSpecifier('src/a.ts', '@/y', set('src/a.ts', 'types/@/y.ts'), aliases)).toBe('external');
+    expect(resolveSpecifier('src/a.ts', 'q', set('src/a.ts', 'types/q.ts'), aliases)).toBe('types/q.ts');
+  });
+
   it('bare and workspace packages are external', () => {
     const files = set('src/a.ts', 'src/moderation.ts');
     expect(resolveSpecifier('src/a.ts', 'react', files, none)).toBe('external');

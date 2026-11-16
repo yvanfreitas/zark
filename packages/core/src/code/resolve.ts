@@ -74,22 +74,26 @@ export function resolveSpecifier(fromPath: string, spec: string, files: Set<stri
   if (spec.startsWith('./') || spec.startsWith('../') || spec === '.' || spec === '..') {
     return probe(posix.normalize(posix.join(posix.dirname(fromPath), spec)), files) ?? 'external';
   }
+  // TypeScript picks the single best pattern (exact, else longest prefix before `*`) and tries only its targets.
+  let best: { targets: string[]; captured: string; prefix: number } | undefined;
   for (const [pattern, targets] of aliases.paths) {
     const star = pattern.indexOf('*');
-    let captured: string | undefined;
-    if (star < 0) captured = pattern === spec ? '' : undefined;
-    else {
-      const head = pattern.slice(0, star);
-      const tail = pattern.slice(star + 1);
-      if (spec.length >= head.length + tail.length && spec.startsWith(head) && spec.endsWith(tail)) {
-        captured = spec.slice(head.length, spec.length - tail.length);
+    if (star < 0) {
+      if (pattern === spec) {
+        best = { targets, captured: '', prefix: Infinity };
+        break;
       }
+      continue;
     }
-    if (captured === undefined) continue;
-    for (const t of targets) {
-      const hit = probe(posix.normalize(t.replace('*', captured)), files);
-      if (hit) return hit;
+    const head = pattern.slice(0, star);
+    const tail = pattern.slice(star + 1);
+    if (spec.length >= head.length + tail.length && spec.startsWith(head) && spec.endsWith(tail) && head.length > (best?.prefix ?? -1)) {
+      best = { targets, captured: spec.slice(head.length, spec.length - tail.length), prefix: head.length };
     }
+  }
+  for (const t of best?.targets ?? []) {
+    const hit = probe(posix.normalize(t.replace('*', () => best!.captured)), files);
+    if (hit) return hit;
   }
   if (aliases.baseUrl !== undefined) {
     const hit = probe(posix.normalize(posix.join(aliases.baseUrl, spec)), files);
