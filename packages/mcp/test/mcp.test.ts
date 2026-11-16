@@ -110,6 +110,16 @@ describe('zark MCP server', () => {
     expect(service.project.entities.get('auth')!.entity.caption).toBe('Accounts and tokens');
   });
 
+  it('update_entity sets a component source, as a string or a list', async () => {
+    const list = ['examples/ai-chat/src/bot-orchestrator'];
+    const r = await call('update_entity', { id: 'reply-builder', set: { source: list } });
+    expect(r.ok).toBe(true);
+    expect(service.project.entities.get('reply-builder')!.entity.source).toEqual(list);
+    const back = await call('update_entity', { id: 'reply-builder', set: { source: list[0] } });
+    expect(back.ok).toBe(true);
+    expect(service.project.entities.get('reply-builder')!.entity.source).toBe(list[0]);
+  });
+
   it('delete_entity without cascade returns impact', async () => {
     const r = await call('delete_entity', { id: 'llm-provider' });
     expect(r.ok).toBe(false);

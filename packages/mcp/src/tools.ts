@@ -74,6 +74,7 @@ const Side = z.enum(['top', 'right', 'bottom', 'left']);
 const Kind = z.enum(['actor', 'system', 'app', 'store', 'component']);
 const Status = z.enum(['live', 'future', 'deprecated', 'removed']);
 const dryRun = z.boolean().optional().describe('Validate without writing');
+const Source = z.union([z.string(), z.array(z.string())]).describe('Component code path(s), relative to the repo root');
 const fields = z.record(z.string(), z.unknown());
 const EdgeShape = {
   shape: z.enum(['straight', 'step', 'curved', 'auto']).optional(),
@@ -277,6 +278,7 @@ export function createMcpServer(service: ZarkService): McpServer {
     id: z.string(), name: z.string(), kind: Kind, parent: z.string().nullable().optional(), caption: z.string().optional(),
     icon: z.string().optional().describe('<set>:<name>, e.g. lucide:database or si:python; use search_icons'), description: z.string().optional(),
     external: z.boolean().optional(), status: Status.optional(), technologies: z.array(z.string()).optional(), tags: z.array(z.string()).optional(), owner: z.string().optional(),
+    source: Source.optional(),
     links: z.array(z.object({ label: z.string(), url: z.string() })).optional(),
     connections: z.array(ConnectionInput).optional(), dryRun,
   }, ({ dryRun: dry, ...entity }) => write([{ op: 'entity.create', entity: entity as any }], dry));

@@ -20,7 +20,7 @@ import { CatalogCollector, chain, slugify, uniqueSlug, ZARK_KINDS, type ImportCo
 export const ICEPANEL_SCHEMA = 'https://api.icepanel.io/v1/schemas/LandscapeImportData';
 /** A TagGroupIcon enum value (the guide's example uses "tag", which the schema rejects). */
 const TAG_GROUP_ICON = 'toolbox';
-const LABEL = { technologies: 'zark:technologies', owner: 'zark:owner', icon: 'zark:icon' } as const;
+const LABEL = { technologies: 'zark:technologies', owner: 'zark:owner', icon: 'zark:icon', source: 'zark:source' } as const;
 const TYPE_ALIASES: Record<string, Kind> = { database: 'store' };
 const TAG_COLORS = ['blue', 'green', 'yellow', 'orange', 'red', 'beaver', 'dark-blue', 'purple', 'pink', 'white', 'grey', 'black'];
 
@@ -115,6 +115,7 @@ export function fromIcePanel(data: IcePanelData, ctx: ImportContext, opts: { dra
         ...techsOf(catalog, o),
         ...(o.tagIds?.length ? { tags: o.tagIds.map((t) => tagRef(catalog, tagById.get(t), t)) } : {}),
         ...ownerOf(catalog, o),
+        ...sourceOf(o),
         ...(o.links?.length ? { links: o.links.map((l) => ({ label: l.customName || l.url, url: l.url })) } : {}),
       },
     });
@@ -189,6 +190,17 @@ function techsOf(catalog: CatalogCollector, o: { labels?: Record<string, string>
   if (fromLabel) return { technologies: decodePairs(fromLabel).map((t) => catalog.ref('technologies', t.name, { id: t.id })) };
   return o.technologyIds?.length ? { technologies: o.technologyIds.map((t) => catalog.ref('technologies', t, { id: slugify(t) })) } : {};
 }
+/** `source` travels JSON-encoded in a label (a string or a list of paths). */
+function sourceOf(o: IceObject) {
+  const raw = o.labels?.[LABEL.source];
+  if (!raw) return {};
+  try {
+    return { source: JSON.parse(raw) as string | string[] };
+  } catch {
+    return {};
+  }
+}
+
 function ownerOf(catalog: CatalogCollector, o: IceObject) {
   const fromLabel = o.labels?.[LABEL.owner];
   if (fromLabel) {
@@ -205,10 +217,11 @@ function tagRef(catalog: CatalogCollector, tag: { id: string; name: string; colo
 export function toIcePanel(project: Project): IcePanelData {
   const tags = (project.catalog.tags ?? []).map((t) => ({ id: t.id, name: t.name, color: TAG_COLORS.includes(t.color ?? '') ? t.color! : 'grey', groupId: 'zark' }));
   const named = (list: 'technologies' | 'teams', ids: string[]) => ids.map((id) => ({ id, name: project.catalog[list]?.find((i) => i.id === id)?.name ?? id }));
-  const labelsOf = (techs?: string[], owner?: string, icon?: string) => {
+  const labelsOf = (techs?: string[], owner?: string, icon?: string, source?: string | string[]) => {
     const labels: Record<string, string> = {};
     // IcePanel's own icon is a technologyId of its catalog; ours travels as a label.
     if (icon) labels[LABEL.icon] = icon;
+    if (source !== undefined) labels[LABEL.source] = JSON.stringify(source);
     if (techs?.length) labels[LABEL.technologies] = encodePairs(named('technologies', techs));
     if (owner) labels[LABEL.owner] = encodePairs(named('teams', [owner]));
     return Object.keys(labels).length ? { labels } : {};
@@ -226,7 +239,7 @@ export function toIcePanel(project: Project): IcePanelData {
     ...(e.external ? { external: true } : {}),
     ...(e.status ? { status: e.status } : {}),
     ...(e.tags?.length ? { tagIds: e.tags } : {}),
-    ...labelsOf(e.technologies, e.owner, e.icon),
+    ...labelsOf(e.technologies, e.owner, e.icon, e.source),
     ...(e.links?.length ? { links: e.links.map((l) => ({ url: l.url, customName: l.label })) } : {}),
   }))];
   const modelConnections: IceConnection[] = [...project.connections.values()].map(({ ref, from, conn: c }) => ({
