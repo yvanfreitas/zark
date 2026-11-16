@@ -49,10 +49,13 @@ export function validate(project: Project, extra: Problem[] = []): Problem[] {
     if ((file.kind === 'entity' || file.kind === 'drawing' || file.kind === 'flow') && file.data.id !== file.nameId) {
       add('E002', file, 'E002', { id: file.data.id, file: file.nameId }, ['id'], file.data.id);
     }
+    if (file.kind === 'code' && file.data.component !== file.nameId) {
+      add('E002', file, 'E002', { id: file.data.component, file: file.nameId }, ['component'], file.data.component);
+    }
   }
   // E003
   for (const dup of project.duplicates) {
-    add('E003', dup.file, 'E003', { kind: dup.kind, id: dup.id }, dup.kind === 'connection' ? ['connections'] : ['id'], dup.id);
+    add('E003', dup.file, 'E003', { kind: dup.kind, id: dup.id }, dup.kind === 'connection' ? ['connections'] : dup.kind === 'code' ? ['component'] : ['id'], dup.id);
   }
 
   const catalogIds = {
