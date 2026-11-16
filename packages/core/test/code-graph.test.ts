@@ -170,7 +170,7 @@ describe('scanProject', () => {
     const crlf = await copyFixture();
     for (const f of ['handler.ts', 'helpers.ts', 'logger.ts', 'orchestrator.ts']) {
       const p = join(crlf, 'services', 'bot', 'src', f);
-      await writeFile(p, (await readFile(p, 'utf8')).replace(/\n/g, '\r\n'));
+      await writeFile(p, (await readFile(p, 'utf8')).replace(/\r?\n/g, '\r\n'));
     }
     // Forward slashes on Windows, backslashes elsewhere: whichever the OS does not hand out natively.
     const dir = process.platform === 'win32' ? arch(crlf).replaceAll('\\', '/') : arch(crlf);
