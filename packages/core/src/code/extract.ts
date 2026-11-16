@@ -21,6 +21,8 @@ export type ModuleFacts = {
   imports: ImportFact[];
   reexports: ReexportFact[];
   sites: CallSite[];
+  /** Names declared at module scope (not imports) -> the piece each one is, `undefined` when it is not exported. */
+  locals: Map<string, string | undefined>;
   parseErrors: number;
 };
 
@@ -41,10 +43,15 @@ const UNKNOWN: TargetHint = { ref: 'unknown' };
 export function extractModule(path: string, text: string): ModuleFacts {
   const { program, errors } = parseSync(path, text.replace(/\r\n?/g, '\n'), { sourceType: 'module' });
   const body: N[] = program.body;
-  const facts: ModuleFacts = { path, pieces: [], imports: [], reexports: [], sites: [], parseErrors: errors.length };
+  const facts: ModuleFacts = { path, pieces: [], imports: [], reexports: [], sites: [], locals: new Map(), parseErrors: errors.length };
   const moduleScope: Scope = { vars: new Map(), module: true };
   collectDecls(body, moduleScope, 'lexical');
   collectDecls(body, moduleScope, 'var');
+  for (const name of moduleScope.vars.keys()) facts.locals.set(name, undefined);
+  // The first piece a local name declares wins (overloads, `export { a as b, a as c }`).
+  const bindLocal = (local: string | undefined, piece: string | undefined) => {
+    if (local && facts.locals.get(local) === undefined) facts.locals.set(local, piece);
+  };
   const listed = exportList(body);
   const seen = new Set<string>();
   const addPiece = (piece: CodePiece) => {
@@ -59,6 +66,7 @@ export function extractModule(path: string, text: string): ModuleFacts {
   const declaration = (decl: N, names: string[], exportedVars = false) => {
     const from = names[0] ?? '';
     const ctx: Ctx = { from, scope: moduleScope };
+    if (decl.type !== 'VariableDeclaration') bindLocal(decl.id?.name, names[0]);
     if (CLASSES.has(decl.type)) {
       for (const name of names) addPiece(classPiece(decl, name));
       walker.cls(decl, ctx, from || undefined, decl.id?.name);
@@ -70,6 +78,7 @@ export function extractModule(path: string, text: string): ModuleFacts {
         const own = d.id.type === 'Identifier' ? (exportedVars ? [d.id.name] : listed.get(d.id.name) ?? []) : [];
         const kind = d.init && FUNCTIONS.has(d.init.type) ? 'function' : 'const';
         for (const name of own) addPiece({ name, kind });
+        if (d.id.type === 'Identifier') bindLocal(d.id.name, own[0]);
         walker.walk(d, { from: own[0] ?? '', scope: moduleScope });
       }
     } else if (decl.type in KIND_OF) {

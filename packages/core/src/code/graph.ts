@@ -5,7 +5,8 @@ import type { CallSite, ModuleFacts } from './extract.js';
 import { resolveExport, resolveSpecifier, type Aliases } from './resolve.js';
 
 type Unresolved = keyof CodeGraph['unresolved'];
-type Target = { path: string; piece: CodePiece; member?: string } | Unresolved;
+// 'internal': a call into a non-exported declaration of the same module; no edge, not counted.
+type Target = { path: string; piece: CodePiece; member?: string } | Unresolved | 'internal';
 
 const byString = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
@@ -15,7 +16,8 @@ const byString = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
  * source file, so a target outside `owner` counts as `unowned` rather than `external`.
  *
  * Endpoints are `<path>#<piece>[.<member>]`, prefixed `<id>:` in another component. Calls from
- * non-exported code (`from` '') are attributed to the module itself: endpoint `<path>`.
+ * non-exported code (`from` '') are attributed to the module itself: endpoint `<path>`; calls into
+ * it are internal to the module and neither drawn nor counted.
  * `external` and `unowned` are counted per call site, not per import declaration.
  */
 export function buildGraph(
@@ -38,14 +40,16 @@ export function buildGraph(
   };
 
   // A module-level `name` (with the `.member` the syntax applies to it) resolved to a piece: a local
-  // piece or an import (type-only imports only for type hints). On a namespace import the member names
-  // the piece and is consumed.
+  // declaration (by its local name, which may differ from the exported one) or an import (type-only
+  // imports only for type hints). On a namespace import the member names the piece and is consumed.
   const resolveName = (path: string, name: string, member: string | undefined, typeHint: boolean): Target => {
     const mod = facts.get(path)!;
-    const local = mod.pieces.find((p) => p.name === name);
-    if (local) return { path, piece: local, member };
+    if (mod.locals.has(name)) {
+      const piece = mod.pieces.find((p) => p.name === mod.locals.get(name));
+      return piece ? { path, piece, member } : 'internal';
+    }
     const imp = mod.imports.find((i) => i.local === name && (typeHint || !i.typeOnly));
-    if (!imp) return 'calls'; // a global, or a non-exported declaration (not a piece)
+    if (!imp) return 'calls'; // a global
     const file = resolveSpecifier(path, imp.from, files, aliases);
     if (file === 'external') return 'external';
     if (!owner.has(file)) return 'unowned';
@@ -70,10 +74,19 @@ export function buildGraph(
     return { ...target, member: hint.member };
   };
 
+  // `Class.member` only for a listed member (public method); anything else is the piece itself.
+  const pieceName = (piece: CodePiece, member: string | undefined) =>
+    piece.kind === 'class' && member && piece.members?.includes(member) ? `${piece.name}.${member}` : piece.name;
   const endpoint = (t: Exclude<Target, string>): string => {
     const id = owner.get(t.path)!;
-    const name = t.piece.kind === 'class' && t.member && t.piece.members?.includes(t.member) ? `${t.piece.name}.${t.member}` : t.piece.name;
-    return `${id === component ? '' : `${id}:`}${t.path}#${name}`;
+    return `${id === component ? '' : `${id}:`}${t.path}#${pieceName(t.piece, t.member)}`;
+  };
+  // A site's `from` (`piece`, `Class.method` or `Class.constructor`) normalized like a target.
+  const fromEndpoint = (mod: ModuleFacts, from: string): string => {
+    if (!from) return mod.path;
+    const [name, member] = from.split('.', 2);
+    const piece = mod.pieces.find((p) => p.name === name);
+    return `${mod.path}#${piece ? pieceName(piece, member) : name}`;
   };
 
   for (const path of [...owned].sort(byString)) {
@@ -83,11 +96,12 @@ export function buildGraph(
     modules.push({ path, pieces: [...mod.pieces].sort((a, b) => byString(a.name, b.name)) });
     for (const site of mod.sites) {
       const target = resolveSite(path, site);
+      if (target === 'internal') continue;
       if (typeof target === 'string') {
         unresolved[target]++;
         continue;
       }
-      const from = site.from ? `${path}#${site.from}` : path;
+      const from = fromEndpoint(mod, site.from);
       const to = endpoint(target);
       if (from === to) continue;
       const key = `${from}\0${to}\0${site.kind}`;

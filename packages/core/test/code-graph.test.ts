@@ -98,7 +98,7 @@ edges:
     kind: calls
     count: 1
 unresolved:
-  calls: 3
+  calls: 2
   external: 2
   unowned: 1
 `;
@@ -119,6 +119,35 @@ describe('buildGraph', () => {
       { from: 'a/main.ts#run', to: 'b:b/b.ts#B.go', kind: 'calls', count: 1 },
     ]);
     expect(graph.modules).toEqual([{ path: 'a/main.ts', pieces: [{ name: 'run', kind: 'function' }] }]);
+  });
+
+  const single = (text: string) => {
+    const facts = new Map([['m.ts', extractModule('m.ts', text)]]);
+    return buildGraph('a', ['m.ts'], facts, new Map([['m.ts', 'a']]), { paths: [] }).graph;
+  };
+
+  it('calls to local helpers are internal', () => {
+    const graph = single(`function helper() {}\nclass Local { m() {} }\nexport function run() { helper(); const l = new Local(); l.m(); console.log(); }`);
+    expect(graph.edges).toEqual([]);
+    expect(graph.unresolved).toEqual({ calls: 1, external: 0, unowned: 0 }); // only the global console.log
+  });
+
+  it('piece called by its local name resolves to the piece', () => {
+    const graph = single(`export default class Foo { static make() {} }\nconst a = () => 1;\nexport { a as b };\nexport function run() { Foo.make(); new Foo(); a(); }`);
+    expect(graph.edges).toEqual([
+      { from: 'm.ts#run', to: 'm.ts#b', kind: 'calls', count: 1 },
+      { from: 'm.ts#run', to: 'm.ts#default', kind: 'instantiates', count: 1 },
+      { from: 'm.ts#run', to: 'm.ts#default.make', kind: 'calls', count: 1 },
+    ]);
+    expect(graph.unresolved.calls).toBe(0);
+  });
+
+  it('a constructor call site is attributed to the class, which has no constructor member', () => {
+    const graph = single(`export function go() {}\nexport class C { constructor() { go(); } run() { go(); } }`);
+    expect(graph.edges).toEqual([
+      { from: 'm.ts#C', to: 'm.ts#go', kind: 'calls', count: 1 },
+      { from: 'm.ts#C.run', to: 'm.ts#go', kind: 'calls', count: 1 },
+    ]);
   });
 
   it('a call into a repo file no component claims is unowned, never parsed', () => {
@@ -150,7 +179,7 @@ describe('scanProject', () => {
   it('unowned and external counts', async () => {
     const root = await copyFixture();
     const { components } = await scanProject(arch(root), {});
-    expect(components.find((c) => c.id === 'bot')!.unresolved).toEqual({ calls: 3, external: 2, unowned: 1 });
+    expect(components.find((c) => c.id === 'bot')!.unresolved).toEqual({ calls: 2, external: 2, unowned: 1 }); // console.log, m.trim; setup() is internal
     expect(components.find((c) => c.id === 'moderation')!.unresolved).toEqual({ calls: 0, external: 0, unowned: 1 });
     expect(await graphText(root, 'moderation')).toContain('members: [ classify ]'); // private `secret` left out
   });

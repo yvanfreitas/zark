@@ -62,6 +62,11 @@ describe('extractModule', () => {
     expect(m.sites).toEqual([{ from: '', kind: 'calls', target: { ref: 'binding', name: 'setup' } }]);
   });
 
+  it('locals map module-scope names to the piece they declare', () => {
+    const m = extractModule('a.ts', `import { x } from './x';\nfunction helper() {}\ninterface Shape {}\nexport default class Foo {}\nconst a = 1;\nexport { a as b };`);
+    expect([...m.locals].sort()).toEqual([['Foo', 'default'], ['Shape', undefined], ['a', 'b'], ['helper', undefined]]);
+  });
+
   it('default exports', () => {
     expect(extractModule('a.ts', 'export default class { go() {} }').pieces).toEqual([
       { name: 'default', kind: 'class', members: ['go'] },
