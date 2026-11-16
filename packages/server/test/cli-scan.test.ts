@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { appendFile, cp, mkdtemp, readFile, rm } from 'node:fs/promises';
+import { appendFile, cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -47,5 +47,12 @@ describe('zark scan', () => {
 
   it('unknown component id errors listing components with source', async () => {
     await expect(scan(['nope'])).rejects.toThrow(/Component "nope".*bot, moderation/);
+  });
+
+  it('exits 1 on a claim error (E014, source matches nothing)', async () => {
+    const f = join(dir, 'entities/bot.yaml');
+    await writeFile(f, (await readFile(f, 'utf8')).replace('source: services/bot', 'source: services/missing'));
+    expect(await scan()).toBe(1);
+    expect(out.some((l) => l.includes('E014'))).toBe(true);
   });
 });

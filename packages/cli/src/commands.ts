@@ -235,6 +235,7 @@ export const commands: Record<string, Command> = {
   async scan({ dir, check, args }) {
     const project = await requireProject(dir);
     const sourced = [...project.entities].filter(([, { entity }]) => entity.kind === 'component' && entity.source).map(([id]) => id);
+    // Duplicates scanProject's own check on purpose: this message lists the components with `source`.
     for (const id of args) {
       if (!sourced.includes(id) && !project.codeGraphs.has(id)) throw new Error(`Component "${id}" has no \`source\`. Components with source: ${sourced.join(', ') || '(none)'}`);
     }
@@ -263,9 +264,11 @@ export const commands: Record<string, Command> = {
   async pr({ dir, yes, title }) {
     await requireProject(dir);
     // Generated code graphs go into the same PR as the model; a no-op without any `source`.
-    await scanProject(dir);
+    const scanned = await scanProject(dir);
+    for (const p of scanned.problems) console.log(formatProblem(p));
     const project = await loadProject(dir);
-    const problems = validate(project, await renderedProblems(project));
+    // Claim problems (E014/E015) block the PR like validate errors.
+    const problems = validate(project, [...(await renderedProblems(project)), ...scanned.problems]);
     const preview = await prPreview(dir, project, problems, { title });
     console.log(`Title: ${preview.title}`);
     console.log(`Branch: ${preview.branch} -> ${preview.base}`);

@@ -1,0 +1,12 @@
+# Example: a separate workflow, because the paths filter of architecture.yml applies to the whole
+# workflow. No filter here: a source-only PR is what makes a code graph stale.
+name: architecture-scan
+on: pull_request
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - run: npx zark scan --check
