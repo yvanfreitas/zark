@@ -14,4 +14,5 @@ jobs:
       - run: npx zark validate
       - run: npx zark fmt --check
       - run: npx zark render --check
+      - run: npx zark scan --check
       - run: npx zark diff --base origin/main --format markdown >> "$GITHUB_STEP_SUMMARY"

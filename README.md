@@ -49,6 +49,7 @@ The Chromium used to render PNGs is downloaded on the first render, not at insta
 | `zark validate [--format json]` | Lists problems. Exits with 1 when there are errors |
 | `zark fmt [--check]` | Rewrites files in canonical format, or only checks |
 | `zark render [--check] [id...]` | Renders PNGs into `architecture/rendered/`, or checks they are up to date |
+| `zark scan [--check] [component...]` | Generates `architecture/code/<component>.yaml` (C4 level 4) for components with `source`, or checks the files are up to date |
 | `zark diff [--base ref] [--format text\|markdown]` | Semantic diff against a git ref (default: `origin/<baseBranch>`) |
 | `zark pr [--yes] [--title t]` | Branch, render, commit of `architecture/`, push and `gh pr create`, with preview and confirmation |
 | `zark build --out dir` | Read-only static site (drawings and flow player) |
@@ -60,6 +61,18 @@ The Chromium used to render PNGs is downloaded on the first render, not at insta
 Every command accepts `--dir <folder>` (default: `architecture`).
 
 Git and PRs use the `git` and provider CLI already authenticated on the machine: `gh` on GitHub, `glab` on GitLab (where the PR becomes an MR). The provider comes from `git.provider: github | gitlab` in `zark.yaml`; without it, a remote whose host contains `gitlab` picks GitLab. Zark never asks for, reads or stores a token, and never runs `push --force`.
+
+## Code level (TypeScript)
+
+Set `source` on a component (a folder, a file, or a list of them, relative to the repository root) and `zark scan` writes `architecture/code/<component>.yaml`: its modules, the pieces in them (functions, classes, types) and the calls and imports between them. The files are generated, never edit them. `zark scan --check` exits with 1 when one is out of date, and `zark pr` runs `zark scan` first so the graphs land in the same PR.
+
+Calls that cannot be pinned to a piece are counted, not guessed:
+
+- `unresolved`: calls whose target the scanner cannot determine (dynamic or untyped receivers)
+- `external`: imports of packages outside the repository. Workspace packages count as external
+- `unowned`: imports of repository files that no component claims in `source`
+
+Optional `code.tsconfig` and `code.exclude` in `zark.yaml` pick the tsconfig used for path aliases and the globs to skip.
 
 ## Icons
 
@@ -99,7 +112,15 @@ No `vsce` needed: `pnpm --filter zark-vscode build` produces `dist/extension.cjs
 
 ## CI
 
-`.github/workflows/architecture.yml` is the example for the repository that versions `architecture/`: it runs `validate`, `fmt --check`, `render --check` and posts the semantic diff in the job summary.
+`.github/workflows/architecture.yml` is the example for the repository that versions `architecture/`: it runs `validate`, `fmt --check`, `render --check`, `scan --check` and posts the semantic diff in the job summary.
+
+To keep the code graphs current instead of failing the build, run `npx zark scan` in a job and open a PR with the result:
+
+```yaml
+- run: npx zark scan
+- uses: peter-evans/create-pull-request@v6
+  with: { add-paths: architecture/code, title: "chore: update code graphs" }
+```
 
 ## Development
 

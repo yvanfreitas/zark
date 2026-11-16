@@ -18,6 +18,7 @@ import {
   migrate,
   readTexts,
   repoRootOf,
+  scanProject,
   toText,
   validate,
   warningsOf,
@@ -231,6 +232,27 @@ export const commands: Record<string, Command> = {
     }
   },
 
+  async scan({ dir, check, args }) {
+    const project = await requireProject(dir);
+    const sourced = [...project.entities].filter(([, { entity }]) => entity.kind === 'component' && entity.source).map(([id]) => id);
+    for (const id of args) {
+      if (!sourced.includes(id) && !project.codeGraphs.has(id)) throw new Error(`Component "${id}" has no \`source\`. Components with source: ${sourced.join(', ') || '(none)'}`);
+    }
+    const { components, problems } = await scanProject(dir, { check, only: args.length ? args : undefined });
+    for (const p of problems) console.log(formatProblem(p));
+    for (const c of components) {
+      const u = c.unresolved;
+      console.log(`${c.status} ${c.file}  modules ${c.modules}, pieces ${c.pieces}, edges ${c.edges}, unresolved ${u.calls} calls / ${u.external} external / ${u.unowned} unowned${c.parseErrors ? `, parse errors ${c.parseErrors}` : ''}`);
+    }
+    const errors = errorsOf(problems).length;
+    if (check) {
+      const stale = components.filter((c) => c.status === 'stale').length;
+      console.log(stale ? `${stale} code graph(s) out of date. Run "zark scan"` : 'Code graphs are up to date');
+      return stale || errors ? 1 : 0;
+    }
+    return errors ? 1 : 0;
+  },
+
   async diff({ dir, base, format }) {
     const project = await requireProject(dir);
     const ref = base || (await defaultBase(dir, project.config.git.baseBranch));
@@ -239,7 +261,10 @@ export const commands: Record<string, Command> = {
   },
 
   async pr({ dir, yes, title }) {
-    const project = await requireProject(dir);
+    await requireProject(dir);
+    // Generated code graphs go into the same PR as the model; a no-op without any `source`.
+    await scanProject(dir);
+    const project = await loadProject(dir);
     const problems = validate(project, await renderedProblems(project));
     const preview = await prPreview(dir, project, problems, { title });
     console.log(`Title: ${preview.title}`);
