@@ -13,7 +13,7 @@ The CLI, the MCP server, PR texts and validation messages are in English. The we
 
 ## Example: Papo, an AI chat app on AWS
 
-`examples/ai-chat/architecture/` is a complete, fictional model: **Papo**, a chat app whose messages go through an Amazon API Gateway WebSocket API, fan out on an SNS topic to SQS queues, and wake up an AI bot running on AWS Lambda (16 entities, 19 connections, 2 drawings, 2 flows).
+`examples/ai-chat/architecture/` is a complete, fictional model: **Papo**, a chat app whose messages go through an Amazon API Gateway WebSocket API, fan out on an SNS topic to SQS queues, and wake up an AI bot running on AWS Lambda (18 entities, 20 connections, 3 drawings, 2 flows). Its two components, `reply-builder` and `moderation-client`, have generated code graphs (`code/*.yaml`, from the sample TypeScript in `examples/ai-chat/src`).
 
 - **Context** drawing: the user, the Papo app, Auth (Amazon Cognito), the Papo platform and two external services (an LLM provider and a moderation service).
 - **Papo platform** drawing (drill-down into the platform): WebSocket API, message handler (Lambda), messages topic (SNS), bot and history queues plus a dead-letter queue (SQS), bot orchestrator and history writer (Lambda), conversation history (DynamoDB) and attachments (S3).

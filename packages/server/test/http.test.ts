@@ -105,7 +105,7 @@ describe('model and writes', () => {
   it('returns the model with hashes and no problems', async () => {
     const { status, body } = await call('GET', '/api/model');
     expect(status).toBe(200);
-    expect(body.entities).toHaveLength(16);
+    expect(body.entities).toHaveLength(18);
     expect(body.files['entities/auth.yaml'].hash).toMatch(/^[0-9a-f]{16}$/);
     expect(body.problems).toEqual([]);
   });
@@ -124,7 +124,7 @@ describe('model and writes', () => {
   it('stale If-Match returns 409 with the current model', async () => {
     const r = await call('PATCH', '/api/entities/auth', { set: { caption: 'x' } }, { 'if-match': 'entities/auth.yaml=stale' });
     expect(r.status).toBe(409);
-    expect(r.body.model.entities).toHaveLength(16);
+    expect(r.body.model.entities).toHaveLength(18);
   });
 
   it('a connection to a missing entity returns 422 with E020', async () => {

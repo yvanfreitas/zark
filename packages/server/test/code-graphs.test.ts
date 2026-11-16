@@ -31,7 +31,7 @@ describe('snapshot', () => {
   it('includes code graphs sorted by component', async () => {
     const store = await new ProjectStore(root).load();
     const snap = store.snapshot();
-    expect(snap.codeGraphs.map((g) => g.component)).toEqual(['alpha', 'zeta']);
+    expect(snap.codeGraphs.map((g) => g.component)).toEqual(['alpha', 'moderation-client', 'reply-builder', 'zeta']);
     expect(snap.codeGraphs[0]).toMatchObject({ modules: [], edges: [], unresolved: { calls: 0, external: 0, unowned: 0 } });
     await store.close();
   });

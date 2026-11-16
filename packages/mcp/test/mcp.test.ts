@@ -57,7 +57,7 @@ describe('zark MCP server', () => {
 
   it('reads overview and flow as mermaid', async () => {
     const overview = await call('get_overview');
-    expect(overview.counts).toEqual({ entities: 16, connections: 19, drawings: 2, flows: 2 });
+    expect(overview.counts).toEqual({ entities: 18, connections: 20, drawings: 3, flows: 2 });
     const text = await call('get_flow', { id: 'user-chats-with-the-bot', format: 'mermaid' });
     expect(text).toContain('sequenceDiagram');
     expect(text).toContain('alt Content approved');

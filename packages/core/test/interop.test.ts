@@ -31,7 +31,9 @@ async function importInto(project: Project, text: string, format?: string) {
   return { ...result, warnings: plan.warnings, format: plan.format };
 }
 
-const modelChanges = (a: Project, b: Project) => diffProjects(a, b).filter((c) => c.type.startsWith('entity.') || c.type.startsWith('connection.'));
+// Structurizr and IcePanel have no notion of a component's code `source`, so a round trip drops it.
+const modelChanges = (a: Project, b: Project) =>
+  diffProjects(a, b).filter((c) => (c.type.startsWith('entity.') || c.type.startsWith('connection.')) && !c.text.endsWith(': source changed'));
 
 describe('Structurizr', () => {
   it('round trip of the appendix keeps the model and the drawing positions', async () => {

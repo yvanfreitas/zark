@@ -32,9 +32,9 @@ const lineDiff = (a: string, b: string) => {
 };
 
 describe('phase 1 acceptance: appendix model', () => {
-  it('loads 16 entities, 19 connections, 2 drawings, 2 flows with no problems', () => {
+  it('loads 18 entities, 20 connections, 3 drawings, 2 flows with no problems', () => {
     const p = project();
-    expect([p.entities.size, p.connections.size, p.drawings.size, p.flows.size]).toEqual([16, 19, 2, 2]);
+    expect([p.entities.size, p.connections.size, p.drawings.size, p.flows.size]).toEqual([18, 20, 3, 2]);
     expect(validate(p)).toEqual([]);
   });
 
@@ -107,7 +107,7 @@ describe('validation codes', () => {
 
   it('tolerates an invalid file and still loads the rest', () => {
     const p = project((t) => t.set('entities/auth.yaml', ': : :'));
-    expect(p.entities.size).toBe(15);
+    expect(p.entities.size).toBe(17);
     expect(codes(p)).toContain('E001');
   });
 });

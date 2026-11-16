@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://unpkg.com/zark/schema/entity.json
+
+id: reply-builder
+name: Reply builder
+kind: component
+parent: bot-orchestrator
+caption: Builds the prompt and sends the answer
+source: examples/ai-chat/src/bot-orchestrator
+
+connections:
+  - id: moderate
+    to: moderation-client
+    label: Checks the message first
