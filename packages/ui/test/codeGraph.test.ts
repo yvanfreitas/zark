@@ -81,6 +81,28 @@ describe('pieceLevel', () => {
     ]);
   });
 
+  it('inheritance and calls between the same pieces are separate edges', () => {
+    const g: CodeGraph = {
+      ...bot,
+      edges: [
+        { from: 'src/orch.ts#Orch', to: 'src/orch.ts#Base', kind: 'extends', count: 1 },
+        { from: 'src/orch.ts#Orch.run', to: 'src/orch.ts#Base.x', kind: 'calls', count: 2 },
+      ],
+    };
+    expect(pieceLevel(g, 'src/orch.ts', [g]).edges).toEqual([
+      { from: 'src/orch.ts#Orch', to: 'src/orch.ts#Base', count: 2, kinds: ['calls'] },
+      { from: 'src/orch.ts#Orch', to: 'src/orch.ts#Base', count: 1, kinds: ['extends'] },
+    ]);
+  });
+
+  it('drops edges to pieces the graph does not list', () => {
+    const g: CodeGraph = { ...bot, edges: [...bot.edges, { from: 'src/orch.ts#Orch', to: 'src/orch.ts#Ghost', kind: 'calls', count: 1 }] };
+    const { nodes, edges } = pieceLevel(g, 'src/orch.ts', [g]);
+    const ids = new Set(nodes.map((n) => n.id));
+    expect(edges.every((e) => ids.has(e.from) && ids.has(e.to))).toBe(true);
+    expect(edges.some((e) => e.to.endsWith('#Ghost'))).toBe(false);
+  });
+
   it('module-level code shows as a node of its own', () => {
     const { nodes, edges } = pieceLevel(bot, 'src/handler.ts', all);
     expect(nodes).toContainEqual({ id: 'src/handler.ts', label: 'handler.ts', foreign: false });

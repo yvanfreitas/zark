@@ -10,10 +10,11 @@ import { hoverCss, hoverTargets, type Hover } from '../canvas/hover';
 import { layout } from '../deps/DepsView';
 import { Icon, Svg } from '../panels/ui';
 import type { CodeGraph } from '../types';
-import { moduleLevel, parseNodeId, pieceLevel, type CodeLevel } from './codeGraph';
+import { isInheritance, moduleLevel, parseNodeId, pieceLevel, type CodeLevel, type CodeLevelEdge } from './codeGraph';
 
 const SIZE = { w: 220, h: 64 };
-const INHERITANCE = new Set(['extends', 'implements']);
+/** A pair can carry two edges (use and inheritance), so the id names the group. */
+export const edgeId = (e: CodeLevelEdge) => `${e.from}->${e.to}${isInheritance(e) ? ':inherits' : ''}`;
 
 interface CodeNodeData extends Record<string, unknown> {
   label: string;
@@ -43,7 +44,9 @@ export function useCodeLevel(): { graph?: CodeGraph; level?: CodeLevel } {
   const code = useStore((s) => s.code);
   const all = useStore((s) => s.model?.codeGraphs);
   const graph = useStore((s) => (s.code ? s.index?.codeGraphs.get(s.code.component) : undefined));
-  const level = useMemo(() => (graph ? (code?.module ? pieceLevel(graph, code.module, all ?? []) : moduleLevel(graph, all ?? [])) : undefined), [graph, code?.module, all]);
+  // A module gone after a rescan falls back to the module level (CodeView also clears it from the store).
+  const module = code?.module && graph?.modules.some((m) => m.path === code.module) ? code.module : undefined;
+  const level = useMemo(() => (graph ? (module ? pieceLevel(graph, module, all ?? []) : moduleLevel(graph, all ?? [])) : undefined), [graph, module, all]);
   return { graph, level };
 }
 
@@ -69,7 +72,7 @@ function CodeGraphView({ level }: { level: CodeLevel }) {
   const t = useT();
   const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>();
   const [error, setError] = useState<string>();
-  const ids = (e: { from: string; to: string }) => `${e.from}->${e.to}`;
+  const ids = edgeId;
 
   useEffect(() => {
     let alive = true;
@@ -118,8 +121,8 @@ function CodeGraphView({ level }: { level: CodeLevel }) {
         targetHandle: g.targetSide,
         markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18, color: 'var(--edge)' },
         selectable: false,
-        // Dashed: inheritance only (extends/implements), never mixed with calls.
-        data: { ref: id, conn, spec: { shape: 'auto' }, inherited: e.kinds.every((k) => INHERITANCE.has(k)), label: label(e.count), bidirectional: false, dim: false, pulse: false, animate: true, obstacles, offsets: g.offsets, labelAt: g.labelAt } satisfies EdgeData,
+        // Dashed: inheritance (extends/implements); codeGraph keeps it apart from calls on the same pair.
+        data: { ref: id, conn, spec: { shape: 'auto' }, inherited: isInheritance(e), label: label(e.count), bidirectional: false, dim: false, pulse: false, animate: true, obstacles, offsets: g.offsets, labelAt: g.labelAt } satisfies EdgeData,
       }];
     });
     return { nodes, edges };
@@ -187,6 +190,10 @@ export function CodeView() {
   const drawing = useStore(currentDrawing);
   const { graph, level } = useCodeLevel();
   const t = useT();
+  const stale = !!(code?.module && graph && !graph.modules.some((m) => m.path === code.module));
+  useEffect(() => {
+    if (stale && code) useStore.getState().openCode(code.component);
+  }, [stale, code]);
   if (!code) return null;
   const s = useStore.getState;
   const back = () => (code.module ? s().openCode(code.component) : s().closeCode());

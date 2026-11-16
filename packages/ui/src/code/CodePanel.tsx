@@ -2,7 +2,7 @@ import { useStore } from '../store';
 import { useT } from '../i18n';
 import { SectionTitle } from '../panels/ui';
 import { parseNodeId, type CodeLevelEdge } from './codeGraph';
-import { useCodeLevel, useNodeSub } from './CodeView';
+import { edgeId, useCodeLevel, useNodeSub } from './CodeView';
 
 /** Read-only right panel of the code view: the selected module or piece, else the component. */
 export function CodePanel() {
@@ -20,12 +20,12 @@ export function CodePanel() {
     edges.length ? (
       <ul className="flex flex-col gap-1 px-1 text-[12.5px]">
         {edges.map((e) => (
-          <li key={`${e.from}->${e.to}`} className="flex items-baseline justify-between gap-2">
+          <li key={edgeId(e)} className="flex items-baseline justify-between gap-2">
             <button type="button" onClick={() => useStore.getState().select([e[end]])} className="truncate font-mono text-[var(--fg)] hover:text-[var(--accent)]" title={e[end]}>
               {labelOf(e[end])}
             </button>
             <span className="shrink-0 text-[11px] text-[var(--muted)]">
-              {e.kinds.join(', ')} ×{e.count}
+              {e.kinds.map((k) => t(`code.edge.${k}`)).join(', ')} ×{e.count}
             </span>
           </li>
         ))}

@@ -62,19 +62,33 @@ function idOf(e: Endpoint, viewed: string, withPiece: boolean): string {
   return e.component === viewed ? local : `${e.component}:${local}`;
 }
 
-/** Sums counts per (from, to) pair, dropping pairs that collapse onto one node. */
+const INHERITANCE: ReadonlySet<CodeEdgeKind> = new Set(['extends', 'implements']);
+/** True for an edge that only carries extends/implements (drawn dashed); `aggregate` never mixes the two groups. */
+export const isInheritance = (e: CodeLevelEdge) => e.kinds.every((k) => INHERITANCE.has(k));
+
+/**
+ * Sums counts per (from, to) pair, dropping pairs that collapse onto one node. Inheritance
+ * (extends/implements) and use (calls/instantiates) stay separate edges, so a subclass that
+ * also calls its parent still shows the inheritance.
+ */
 function aggregate(edges: { from: string; to: string; kind: CodeEdgeKind; count: number }[]): CodeLevelEdge[] {
   const pairs = new Map<string, CodeLevelEdge>();
   for (const e of edges) {
     if (e.from === e.to) continue;
-    const key = `${e.from}\n${e.to}`;
+    const key = `${e.from}\n${e.to}\n${INHERITANCE.has(e.kind)}`;
     const pair = pairs.get(key) ?? pairs.set(key, { from: e.from, to: e.to, count: 0, kinds: [] }).get(key)!;
     pair.count += e.count;
     if (!pair.kinds.includes(e.kind)) pair.kinds.push(e.kind);
   }
   const out = [...pairs.values()];
   for (const p of out) p.kinds.sort();
-  return out.sort((a, b) => a.from.localeCompare(b.from) || a.to.localeCompare(b.to));
+  return out.sort((a, b) => a.from.localeCompare(b.from) || a.to.localeCompare(b.to) || Number(isInheritance(a)) - Number(isInheritance(b)));
+}
+
+/** Keeps only edges with a box at both ends (an inconsistent generated file must not break the layout). */
+function level(nodes: CodeLevelNode[], edges: CodeLevelEdge[]): CodeLevel {
+  const ids = new Set(nodes.map((n) => n.id));
+  return { nodes, edges: edges.filter((e) => ids.has(e.from) && ids.has(e.to)) };
 }
 
 /** Own nodes first (as listed), then foreign ones by id. */
@@ -100,7 +114,7 @@ export function moduleLevel(graph: CodeGraph, all: CodeGraph[]): CodeLevel {
   const ownNodes = own.map((path) => ({ id: path, label: path.slice(dir.length), foreign: false }));
   const foreign = new Map<string, string>();
   for (const e of touching) for (const id of [e.from, e.to]) if (!own.includes(id)) foreign.set(id, basename(parseEndpoint(id, viewed).path));
-  return { nodes: nodeList(ownNodes, foreign), edges: aggregate(touching) };
+  return level(nodeList(ownNodes, foreign), aggregate(touching));
 }
 
 /** Pieces of one module (members folded into their class), plus the pieces elsewhere it touches. */
@@ -120,5 +134,5 @@ export function pieceLevel(graph: CodeGraph, modulePath: string, all: CodeGraph[
   for (const e of touching) {
     for (const end of [e.from, e.to]) if (!inModule(end)) foreign.set(idOf(end, viewed, true), end.piece ?? basename(end.path));
   }
-  return { nodes: nodeList(own, foreign), edges };
+  return level(nodeList(own, foreign), edges);
 }
