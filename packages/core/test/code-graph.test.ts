@@ -1,4 +1,4 @@
-import { cp, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -132,6 +132,13 @@ describe('buildGraph', () => {
     expect(graph.unresolved).toEqual({ calls: 1, external: 0, unowned: 0 }); // only the global console.log
   });
 
+  it('member call on untyped module-scope variable stays unresolved', () => {
+    const graph = single(`const client = makeClient();\nlet other;\nconst fn = () => 1;\nnamespace N { export function f() {} }\nexport function run() { client.send(); other.go(); fn(); N.f(); }`);
+    expect(graph.edges).toEqual([]);
+    // makeClient (global), client.send, other.go; fn() and N.f() are internal
+    expect(graph.unresolved).toEqual({ calls: 3, external: 0, unowned: 0 });
+  });
+
   it('piece called by its local name resolves to the piece', () => {
     const graph = single(`export default class Foo { static make() {} }\nconst a = () => 1;\nexport { a as b };\nexport function run() { Foo.make(); new Foo(); a(); }`);
     expect(graph.edges).toEqual([
@@ -233,6 +240,12 @@ describe('scanProject', () => {
     const result = await scanProject(arch(root), {});
     expect(result.components.find((c) => c.id === 'moderation')).toMatchObject({ file: 'code/moderation.yaml', status: 'deleted' });
     expect(await readdir(join(arch(root), 'code'))).toEqual(['bot.yaml']);
+  });
+
+  it('a generated file that cannot be read (not missing) fails the scan', async () => {
+    const root = await copyFixture();
+    await mkdir(join(arch(root), 'code', 'bot.yaml'), { recursive: true }); // EISDIR, not ENOENT
+    await expect(scanProject(arch(root), { check: true })).rejects.toThrow(/EISDIR/);
   });
 
   it('only scans the listed components', async () => {

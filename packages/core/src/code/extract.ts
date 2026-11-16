@@ -47,8 +47,9 @@ export function extractModule(path: string, text: string): ModuleFacts {
   const moduleScope: Scope = { vars: new Map(), module: true };
   collectDecls(body, moduleScope, 'lexical');
   collectDecls(body, moduleScope, 'var');
-  for (const name of moduleScope.vars.keys()) facts.locals.set(name, undefined);
-  // The first piece a local name declares wins (overloads, `export { a as b, a as c }`).
+  // Locals are declarations whose target the syntax names (functions, classes, types, namespaces,
+  // function-valued variables) plus variables that are pieces; an untyped value is not one, so a call
+  // on it stays unresolved. The first piece a local name declares wins (overloads, `export { a as b, a as c }`).
   const bindLocal = (local: string | undefined, piece: string | undefined) => {
     if (local && facts.locals.get(local) === undefined) facts.locals.set(local, piece);
   };
@@ -66,7 +67,9 @@ export function extractModule(path: string, text: string): ModuleFacts {
   const declaration = (decl: N, names: string[], exportedVars = false) => {
     const from = names[0] ?? '';
     const ctx: Ctx = { from, scope: moduleScope };
-    if (decl.type !== 'VariableDeclaration') bindLocal(decl.id?.name, names[0]);
+    if (decl.type !== 'VariableDeclaration' && (CLASSES.has(decl.type) || FUNCTIONS.has(decl.type) || decl.type in LOCAL_DECLS)) {
+      bindLocal(decl.id?.name, names[0]);
+    }
     if (CLASSES.has(decl.type)) {
       for (const name of names) addPiece(classPiece(decl, name));
       walker.cls(decl, ctx, from || undefined, decl.id?.name);
@@ -78,7 +81,7 @@ export function extractModule(path: string, text: string): ModuleFacts {
         const own = d.id.type === 'Identifier' ? (exportedVars ? [d.id.name] : listed.get(d.id.name) ?? []) : [];
         const kind = d.init && FUNCTIONS.has(d.init.type) ? 'function' : 'const';
         for (const name of own) addPiece({ name, kind });
-        if (d.id.type === 'Identifier') bindLocal(d.id.name, own[0]);
+        if (d.id.type === 'Identifier' && (own.length || kind === 'function')) bindLocal(d.id.name, own[0]);
         walker.walk(d, { from: own[0] ?? '', scope: moduleScope });
       }
     } else if (decl.type in KIND_OF) {
@@ -128,6 +131,7 @@ const KIND_OF: Record<string, CodePiece['kind']> = {
   TSTypeAliasDeclaration: 'type',
   TSEnumDeclaration: 'enum',
 };
+const LOCAL_DECLS = { ...KIND_OF, TSDeclareFunction: 'function', TSModuleDeclaration: 'namespace' };
 
 function nameOf(node: N): string {
   return node.type === 'Identifier' ? node.name : String(node.value);
