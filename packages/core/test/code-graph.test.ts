@@ -28,79 +28,36 @@ component: bot
 modules:
   - path: services/bot/src/handler.ts
     pieces:
-      - name: handle
-        kind: function
+      - { name: handle, kind: function }
   - path: services/bot/src/helpers.ts
     pieces:
-      - name: helper
-        kind: function
+      - { name: helper, kind: function }
   - path: services/bot/src/logger.ts
     pieces:
       - name: ConsoleLogger
         kind: class
         members: [ info ]
-      - name: Logger
-        kind: interface
-      - name: LoudLogger
-        kind: class
+      - { name: Logger, kind: interface }
+      - { name: LoudLogger, kind: class }
   - path: services/bot/src/orchestrator.ts
     pieces:
       - name: BotOrchestrator
         kind: class
         members: [ handle, retry ]
 edges:
-  - from: services/bot/src/handler.ts
-    to: services/bot/src/handler.ts#handle
-    kind: calls
-    count: 1
-  - from: services/bot/src/handler.ts#handle
-    to: moderation:services/moderation/src/client.ts#ModerationClient
-    kind: instantiates
-    count: 1
-  - from: services/bot/src/handler.ts#handle
-    to: services/bot/src/helpers.ts#helper
-    kind: calls
-    count: 1
-  - from: services/bot/src/handler.ts#handle
-    to: services/bot/src/logger.ts#ConsoleLogger
-    kind: instantiates
-    count: 1
-  - from: services/bot/src/handler.ts#handle
-    to: services/bot/src/orchestrator.ts#BotOrchestrator
-    kind: instantiates
-    count: 1
-  - from: services/bot/src/handler.ts#handle
-    to: services/bot/src/orchestrator.ts#BotOrchestrator.handle
-    kind: calls
-    count: 1
-  - from: services/bot/src/logger.ts#ConsoleLogger
-    to: services/bot/src/logger.ts#Logger
-    kind: implements
-    count: 1
-  - from: services/bot/src/logger.ts#LoudLogger
-    to: services/bot/src/logger.ts#ConsoleLogger
-    kind: extends
-    count: 1
-  - from: services/bot/src/orchestrator.ts#BotOrchestrator.handle
-    to: moderation:services/moderation/src/client.ts#ModerationClient.classify
-    kind: calls
-    count: 2
-  - from: services/bot/src/orchestrator.ts#BotOrchestrator.handle
-    to: services/bot/src/logger.ts#Logger
-    kind: calls
-    count: 1
-  - from: services/bot/src/orchestrator.ts#BotOrchestrator.handle
-    to: services/bot/src/orchestrator.ts#BotOrchestrator.retry
-    kind: calls
-    count: 1
-  - from: services/bot/src/orchestrator.ts#BotOrchestrator.retry
-    to: services/bot/src/helpers.ts#helper
-    kind: calls
-    count: 1
-unresolved:
-  calls: 2
-  external: 2
-  unowned: 1
+  - { from: services/bot/src/handler.ts, to: services/bot/src/handler.ts#handle, kind: calls, count: 1 }
+  - { from: services/bot/src/handler.ts#handle, to: moderation:services/moderation/src/client.ts#ModerationClient, kind: instantiates, count: 1 }
+  - { from: services/bot/src/handler.ts#handle, to: services/bot/src/helpers.ts#helper, kind: calls, count: 1 }
+  - { from: services/bot/src/handler.ts#handle, to: services/bot/src/logger.ts#ConsoleLogger, kind: instantiates, count: 1 }
+  - { from: services/bot/src/handler.ts#handle, to: services/bot/src/orchestrator.ts#BotOrchestrator, kind: instantiates, count: 1 }
+  - { from: services/bot/src/handler.ts#handle, to: services/bot/src/orchestrator.ts#BotOrchestrator.handle, kind: calls, count: 1 }
+  - { from: services/bot/src/logger.ts#ConsoleLogger, to: services/bot/src/logger.ts#Logger, kind: implements, count: 1 }
+  - { from: services/bot/src/logger.ts#LoudLogger, to: services/bot/src/logger.ts#ConsoleLogger, kind: extends, count: 1 }
+  - { from: services/bot/src/orchestrator.ts#BotOrchestrator.handle, to: moderation:services/moderation/src/client.ts#ModerationClient.classify, kind: calls, count: 2 }
+  - { from: services/bot/src/orchestrator.ts#BotOrchestrator.handle, to: services/bot/src/logger.ts#Logger, kind: calls, count: 1 }
+  - { from: services/bot/src/orchestrator.ts#BotOrchestrator.handle, to: services/bot/src/orchestrator.ts#BotOrchestrator.retry, kind: calls, count: 1 }
+  - { from: services/bot/src/orchestrator.ts#BotOrchestrator.retry, to: services/bot/src/helpers.ts#helper, kind: calls, count: 1 }
+unresolved: { calls: 2, external: 2, unowned: 1 }
 `;
 
 describe('buildGraph', () => {
@@ -246,6 +203,28 @@ describe('scanProject', () => {
     const root = await copyFixture();
     await mkdir(join(arch(root), 'code', 'bot.yaml'), { recursive: true }); // EISDIR, not ENOENT
     await expect(scanProject(arch(root), { check: true })).rejects.toThrow(/EISDIR/);
+  });
+
+  it('uses an already-loaded project instead of loading it again', async () => {
+    const root = await copyFixture();
+    const project = await loadProject(arch(root));
+    // Drop moderation's source on disk after loading: the passed-in project must win.
+    const entity = join(arch(root), 'entities', 'moderation.yaml');
+    await writeFile(entity, (await readFile(entity, 'utf8')).replace(/^source:.*\n/m, ''));
+    const result = await scanProject(arch(root), { project });
+    expect(result.components.map((c) => [c.id, c.status])).toEqual([['bot', 'written'], ['moderation', 'written']]);
+  });
+
+  it('warns when an explicit code.tsconfig is missing', async () => {
+    const root = await copyFixture();
+    await writeFile(join(arch(root), 'zark.yaml'), 'schema: 1\nname: X\ncode:\n  tsconfig: nope/tsconfig.json\n');
+    const { warnings, problems } = await scanProject(arch(root), {});
+    expect(problems).toEqual([]);
+    expect(warnings).toEqual(['code.tsconfig: nope/tsconfig.json is not found; path aliases are not resolved']);
+    // The default tsconfig.json stays silent when absent.
+    await writeFile(join(arch(root), 'zark.yaml'), 'schema: 1\nname: X\n');
+    await rm(join(root, 'tsconfig.json'), { force: true });
+    expect((await scanProject(arch(root), {})).warnings).toEqual([]);
   });
 
   it('only scans the listed components', async () => {

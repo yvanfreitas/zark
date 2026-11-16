@@ -69,7 +69,10 @@ export function shape(node: unknown, type: Shape): void {
     }
     const order = KEY_ORDER[type as string];
     if (order) orderKeys(node, order);
-    if (type === 'node') node.flow = true;
+    // Code graphs (spec section 4): one line per edge, per member-less piece and for `unresolved`;
+    // also keeps big generated files cheap to write and parse.
+    if (type === 'node' || type === 'codeEdge' || type === 'codeUnresolved') node.flow = true;
+    else if (type === 'codePiece') node.flow = !node.has('members');
     else if (type === 'edge') node.flow = !node.has('points');
     else node.flow = false;
     const children = CHILDREN[type] ?? {};

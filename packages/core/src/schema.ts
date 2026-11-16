@@ -44,7 +44,7 @@ export const Entity = z.strictObject({
   icon: IconRef.optional(),
   description: z.string().optional(),
   // Repo path(s) of the code a component owns; read by the code-graph generator.
-  source: z.union([z.string(), z.array(z.string())]).optional(),
+  source: z.union([z.string().min(1), z.array(z.string().min(1)).min(1)]).optional(),
   external: z.boolean().optional(),
   status: Status.optional(),
   technologies: z.array(Slug).optional(),

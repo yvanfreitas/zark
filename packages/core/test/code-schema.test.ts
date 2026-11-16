@@ -22,6 +22,10 @@ describe('code-level schema', () => {
     expect(Entity.safeParse({ ...entity, source: 3 }).success).toBe(false);
   });
 
+  it('rejects an empty source: "", [] and [""]', () => {
+    for (const source of ['', [], ['']]) expect(Entity.safeParse({ ...entity, source }).success, JSON.stringify(source)).toBe(false);
+  });
+
   it('config accepts code.tsconfig and code.exclude', () => {
     const c = Config.parse({ schema: 1, name: 'X', code: { tsconfig: 'tsconfig.json', exclude: ['**/*.test.ts'] } });
     expect(c.code).toEqual({ tsconfig: 'tsconfig.json', exclude: ['**/*.test.ts'] });
@@ -46,13 +50,15 @@ describe('code-level schema', () => {
     expect(validate(p).map((x) => x.code)).toContain('E002');
   });
 
-  it('canonical writer orders code graph keys', () => {
+  it('canonical writer orders code graph keys, one flow mapping per edge (spec section 4)', () => {
     const shuffled = `unresolved: { unowned: 3, external: 2, calls: 1 }
 edges:
   - { count: 2, kind: calls, to: src/b.ts#B, from: src/a.ts#A.run }
 modules:
   - pieces:
       - { members: [run, stop], kind: class, name: A }
+      - kind: function
+        name: helper
     path: src/a.ts
 component: bot
 `;
@@ -65,15 +71,10 @@ modules:
       - name: A
         kind: class
         members: [ run, stop ]
+      - { name: helper, kind: function }
 edges:
-  - from: src/a.ts#A.run
-    to: src/b.ts#B
-    kind: calls
-    count: 2
-unresolved:
-  calls: 1
-  external: 2
-  unowned: 3
+  - { from: src/a.ts#A.run, to: src/b.ts#B, kind: calls, count: 2 }
+unresolved: { calls: 1, external: 2, unowned: 3 }
 `;
     expect(formatText('code', shuffled)).toBe(expected);
     expect(formatText('code', expected)).toBe(expected);

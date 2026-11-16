@@ -15,22 +15,10 @@ modules:
         members: [ check ]
   - path: examples/ai-chat/src/moderation-client/verdict.ts
     pieces:
-      - name: Classifier
-        kind: interface
-      - name: Verdict
-        kind: interface
-      - name: isBlocked
-        kind: function
+      - { name: Classifier, kind: interface }
+      - { name: Verdict, kind: interface }
+      - { name: isBlocked, kind: function }
 edges:
-  - from: examples/ai-chat/src/moderation-client/moderation-client.ts#ModerationClient.check
-    to: examples/ai-chat/src/moderation-client/verdict.ts#Classifier
-    kind: calls
-    count: 1
-  - from: examples/ai-chat/src/moderation-client/moderation-client.ts#ModerationClient.check
-    to: examples/ai-chat/src/moderation-client/verdict.ts#isBlocked
-    kind: calls
-    count: 1
-unresolved:
-  calls: 4
-  external: 2
-  unowned: 0
+  - { from: examples/ai-chat/src/moderation-client/moderation-client.ts#ModerationClient.check, to: examples/ai-chat/src/moderation-client/verdict.ts#Classifier, kind: calls, count: 1 }
+  - { from: examples/ai-chat/src/moderation-client/moderation-client.ts#ModerationClient.check, to: examples/ai-chat/src/moderation-client/verdict.ts#isBlocked, kind: calls, count: 1 }
+unresolved: { calls: 4, external: 2, unowned: 0 }

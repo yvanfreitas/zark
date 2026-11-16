@@ -17,8 +17,12 @@ function parseJsonc(text: string): any {
   return JSON.parse(noTrailing);
 }
 
-/** Reads tsconfig `baseUrl`/`paths` (following relative `extends`) as repo-relative posix paths. */
-export async function loadAliases(repoRoot: string, tsconfigPath = 'tsconfig.json'): Promise<Aliases> {
+/**
+ * Reads tsconfig `baseUrl`/`paths` (following relative `extends`) as repo-relative posix paths.
+ * A missing or unparsable config means no aliases; `onError` hears about it (used when the config
+ * was set explicitly in `code.tsconfig`, where silence would hide a typo).
+ */
+export async function loadAliases(repoRoot: string, tsconfigPath = 'tsconfig.json', onError?: (file: string, reason: string) => void): Promise<Aliases> {
   const start = isAbsolute(tsconfigPath) ? tsconfigPath : join(repoRoot, tsconfigPath);
   const repoRel = (abs: string) => toPosix(relative(repoRoot, abs)) || '.';
 
@@ -28,7 +32,9 @@ export async function loadAliases(repoRoot: string, tsconfigPath = 'tsconfig.jso
     let json: any;
     try {
       json = parseJsonc(await readFile(file, 'utf8'));
-    } catch {
+    } catch (err) {
+      const reason = (err as NodeJS.ErrnoException).code === 'ENOENT' ? 'not found' : `unreadable (${(err as Error).message})`;
+      onError?.(repoRel(file), reason);
       return { paths: [] }; // missing or unparsable config: no aliases
     }
     const dir = dirname(file);

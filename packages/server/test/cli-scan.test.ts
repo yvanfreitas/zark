@@ -49,6 +49,21 @@ describe('zark scan', () => {
     await expect(scan(['nope'])).rejects.toThrow(/Component "nope".*bot, moderation/);
   });
 
+  it('prints a hint when no component has a source', async () => {
+    for (const id of ['bot', 'moderation']) {
+      const f = join(dir, `entities/${id}.yaml`);
+      await writeFile(f, (await readFile(f, 'utf8')).replace(/^source:.*\n/m, ''));
+    }
+    expect(await scan()).toBe(0);
+    expect(out).toEqual(['No component has a source. Add source: <path> to a component.']);
+  });
+
+  it('prints a warning when an explicit code.tsconfig is missing', async () => {
+    await writeFile(join(dir, 'zark.yaml'), 'schema: 1\nname: X\ncode:\n  tsconfig: nope.json\n');
+    expect(await scan()).toBe(0);
+    expect(out).toContain('warning: code.tsconfig: nope.json is not found; path aliases are not resolved');
+  });
+
   it('exits 1 on a claim error (E014, source matches nothing)', async () => {
     const f = join(dir, 'entities/bot.yaml');
     await writeFile(f, (await readFile(f, 'utf8')).replace('source: services/bot', 'source: services/missing'));

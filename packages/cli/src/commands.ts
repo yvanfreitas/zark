@@ -239,8 +239,13 @@ export const commands: Record<string, Command> = {
     for (const id of args) {
       if (!sourced.includes(id) && !project.codeGraphs.has(id)) throw new Error(`Component "${id}" has no \`source\`. Components with source: ${sourced.join(', ') || '(none)'}`);
     }
-    const { components, problems } = await scanProject(dir, { check, only: args.length ? args : undefined });
+    const { components, problems, warnings } = await scanProject(dir, { check, only: args.length ? args : undefined, project });
     for (const p of problems) console.log(formatProblem(p));
+    for (const w of warnings) console.log(`warning: ${w}`);
+    if (!components.length) {
+      console.log('No component has a source. Add source: <path> to a component.');
+      return errorsOf(problems).length ? 1 : 0;
+    }
     for (const c of components) {
       const u = c.unresolved;
       console.log(`${c.status} ${c.file}  modules ${c.modules}, pieces ${c.pieces}, edges ${c.edges}, unresolved ${u.calls} calls / ${u.external} external / ${u.unowned} unowned${c.parseErrors ? `, parse errors ${c.parseErrors}` : ''}`);
@@ -262,11 +267,13 @@ export const commands: Record<string, Command> = {
   },
 
   async pr({ dir, yes, title }) {
-    await requireProject(dir);
+    const loaded = await requireProject(dir);
     // Generated code graphs go into the same PR as the model; a no-op without any `source`.
-    const scanned = await scanProject(dir);
+    const scanned = await scanProject(dir, { project: loaded });
     for (const p of scanned.problems) console.log(formatProblem(p));
-    const project = await loadProject(dir);
+    for (const w of scanned.warnings) console.log(`warning: ${w}`);
+    // Reload only when the scan wrote or deleted a code graph; otherwise the loaded project is current.
+    const project = scanned.components.some((c) => c.status === 'written' || c.status === 'deleted') ? await loadProject(dir) : loaded;
     // Claim problems (E014/E015) block the PR like validate errors.
     const problems = validate(project, [...(await renderedProblems(project)), ...scanned.problems]);
     const preview = await prPreview(dir, project, problems, { title });

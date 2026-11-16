@@ -106,6 +106,16 @@ describe('loadAliases', () => {
     expect(await loadAliases(root)).toEqual({ paths: [['a/*', ['x/*']]] });
     expect(await loadAliases(root, 'nope.json')).toEqual({ paths: [] });
   });
+
+  it('reports a missing or unparsable tsconfig through onError', async () => {
+    const root = await repo({ 'bad.json': '{ not json' });
+    const errors: string[] = [];
+    const onError = (file: string, reason: string) => errors.push(`${file}: ${reason}`);
+    expect(await loadAliases(root, 'nope.json', onError)).toEqual({ paths: [] });
+    expect(await loadAliases(root, 'bad.json', onError)).toEqual({ paths: [] });
+    expect(errors[0]).toBe('nope.json: not found');
+    expect(errors[1]).toMatch(/^bad\.json: unreadable \(/);
+  });
 });
 
 describe('resolveExport', () => {
