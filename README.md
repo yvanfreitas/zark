@@ -72,7 +72,21 @@ Calls that cannot be pinned to a piece are counted, not guessed:
 - `external`: imports of packages outside the repository. Workspace packages count as external
 - `unowned`: imports of repository files that no component claims in `source`
 
-`architecture-scan.yml` runs `npx zark scan --check` in its own workflow with no `paths` filter, because the check must run on every PR, not only on changes under `architecture/`: a source-only change is what makes a graph stale.
+Run `zark scan --check` on every PR, not only on changes under `architecture/`: a source-only change is what makes a graph stale. Use a separate workflow without a `paths` filter (a filter applies to the whole workflow), with `@ewcodes/zark` as a devDependency:
+
+```yaml
+name: architecture-scan
+on: pull_request
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - run: npm ci
+      - run: npx zark scan --check
+```
 
 Optional `code.tsconfig` and `code.exclude` in `zark.yaml` pick the tsconfig used for path aliases and the globs to skip.
 
