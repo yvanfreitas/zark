@@ -18,7 +18,8 @@ await build({
   format: 'esm',
   // playwright-core stays a real dependency: it locates its browsers relative to itself.
   // Read from disk at runtime (icon SVGs and metadata), so they stay real dependencies.
-  external: ['playwright-core', 'lucide-static', 'simple-icons'],
+  // oxc-parser loads a native binding per platform, which a bundle cannot carry.
+  external: ['playwright-core', 'lucide-static', 'simple-icons', 'oxc-parser'],
   // Some bundled CommonJS deps call require(); give ESM output a real one.
   banner: { js: "import { createRequire as __zarkCreateRequire } from 'node:module';\nglobalThis.require ??= __zarkCreateRequire(import.meta.url);" },
   logLevel: 'warning',
