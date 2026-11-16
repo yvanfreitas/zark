@@ -8,7 +8,7 @@ import type { MenuItem } from './panels/Menu';
 
 export type FilterState = 'highlight' | 'hide';
 export type RightPanel = 'inspector' | 'problems' | 'changes';
-export type MainView = 'canvas' | 'list' | 'deps';
+export type MainView = 'canvas' | 'list' | 'deps' | 'code';
 
 export interface Toast {
   id: number;
@@ -48,8 +48,10 @@ interface State {
   saving: 'idle' | 'saving' | 'saved';
   toasts: Toast[];
   right: RightPanel;
-  /** What the central area shows: the drawing, the model list or a dependency view. */
+  /** What the central area shows: the drawing, the model list, a dependency view or a code view. */
   view: MainView;
+  /** Code view: the component's modules, or the pieces of one of its modules. */
+  code: { component: string; module?: string } | null;
   depsOf?: string;
   depsLevels: number;
   /** With nothing selected, the right panel shows the current drawing's properties instead of the model list. */
@@ -96,6 +98,10 @@ interface Actions {
   set: (patch: Partial<State>) => void;
   setFlow: (patch: Partial<FlowState> | null) => void;
   requestFocus: () => void;
+  /** Opens the code view of a component (its modules) or of one of its modules (its pieces). */
+  openCode: (component: string, module?: string) => void;
+  /** Leaves the code view for the canvas. */
+  closeCode: () => void;
 }
 
 let toastId = 0;
@@ -121,6 +127,7 @@ export const useStore = create<State & Actions>((set, get) => ({
   toasts: [],
   right: 'inspector',
   view: 'canvas',
+  code: null,
   depsLevels: 1,
   drawingDetails: false,
   filters: {},
@@ -164,7 +171,8 @@ export const useStore = create<State & Actions>((set, get) => ({
       index,
       drawingId: drawingId && index.drawings.has(drawingId) ? drawingId : model.drawings[0]?.id,
       selection: {
-        nodes: selection.nodes.filter((n) => index.entities.has(n) || n.startsWith('note:') || n.startsWith('group:')),
+        // The code view selects module/piece ids, not entities.
+        nodes: get().view === 'code' ? selection.nodes : selection.nodes.filter((n) => index.entities.has(n) || n.startsWith('note:') || n.startsWith('group:')),
         edges: selection.edges.filter((e) => index.conns.has(e)),
       },
       flow: flow && model.flows.some((f) => f.id === flow.id) ? flow : null,
@@ -175,8 +183,8 @@ export const useStore = create<State & Actions>((set, get) => ({
 
   openDrawing(id, push = true) {
     const { drawingId, trail } = get();
-    // Opening a drawing always brings the canvas back from the list/deps views.
-    if (get().view !== 'canvas') set({ view: 'canvas' });
+    // Opening a drawing always brings the canvas back from the list/deps/code views.
+    if (get().view !== 'canvas') get().set({ view: 'canvas' });
     if (id === drawingId) return;
     set({ drawingId: id, trail: push && drawingId ? [...trail, drawingId] : trail, selection: { nodes: [], edges: [] }, flow: null, drawingDetails: false });
     history.replaceState(null, '', `#drawing=${id}`);
@@ -275,9 +283,13 @@ export const useStore = create<State & Actions>((set, get) => ({
     else await get().refresh();
   },
 
-  set: (patch) => set(patch),
+  // Leaving the code view by any route (view tabs, palette, Escape) drops its module/piece selection.
+  set: (patch) => set(patch.view && patch.view !== 'code' && get().view === 'code' ? { code: null, selection: { nodes: [], edges: [] }, ...patch } : patch),
   setFlow: (patch) => set({ flow: patch === null ? null : { ...(get().flow ?? { id: '', frame: 0, playing: false, speed: 1, choice: {} }), ...patch } }),
   requestFocus: () => set({ focusRequest: get().focusRequest + 1 }),
+  // Code and canvas selections hold different kinds of ids, so each switch starts with none.
+  openCode: (component, module) => set({ view: 'code', code: { component, module }, selection: { nodes: [], edges: [] }, right: 'inspector', flow: null }),
+  closeCode: () => get().set({ view: 'canvas' }),
 }));
 
 export const currentDrawing = (s: State) => (s.drawingId ? s.index?.drawings.get(s.drawingId) : undefined);

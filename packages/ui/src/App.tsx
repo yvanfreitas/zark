@@ -15,6 +15,7 @@ import { TopBar, useGitStatus } from './panels/TopBar';
 import { Button } from './panels/ui';
 import { ModelList } from './panels/ModelList';
 import { DepsView } from './deps/DepsView';
+import { CodeView } from './code/CodeView';
 import { pickAndImport } from './importFile';
 import { changeText, tr, useT } from './i18n';
 
@@ -34,7 +35,8 @@ function useShortcuts() {
       }
       if (e.key === '?') return e.preventDefault(), s.set({ help: true });
       if (s.view !== 'canvas') {
-        if (e.key === 'Escape') s.set({ view: 'canvas' });
+        // In a module's pieces, Escape goes back to the component's modules first.
+        if (e.key === 'Escape') s.code?.module ? s.openCode(s.code.component) : s.set({ view: 'canvas' });
         return;
       }
       const drawing = currentDrawing(s);
@@ -199,11 +201,13 @@ export function App() {
         <TopBar git={git} />
         <div className="flex min-h-0 flex-1">
           <LeftPanel />
-          <main className="relative min-w-0 flex-1" aria-label={view === 'list' ? t('app.mainList') : view === 'deps' ? t('app.mainDeps') : t('app.mainCanvas')}>
+          <main className="relative min-w-0 flex-1" aria-label={view === 'list' ? t('app.mainList') : view === 'deps' ? t('app.mainDeps') : view === 'code' ? t('app.mainCode') : t('app.mainCanvas')}>
             {view === 'list' ? (
               <ModelList />
             ) : view === 'deps' ? (
               <DepsView />
+            ) : view === 'code' ? (
+              <CodeView />
             ) : (
               <>
                 <InvalidFilesBanner />
@@ -213,7 +217,7 @@ export function App() {
             )}
           </main>
           {/* Outside the canvas the drawing inspector has nothing on screen to describe: show the panel only for a selection or a side view. */}
-          {(view === 'canvas' || right !== 'inspector' || hasSelection) && (
+          {(view === 'canvas' || view === 'code' || right !== 'inspector' || hasSelection) && (
             <aside className="w-[340px] shrink-0 overflow-y-auto border-l border-[var(--border)] bg-[var(--panel)]" aria-label={t('app.rightPanel')}>
               {right === 'problems' ? <ProblemsPanel /> : right === 'changes' ? <ChangesPanel git={git} /> : flow && view === 'canvas' ? <FlowPanel /> : <ModelPanel />}
             </aside>

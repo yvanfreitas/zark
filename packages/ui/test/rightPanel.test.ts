@@ -21,4 +21,9 @@ describe('rightView', () => {
     expect(rightView({ nodes: [], edges: ['a-b'] }, true, true)).toBe('selection');
     expect(rightView({ nodes: ['note:n1'], edges: [] }, false, false)).toBe('selection');
   });
+
+  it('shows the code detail in the code view, selection or not', () => {
+    expect(rightView(none, true, true, true)).toBe('code');
+    expect(rightView({ nodes: ['src/a.ts'], edges: [] }, false, true, true)).toBe('code');
+  });
 });

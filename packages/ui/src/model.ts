@@ -1,5 +1,5 @@
 import { numberSteps } from '@core/flow-text';
-import type { Conn, Drawing, Entity, Model, WithFile } from './types';
+import type { CodeGraph, Conn, Drawing, Entity, Model, WithFile } from './types';
 
 export const DEFAULT_SIZE = { w: 256, h: 128 };
 export const ACTOR_SIZE = { w: 128, h: 128 };
@@ -14,6 +14,8 @@ export interface Index {
   entityDrawings: Map<string, string[]>;
   connDrawings: Map<string, string[]>;
   connFlows: Map<string, string[]>;
+  /** Generated code graphs by component id. */
+  codeGraphs: Map<string, CodeGraph>;
   ancestors: (id: string) => string[];
   descendants: (id: string) => string[];
   resolve: (drawing: Drawing, id: string) => string | undefined;
@@ -62,6 +64,7 @@ export function buildIndex(model: Model): Index {
     entityDrawings,
     connDrawings,
     connFlows,
+    codeGraphs: new Map((model.codeGraphs ?? []).map((g) => [g.component, g])),
     ancestors,
     descendants,
     resolve: (drawing, id) => ancestors(id).find((a) => drawing.nodes?.[a]),
