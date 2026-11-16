@@ -228,6 +228,13 @@ export function createMcpServer(service: ZarkService): McpServer {
     return json({ ...f.flow, file: f.file, numbered: numberSteps(f.flow.steps).map((n) => ({ number: n.number, ...n.step, branch: n.branch })) });
   });
 
+  tool('get_code_graph', 'Generated code-level graph (modules, pieces, edges) of a component with source', { component: z.string() }, ({ component }) => {
+    const graphs = p().codeGraphs;
+    const g = graphs.get(component);
+    if (!g) return json({ ok: false, error: `Component "${component}" has no code graph. Components with graphs: ${[...graphs.keys()].join(', ') || '(none; run zark scan)'}` });
+    return json(g.graph);
+  });
+
   tool('search', 'Entities, connections, drawings and flows matching the text', { query: z.string() }, ({ query }) => {
     const q = query.toLowerCase();
     const has = (...s: (string | undefined)[]) => s.some((x) => x?.toLowerCase().includes(q));
