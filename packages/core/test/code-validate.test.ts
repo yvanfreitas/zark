@@ -105,6 +105,20 @@ describe('claimFiles', () => {
     expect(Object.fromEntries(owner)).toEqual({ 'services/bot/src/llm.ts': 'llm', 'services/bot/main.ts': 'bot' });
   });
 
+  it('skips node_modules and .git under a source folder', async () => {
+    const root = await repo(['services/bot/a.ts', 'services/bot/node_modules/x/index.js', 'services/bot/.git/hooks/a.js']);
+    const { owner } = await claimFiles(root, project({ sys, api, bot: comp('bot', 'services/bot') }));
+    expect([...owner.keys()]).toEqual(['services/bot/a.ts']);
+  });
+
+  it('overlapping glob hits claim each file once', async () => {
+    const root = await repo(['src/a.ts', 'src/deep/b.ts', 'src/deep/er/c.ts']);
+    const p = project({ sys, api, bot: comp('bot', '"src/**"') });
+    const { owner, problems } = await claimFiles(root, p);
+    expect(problems).toEqual([]);
+    expect([...owner.keys()].sort()).toEqual(['src/a.ts', 'src/deep/b.ts', 'src/deep/er/c.ts']);
+  });
+
   it('E015: equally specific sources tie', async () => {
     const root = await repo(['src/a.ts']);
     const p = project({ sys, api, one: comp('one', 'src/*.ts'), two: comp('two', 'src/a.ts') });

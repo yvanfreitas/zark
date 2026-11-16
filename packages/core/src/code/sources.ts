@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { glob } from 'node:fs/promises';
+import { glob, readdir } from 'node:fs/promises';
 import { dirname, join, posix, relative, sep } from 'node:path';
 import { lineOf, type Project } from '../project.js';
 import { PROBLEM_EN, type Params } from '../messages.js';
@@ -18,19 +18,33 @@ export function repoRootOf(dir: string): string {
 
 const posixPath = (p: string) => p.replaceAll(sep, '/');
 
+const SKIPPED_DIRS = new Set(['node_modules', '.git']);
+const skipped = (e: { name: string }) => SKIPPED_DIRS.has(e.name);
+
+/** Files below `dir`, pruning node_modules and .git during the walk; `seen` dedupes overlapping walks. */
+async function walk(repoRoot: string, dir: string, seen: Set<string>, out: Set<string>): Promise<void> {
+  if (seen.has(dir)) return;
+  seen.add(dir);
+  for (const e of await readdir(dir, { withFileTypes: true })) {
+    const full = join(dir, e.name);
+    if (skipped(e)) continue;
+    if (e.isDirectory()) await walk(repoRoot, full, seen, out);
+    else if (e.isFile()) out.add(posixPath(relative(repoRoot, full)));
+  }
+}
+
 /** Repo-relative posix paths of every file an entry matches (folders expand to everything below). */
 async function filesMatching(repoRoot: string, entry: string): Promise<string[] | undefined> {
-  const out: string[] = [];
+  const out = new Set<string>();
+  const seen = new Set<string>();
   let matched = false;
-  for await (const hit of glob(entry, { cwd: repoRoot, withFileTypes: true })) {
+  for await (const hit of glob(entry, { cwd: repoRoot, withFileTypes: true, exclude: skipped })) {
     matched = true;
-    if (hit.isDirectory()) {
-      for await (const inner of glob('**/*', { cwd: join(hit.parentPath, hit.name), withFileTypes: true })) {
-        if (inner.isFile()) out.push(posixPath(relative(repoRoot, join(inner.parentPath, inner.name))));
-      }
-    } else if (hit.isFile()) out.push(posixPath(relative(repoRoot, join(hit.parentPath, hit.name))));
+    const full = join(hit.parentPath, hit.name);
+    if (hit.isDirectory()) await walk(repoRoot, full, seen, out);
+    else if (hit.isFile()) out.add(posixPath(relative(repoRoot, full)));
   }
-  return matched ? out : undefined;
+  return matched ? [...out] : undefined;
 }
 
 /**
