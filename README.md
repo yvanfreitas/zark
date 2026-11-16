@@ -24,7 +24,7 @@ The example lives in this repository (it is not part of the npm package). From a
 
 ```bash
 git clone https://github.com/yvanfreitas/zark && cd zark
-npx zark dev --dir examples/ai-chat/architecture
+npx @ewcodes/zark dev --dir examples/ai-chat/architecture
 ```
 
 ## Install
@@ -68,9 +68,9 @@ Set `source` on a component (a folder, a file, or a list of them, relative to th
 
 Calls that cannot be pinned to a piece are counted, not guessed:
 
-- `unresolved`: calls whose target the scanner cannot determine (dynamic or untyped receivers) and calls to globals such as `console.log`. Calls to non-exported local declarations are internal: they are neither drawn nor counted
-- `external`: imports of packages outside the repository. Workspace packages count as external
-- `unowned`: imports of repository files that no component claims in `source`
+- `unresolved`: calls whose target the scanner cannot determine: dynamic or untyped receivers, globals such as `console.log` and built-in methods such as `items.map(...)`. Calls to non-exported local declarations are internal: they are neither drawn nor counted
+- `external`: call sites into packages outside the repository (counted per call, not per import). Workspace packages count as external
+- `unowned`: call sites into repository files that no component claims in `source` (also per call)
 
 Run `zark scan --check` on every PR, not only on changes under `architecture/`: a source-only change is what makes a graph stale. Use a separate workflow without a `paths` filter (a filter applies to the whole workflow), with `@ewcodes/zark` as a devDependency:
 
@@ -88,7 +88,7 @@ jobs:
       - run: npx zark scan --check
 ```
 
-Optional `code.tsconfig` and `code.exclude` in `zark.yaml` pick the tsconfig used for path aliases and the globs to skip.
+`source` entries are paths or globs relative to the repository root; absolute paths and `..` are rejected (E014). Optional `code.tsconfig` and `code.exclude` in `zark.yaml` pick the tsconfig used for path aliases (a `code.tsconfig` that cannot be read is reported by `zark scan`) and the globs to skip (default: `**/*.{test,spec}.*`, `**/__tests__/**`, `**/*.d.ts`, `**/generated/**`).
 
 ## Icons
 
@@ -128,11 +128,12 @@ No `vsce` needed: `pnpm --filter zark-vscode build` produces `dist/extension.cjs
 
 ## CI
 
-`.github/workflows/architecture.yml` is the example for the repository that versions `architecture/`: it runs `validate`, `fmt --check`, `render --check` and posts the semantic diff in the job summary.
+`.github/workflows/architecture.yml` is the example for the repository that versions `architecture/` (with `@ewcodes/zark` as a devDependency, installed by `npm ci`): it runs `validate`, `fmt --check`, `render --check` and posts the semantic diff in the job summary. The `scan --check` gate is the separate workflow shown under [Code level](#code-level-typescript), since it must run without a `paths` filter.
 
 To keep the code graphs current instead of failing the build, run `npx zark scan` in a job and open a PR with the result:
 
 ```yaml
+- run: npm ci
 - run: npx zark scan
 - uses: peter-evans/create-pull-request@v6
   with: { add-paths: architecture/code, title: "chore: update code graphs" }
@@ -184,6 +185,9 @@ jobs:
     environment: { name: github-pages }
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - run: npm ci   # installs @ewcodes/zark (devDependency); a bare npx zark is another package
       - run: npx zark build --out site
       - uses: actions/upload-pages-artifact@v3
         with: { path: site }
