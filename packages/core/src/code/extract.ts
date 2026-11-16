@@ -43,7 +43,8 @@ export function extractModule(path: string, text: string): ModuleFacts {
   const body: N[] = program.body;
   const facts: ModuleFacts = { path, pieces: [], imports: [], reexports: [], sites: [], parseErrors: errors.length };
   const moduleScope: Scope = { vars: new Map(), module: true };
-  collectDecls(body, moduleScope);
+  collectDecls(body, moduleScope, 'lexical');
+  collectDecls(body, moduleScope, 'var');
   const listed = exportList(body);
   const seen = new Set<string>();
   const addPiece = (piece: CodePiece) => {
@@ -105,6 +106,11 @@ export function extractModule(path: string, text: string): ModuleFacts {
       declaration(stmt, (name && listed.get(name)) || []);
     }
   }
+  // `import { a } ...; export { a }` and `export default a` of an import re-export its origin.
+  for (const [local, exportedNames] of listed) {
+    const fact = facts.imports.find((i) => i.local === local);
+    if (fact) for (const exported of exportedNames) facts.reexports.push({ exported, imported: fact.imported, from: fact.from });
+  }
   return facts;
 }
 
@@ -135,8 +141,9 @@ function exportList(body: N[]): Map<string, string[]> {
   return out;
 }
 
+const METHODS = new Set(['MethodDefinition', 'TSAbstractMethodDefinition']);
 function isPublicMethod(el: N): boolean {
-  return el.type === 'MethodDefinition' && el.kind !== 'constructor' && !el.computed && el.key.type === 'Identifier' && !el.accessibility?.match(/private|protected/);
+  return METHODS.has(el.type) && el.kind !== 'constructor' && !el.computed && el.key.type === 'Identifier' && !el.accessibility?.match(/private|protected/);
 }
 function classPiece(decl: N, name: string): CodePiece {
   const members = [...new Set<string>(decl.body.body.filter(isPublicMethod).map((el: N) => el.key.name))].sort();
@@ -166,21 +173,31 @@ function declarePattern(scope: Scope, p: N, type?: string): void {
   else if (p.type === 'ArrayPattern') for (const e of p.elements) declarePattern(scope, e);
   else if (p.type === 'ObjectPattern') for (const prop of p.properties) declarePattern(scope, prop.type === 'RestElement' ? prop : prop.value);
 }
-// Declarations of one function (or the module) body, without entering nested functions or classes,
-// so a use before its `const` still sees the right binding.
-function collectDecls(node: N, scope: Scope): void {
-  if (Array.isArray(node)) return node.forEach((n) => collectDecls(n, scope));
+// Nodes that open a block scope for `let`/`const`/function/class declarations.
+const BLOCKS = new Set(['BlockStatement', 'ForStatement', 'ForInStatement', 'ForOfStatement', 'SwitchStatement', 'CatchClause', 'StaticBlock']);
+// Declarations visible in one scope, collected before its calls are walked so a use before its `const`
+// still sees the right binding. 'lexical' takes `let`/`const`/function/class and stops at nested blocks
+// (they get their own scope); 'var' hoists `var` through blocks to the function or module. Neither
+// enters nested functions or classes.
+function collectDecls(node: N, scope: Scope, mode: 'lexical' | 'var'): void {
+  if (Array.isArray(node)) return node.forEach((n) => collectDecls(n, scope, mode));
   if (!node || typeof node.type !== 'string') return;
-  if (node.type === 'VariableDeclarator') {
-    declarePattern(scope, node.id, node.id.type === 'Identifier' ? annotatedType(node.id) ?? newedType(node.init) : undefined);
-    return collectDecls(node.init, scope);
-  }
-  if (FUNCTIONS.has(node.type) || CLASSES.has(node.type)) {
-    if (node.id && !node.type.endsWith('Expression')) declare(scope, node.id.name, undefined);
+  if (node.type === 'VariableDeclaration') {
+    if ((node.kind === 'var') !== (mode === 'var')) return;
+    for (const d of node.declarations) {
+      declarePattern(scope, d.id, d.id.type === 'Identifier' ? annotatedType(d.id) ?? newedType(d.init) : undefined);
+    }
     return;
   }
-  if (node.type === 'CatchClause') declarePattern(scope, node.param);
-  for (const [key, child] of Object.entries(node)) if (!TYPE_KEYS.has(key) && typeof child === 'object') collectDecls(child, scope);
+  if (FUNCTIONS.has(node.type) || CLASSES.has(node.type)) {
+    if (mode === 'lexical' && node.id && !node.type.endsWith('Expression')) declare(scope, node.id.name, undefined);
+    return;
+  }
+  if (mode === 'lexical' && BLOCKS.has(node.type)) return;
+  collectChildren(node, scope, mode);
+}
+function collectChildren(node: N, scope: Scope, mode: 'lexical' | 'var'): void {
+  for (const [key, child] of Object.entries(node)) if (!TYPE_KEYS.has(key) && typeof child === 'object') collectDecls(child, scope, mode);
 }
 
 function lookup(scope: Scope | undefined, name: string): { type?: string; module: boolean } | undefined {
@@ -202,14 +219,20 @@ class Walker {
       return this.fn(node, { ...ctx, cls: node.type === 'ArrowFunctionExpression' ? ctx.cls : undefined });
     } else if (CLASSES.has(node.type)) {
       return this.cls(node, ctx, undefined, undefined);
+    } else if (BLOCKS.has(node.type)) {
+      const scope: Scope = { vars: new Map(), module: false, parent: ctx.scope };
+      if (node.type === 'CatchClause') declarePattern(scope, node.param);
+      collectChildren(node, scope, 'lexical');
+      ctx = { ...ctx, scope };
     }
     for (const [key, child] of Object.entries(node)) if (!TYPE_KEYS.has(key) && typeof child === 'object') this.walk(child, ctx);
   }
 
   fn(node: N, ctx: Ctx): void {
     const scope: Scope = { vars: new Map(), module: false, parent: ctx.scope };
+    if (node.type === 'FunctionExpression' && node.id) declare(scope, node.id.name, undefined); // own name shadows outer bindings
     for (const p of node.params) declarePattern(scope, p);
-    collectDecls(node.body, scope);
+    collectDecls(node.body, scope, 'var'); // the body block collects its own `let`/`const` when walked
     const inner = { ...ctx, scope };
     this.walk(node.params, inner);
     this.walk(node.body, inner);
@@ -231,12 +254,14 @@ class Walker {
         }
       }
     }
-    const inner: Ctx = { from, scope: ctx.scope, cls: { name, fields } };
+    // A class expression's own name is bound only inside its body.
+    const scope: Scope = node.type === 'ClassExpression' && node.id ? { vars: new Map([[node.id.name, undefined]]), module: false, parent: ctx.scope } : ctx.scope;
+    const inner: Ctx = { from, scope, cls: { name, fields } };
     this.walk(node.decorators, { ...inner, cls: ctx.cls });
     this.walk(node.superClass, ctx);
     for (const el of node.body.body) {
       const member = piece && (el.kind === 'constructor' || isPublicMethod(el)) ? `${piece}.${el.key.name}` : from;
-      if (el.type === 'MethodDefinition') this.fn(el.value, { ...inner, from: member });
+      if (METHODS.has(el.type)) this.fn(el.value, { ...inner, from: member });
       else this.walk(el, inner);
     }
   }

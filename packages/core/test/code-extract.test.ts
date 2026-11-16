@@ -161,8 +161,9 @@ describe('extractModule', () => {
       { ref: 'unknown' },
       { ref: 'unknown' },
       { ref: 'binding', name: 'getThing' },
-      { ref: 'unknown' },
-      { ref: 'unknown' },
+      // each block's `t` is its own binding
+      { ref: 'typed', typeName: 'A', member: 'm' },
+      { ref: 'typed', typeName: 'B', member: 'm' },
     ]);
   });
 
@@ -200,6 +201,75 @@ describe('extractModule', () => {
       { exported: 'w', imported: 'q', from: './q' },
       { exported: '*', imported: '*', from: './all' },
       { exported: 'grouped', imported: '*', from: './g' },
+    ]);
+  });
+
+  it('imported then exported names become reexports', () => {
+    const m = extractModule(
+      'a.ts',
+      `import { a as b } from './x';
+      import d from './d';
+      import * as ns from './ns';
+      export { b, ns as all };
+      export default d;`,
+    );
+    expect(m.pieces).toEqual([]);
+    expect(m.reexports).toEqual([
+      { exported: 'b', imported: 'a', from: './x' },
+      { exported: 'all', imported: '*', from: './ns' },
+      { exported: 'default', imported: 'default', from: './d' },
+    ]);
+  });
+
+  it('block-scoped declaration does not leak its type', () => {
+    const sites = sitesOf(
+      `import { client } from './c';
+      if (setup) { const db = new Db(); }
+      export function f() {
+        if (x) { const client = new Mock(); client.go(); }
+        for (const item of list) { item.use(); }
+        try {} catch (client) { client.log(); }
+        client.send();
+        db.query();
+      }`,
+    );
+    expect(calls(sites).map((s) => s.target)).toEqual([
+      { ref: 'typed', typeName: 'Mock', member: 'go' },
+      { ref: 'unknown' },
+      { ref: 'unknown' },
+      { ref: 'binding', name: 'client', member: 'send' },
+      { ref: 'binding', name: 'db', member: 'query' },
+    ]);
+  });
+
+  it('var hoists to the function, switch cases share one block scope', () => {
+    const sites = sitesOf(
+      `export function f() {
+        { var v = new V(); }
+        v.go();
+        switch (k) { case 1: const c = new C(); c.z(); }
+        c.q();
+      }`,
+    );
+    expect(calls(sites).map((s) => s.target)).toEqual([
+      { ref: 'typed', typeName: 'V', member: 'go' },
+      { ref: 'typed', typeName: 'C', member: 'z' },
+      { ref: 'binding', name: 'c', member: 'q' },
+    ]);
+  });
+
+  it('named function expression shadows import inside its body', () => {
+    expect(sitesOf(`import { retry } from './r';\nexport const run = function retry() { retry(); };`)).toEqual([
+      { from: 'run', kind: 'calls', target: { ref: 'unknown' } },
+    ]);
+    expect(calls(sitesOf(`import { A } from './a';\nexport const K = class A { m() { A.make(); } };`))).toEqual([
+      { from: 'K', kind: 'calls', target: { ref: 'unknown' } },
+    ]);
+  });
+
+  it('abstract methods are members', () => {
+    expect(extractModule('a.ts', 'export abstract class Base { abstract run(): void; done() {} }').pieces).toEqual([
+      { name: 'Base', kind: 'class', members: ['done', 'run'] },
     ]);
   });
 
