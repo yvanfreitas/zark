@@ -31,7 +31,8 @@ describe('code-level schema', () => {
     expect(fileKind('code/bot.yaml')).toBe('code');
     const p = buildProject('/x', new Map([['code/bot.yaml', graph]]));
     expect(p.codeGraphs.get('bot')).toMatchObject({ file: 'code/bot.yaml', graph: { component: 'bot' } });
-    expect(validate(p).filter((x) => x.file === 'code/bot.yaml')).toEqual([]);
+    // W015 (component missing) is expected here; the file itself must be otherwise clean.
+    expect(validate(p).filter((x) => x.file === 'code/bot.yaml' && x.code !== 'W015')).toEqual([]);
   });
 
   it('invalid code file yields E001 like other kinds', () => {

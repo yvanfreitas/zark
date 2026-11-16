@@ -5,6 +5,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 import {
+  claimFiles,
   createDoc,
   diffProjects,
   errorsOf,
@@ -16,6 +17,7 @@ import {
   loadProject,
   migrate,
   readTexts,
+  repoRootOf,
   toText,
   validate,
   warningsOf,
@@ -125,7 +127,9 @@ export const commands: Record<string, Command> = {
 
   async validate({ dir, format }) {
     const project = await requireProject(dir);
-    const problems = validate(project, await renderedProblems(project));
+    // Source claims read the filesystem, so they run here and in `zark scan`, never inside validate().
+    const claims = await claimFiles(repoRootOf(dir), project);
+    const problems = validate(project, [...(await renderedProblems(project)), ...claims.problems]);
     const errors = errorsOf(problems);
     if (format === 'json') console.log(JSON.stringify({ errors: errors.length, warnings: warningsOf(problems).length, problems }, null, 2));
     else {

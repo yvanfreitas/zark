@@ -98,6 +98,8 @@ export function validate(project: Project, extra: Problem[] = []): Problem[] {
     } else if (!ALLOWED_PARENTS[entity.kind].includes(null)) {
       add('E011', file, 'E011.needsParent', { kind: entity.kind, allowed: ALLOWED_PARENTS[entity.kind].map((k) => k ?? 'root') }, ['kind'], id);
     }
+    if (entity.source && entity.kind !== 'component') add('E013', file, 'E013', { id, kind: entity.kind }, ['source'], id);
+    if (entity.source && entity.kind === 'component' && !project.codeGraphs.has(id)) add('W014', file, 'W014', { id }, ['source'], id);
     checkCatalog(file, [], entity, id);
     if (entity.icon && !hasIcon(project, entity.icon)) add('W040', file, 'W040', { icon: entity.icon, sets: unknownSetHint(project, entity.icon) }, ['icon'], id);
 
@@ -114,6 +116,12 @@ export function validate(project: Project, extra: Problem[] = []): Problem[] {
       if (seen) add('W005', file, 'W005', { first: seen, second: ref, label: conn.label }, [...base, 'label'], ref);
       else pairLabels.set(pair, ref);
     });
+  }
+
+  // W015: generated code graphs whose component is gone or no longer has a source
+  for (const [id, { file }] of project.codeGraphs) {
+    const entity = project.entities.get(id)?.entity;
+    if (!entity?.source) add('W015', file, 'W015', { file, id, reason: entity ? 'noSource' : 'missing' }, ['component'], id);
   }
 
   // Drawings

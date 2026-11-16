@@ -36,6 +36,9 @@ export const PROBLEM_PT: Record<string, Template> = {
   E032: (p) => `${p.ref}: ${p.missing} nem um ancestral estão no desenho`,
   E033: (p) => `scope "${p.scope}" não existe`,
   E034: (p) => `grupo ${p.group}: membro "${p.member}" não está em nodes`,
+  E013: (p) => `${p.id} é ${p.kind}: só componentes podem ter source`,
+  E014: (p) => `${p.id}: source "${p.source}" não corresponde a nenhum arquivo ou pasta`,
+  E015: (p) => `${p.file} é reivindicado por ${(p.components as string[]).join(', ')} com sources igualmente específicos`,
   E040: (p) => `passo ${p.step}: conexão "${p.via}" não existe${validSuffix(`Conexões de ${p.from}`, p.siblings)}`,
   E041: (p) => `passo ${p.step} anda na contramão de ${p.via} (${p.source} -> ${p.target}). Inverta a conexão ou marque reply: true`,
   E042: (p) => `passo ${p.step}: reverse em ${p.via}, que não é bidirectional`,
@@ -61,6 +64,8 @@ export const PROBLEM_PT: Record<string, Template> = {
   W030: (p) => `${p.file} desatualizado. Rode "zark render"`,
   'W013.label': (p) => `rótulo de ${p.ref} sobreposto ao rótulo de ${p.other}`,
   'W013.box': (p) => `rótulo de ${p.ref} sobreposto à caixa ${p.box}`,
+  W014: (p) => `${p.id} tem source mas nenhum grafo de código gerado. Rode "zark scan"`,
+  W015: (p) => `${p.file} pertence ao componente "${p.id}", que ${p.reason === 'noSource' ? 'não tem source' : 'não existe'}`,
   W040: (p) => `ícone "${p.icon}" não existe${iconSets(p.sets)}`,
   'W040.technology': (p) => `tecnologia ${p.id}: ícone "${p.icon}" não existe${iconSets(p.sets)}`,
 };
