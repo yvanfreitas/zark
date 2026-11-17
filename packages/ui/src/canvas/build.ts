@@ -9,6 +9,8 @@ export type Side = 'top' | 'right' | 'bottom' | 'left';
 export interface EntityData extends Record<string, unknown> {
   entity: Entity;
   hasInner: boolean;
+  /** A generated code graph exists for this component (opens the code view). */
+  hasCode: boolean;
   severity?: 'error' | 'warning';
   expanded: boolean;
   dim: boolean;
@@ -147,6 +149,8 @@ export function buildGraph(index: Index, drawing: Drawing, catalog: CatalogTechs
       data: {
         entity: e,
         hasInner: !!index.drawingsByScope.get(id)?.length,
+        // Web view only, like descriptions: committed PNGs don't change when a scan runs.
+        hasCode: opts.showDescription && index.codeGraphs.has(id),
         severity: severity.get(id),
         expanded: !!placed[id].expanded,
         dim: dimByFlow || !matchesHighlight(id),

@@ -13,7 +13,7 @@ The CLI, the MCP server, PR texts and validation messages are in English. The we
 
 ## Example: Papo, an AI chat app on AWS
 
-`examples/ai-chat/architecture/` is a complete, fictional model: **Papo**, a chat app whose messages go through an Amazon API Gateway WebSocket API, fan out on an SNS topic to SQS queues, and wake up an AI bot running on AWS Lambda (16 entities, 19 connections, 2 drawings, 2 flows).
+`examples/ai-chat/architecture/` is a complete, fictional model: **Papo**, a chat app whose messages go through an Amazon API Gateway WebSocket API, fan out on an SNS topic to SQS queues, and wake up an AI bot running on AWS Lambda (18 entities, 20 connections, 3 drawings, 2 flows). Its two components, `reply-builder` and `moderation-client`, have generated code graphs (`code/*.yaml`, from the sample TypeScript in `examples/ai-chat/src`).
 
 - **Context** drawing: the user, the Papo app, Auth (Amazon Cognito), the Papo platform and two external services (an LLM provider and a moderation service).
 - **Papo platform** drawing (drill-down into the platform): WebSocket API, message handler (Lambda), messages topic (SNS), bot and history queues plus a dead-letter queue (SQS), bot orchestrator and history writer (Lambda), conversation history (DynamoDB) and attachments (S3).
@@ -24,7 +24,7 @@ The example lives in this repository (it is not part of the npm package). From a
 
 ```bash
 git clone https://github.com/yvanfreitas/zark && cd zark
-npx zark dev --dir examples/ai-chat/architecture
+npx @ewcodes/zark dev --dir examples/ai-chat/architecture
 ```
 
 ## Install
@@ -49,6 +49,7 @@ The Chromium used to render PNGs is downloaded on the first render, not at insta
 | `zark validate [--format json]` | Lists problems. Exits with 1 when there are errors |
 | `zark fmt [--check]` | Rewrites files in canonical format, or only checks |
 | `zark render [--check] [id...]` | Renders PNGs into `architecture/rendered/`, or checks they are up to date |
+| `zark scan [--check] [component...]` | (alpha) Generates `architecture/code/<component>.yaml` (C4 level 4) for components with `source`, or checks the files are up to date |
 | `zark diff [--base ref] [--format text\|markdown]` | Semantic diff against a git ref (default: `origin/<baseBranch>`) |
 | `zark pr [--yes] [--title t]` | Branch, render, commit of `architecture/`, push and `gh pr create`, with preview and confirmation |
 | `zark build --out dir` | Read-only static site (drawings and flow player) |
@@ -60,6 +61,36 @@ The Chromium used to render PNGs is downloaded on the first render, not at insta
 Every command accepts `--dir <folder>` (default: `architecture`).
 
 Git and PRs use the `git` and provider CLI already authenticated on the machine: `gh` on GitHub, `glab` on GitLab (where the PR becomes an MR). The provider comes from `git.provider: github | gitlab` in `zark.yaml`; without it, a remote whose host contains `gitlab` picks GitLab. Zark never asks for, reads or stores a token, and never runs `push --force`.
+
+## Code level (TypeScript, alpha)
+
+> **Alpha.** Opt-in and off by default: nothing is scanned, parsed or generated until a component has `source`, so projects that do not use it pay nothing. The file format and the counts may still change between minor versions; regenerate with `zark scan` after upgrading.
+
+Set `source` on a component (a folder, a file, or a list of them, relative to the repository root) and `zark scan` writes `architecture/code/<component>.yaml`: its modules, the pieces in them (functions, classes, types) and the calls and imports between them. The files are generated, never edit them. `zark scan --check` exits with 1 when one is out of date, and `zark pr` runs `zark scan` first so the graphs land in the same PR.
+
+Calls that cannot be pinned to a piece are counted, not guessed:
+
+- `unresolved`: calls whose target the scanner cannot determine: dynamic or untyped receivers, globals such as `console.log` and built-in methods such as `items.map(...)`. Calls to non-exported local declarations are internal: they are neither drawn nor counted
+- `external`: call sites into packages outside the repository (counted per call, not per import). Workspace packages count as external
+- `unowned`: call sites into repository files that no component claims in `source` (also per call)
+
+Run `zark scan --check` on every PR, not only on changes under `architecture/`: a source-only change is what makes a graph stale. Use a separate workflow without a `paths` filter (a filter applies to the whole workflow), with `@ewcodes/zark` as a devDependency:
+
+```yaml
+name: architecture-scan
+on: pull_request
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - run: npm ci
+      - run: npx zark scan --check
+```
+
+`source` entries are paths or globs relative to the repository root; absolute paths and `..` are rejected (E014). Optional `code.tsconfig` and `code.exclude` in `zark.yaml` pick the tsconfig used for path aliases (a `code.tsconfig` that cannot be read is reported by `zark scan`) and the globs to skip (default: `**/*.{test,spec}.*`, `**/__tests__/**`, `**/*.d.ts`, `**/generated/**`).
 
 ## Icons
 
@@ -99,7 +130,16 @@ No `vsce` needed: `pnpm --filter zark-vscode build` produces `dist/extension.cjs
 
 ## CI
 
-`.github/workflows/architecture.yml` is the example for the repository that versions `architecture/`: it runs `validate`, `fmt --check`, `render --check` and posts the semantic diff in the job summary.
+`.github/workflows/architecture.yml` is the example for the repository that versions `architecture/` (with `@ewcodes/zark` as a devDependency, installed by `npm ci`): it runs `validate`, `fmt --check`, `render --check` and posts the semantic diff in the job summary. The `scan --check` gate is the separate workflow shown under [Code level](#code-level-typescript), since it must run without a `paths` filter.
+
+To keep the code graphs current instead of failing the build, run `npx zark scan` in a job and open a PR with the result:
+
+```yaml
+- run: npm ci
+- run: npx zark scan
+- uses: peter-evans/create-pull-request@v6
+  with: { add-paths: architecture/code, title: "chore: update code graphs" }
+```
 
 ## Development
 
@@ -147,6 +187,9 @@ jobs:
     environment: { name: github-pages }
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - run: npm ci   # installs @ewcodes/zark (devDependency); a bare npx zark is another package
       - run: npx zark build --out site
       - uses: actions/upload-pages-artifact@v3
         with: { path: site }

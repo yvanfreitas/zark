@@ -199,6 +199,7 @@ export class ProjectStore extends EventEmitter {
       problems: this.problems,
       // SVGs of the icons in use, so boxes, the render route and the static site need no fetch.
       icons: usedIcons(p),
+      codeGraphs: [...p.codeGraphs.values()].map(({ graph }) => graph).sort((a, b) => (a.component < b.component ? -1 : a.component > b.component ? 1 : 0)),
     };
   }
 }

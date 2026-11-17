@@ -24,6 +24,7 @@ jobs:
       - name: Example stays valid and canonical
         run: |
           node packages/cli/dist/main.js validate --dir examples/ai-chat/architecture
+          node packages/cli/dist/main.js scan --check --dir examples/ai-chat/architecture
           node packages/cli/dist/main.js fmt --check --dir examples/ai-chat/architecture
           node packages/cli/dist/main.js render --check --dir examples/ai-chat/architecture
       - name: Cache the test VS Code

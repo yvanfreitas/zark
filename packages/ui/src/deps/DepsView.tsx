@@ -37,7 +37,8 @@ export function dependencySubgraph(index: Index, center: string, levels: number)
 
 let worker: Worker | undefined;
 let requestId = 0;
-function layout(req: Omit<LayoutRequest, 'id'>): Promise<LayoutResponse['positions']> {
+/** Layered auto-layout in the shared ELK worker (also used by the code view). */
+export function layout(req: Omit<LayoutRequest, 'id'>): Promise<LayoutResponse['positions']> {
   worker ??= new Worker(new URL('./layout.worker.ts', import.meta.url), { type: 'module' });
   const id = ++requestId;
   return new Promise((resolve, reject) => {
@@ -93,6 +94,7 @@ function DepsGraph({ center, levels }: { center: string; levels: number }) {
         data: {
           entity: e,
           hasInner: !!index.drawingsByScope.get(id)?.length,
+          hasCode: false,
           expanded: false,
           dim: false,
           techName: tech?.name,

@@ -12,6 +12,7 @@ Commands:
   validate [--format json]     Lists problems. Exits with 1 when there are errors
   fmt [--check]                Rewrites files in canonical format, or only checks
   render [--check] [id...]     Renders PNGs, or checks they are up to date
+  scan [--check] [component...] (alpha) Generates code graphs for components with source, or checks them
   diff [--base ref] [--format text|markdown]
   pr [--yes] [--title t]       Opens a PR with preview and confirmation
   build --out dir              Read-only static site

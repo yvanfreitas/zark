@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { cp, mkdtemp, rm } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -26,6 +26,8 @@ beforeAll(async () => {
   root = await mkdtemp(join(tmpdir(), 'zark-mcp-'));
   dir = join(root, 'architecture');
   await cp(EXAMPLE, dir, { recursive: true });
+  await mkdir(join(dir, 'code'), { recursive: true });
+  await writeFile(join(dir, 'code', 'alpha.yaml'), 'component: alpha\nmodules: []\nedges: []\nunresolved:\n  calls: 0\n  external: 0\n  unowned: 0\n');
   const store = await new ProjectStore(dir).load();
   service = new ZarkService(store, () => 'http://127.0.0.1:0', 'test');
   const server = createMcpServer(service);
@@ -55,10 +57,22 @@ describe('zark MCP server', () => {
 
   it('reads overview and flow as mermaid', async () => {
     const overview = await call('get_overview');
-    expect(overview.counts).toEqual({ entities: 16, connections: 19, drawings: 2, flows: 2 });
+    expect(overview.counts).toEqual({ entities: 18, connections: 20, drawings: 3, flows: 2 });
     const text = await call('get_flow', { id: 'user-chats-with-the-bot', format: 'mermaid' });
     expect(text).toContain('sequenceDiagram');
     expect(text).toContain('alt Content approved');
+  });
+
+  it('get_code_graph returns the graph', async () => {
+    const g = await call('get_code_graph', { component: 'alpha' });
+    expect(g).toMatchObject({ component: 'alpha', modules: [], edges: [] });
+  });
+
+  it('get_code_graph errors for unknown component', async () => {
+    const r = await call('get_code_graph', { component: 'nope' });
+    expect(r.ok).toBe(false);
+    expect(r.error).toContain('nope');
+    expect(r.error).toContain('alpha');
   });
 
   it('apply_changes creates, connects, places and draws in one call', async () => {
@@ -94,6 +108,16 @@ describe('zark MCP server', () => {
     const r = await call('update_entity', { id: 'auth', set: { caption: 'Identity' }, dryRun: true });
     expect(r.ok).toBe(true);
     expect(service.project.entities.get('auth')!.entity.caption).toBe('Accounts and tokens');
+  });
+
+  it('update_entity sets a component source, as a string or a list', async () => {
+    const list = ['examples/ai-chat/src/bot-orchestrator'];
+    const r = await call('update_entity', { id: 'reply-builder', set: { source: list } });
+    expect(r.ok).toBe(true);
+    expect(service.project.entities.get('reply-builder')!.entity.source).toEqual(list);
+    const back = await call('update_entity', { id: 'reply-builder', set: { source: list[0] } });
+    expect(back.ok).toBe(true);
+    expect(service.project.entities.get('reply-builder')!.entity.source).toBe(list[0]);
   });
 
   it('delete_entity without cascade returns impact', async () => {

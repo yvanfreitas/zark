@@ -14,3 +14,6 @@ export * from './icons/registry.js';
 export * from './icon-suggest.js';
 export * from './edge-geometry.js';
 export * from './labels.js';
+export * from './code/sources.js';
+export * from './code/graph.js';
+export * from './code/scan.js';

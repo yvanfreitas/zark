@@ -1,7 +1,7 @@
-import type { Catalog, Connection, Drawing, Entity, Flow, FlowItem, Step, DrawingEdge, DrawingNode } from '@core/schema';
+import type { CodeGraph, Catalog, Connection, Drawing, Entity, Flow, FlowItem, Step, DrawingEdge, DrawingNode } from '@core/schema';
 import type { Problem } from '@core/validate';
 
-export type { Catalog, Connection, Drawing, Entity, Flow, FlowItem, Step, DrawingEdge, DrawingNode, Problem };
+export type { CodeGraph, Catalog, Connection, Drawing, Entity, Flow, FlowItem, Step, DrawingEdge, DrawingNode, Problem };
 
 export type WithFile<T> = T & { file: string };
 
@@ -24,6 +24,8 @@ export interface Model {
   problems: Problem[];
   /** SVG of every icon the project uses (entity and technology icons), keyed by reference. */
   icons?: Record<string, string>;
+  /** Generated code-level graphs (C4 level 4), sorted by component. */
+  codeGraphs?: CodeGraph[];
 }
 
 export interface Conn {

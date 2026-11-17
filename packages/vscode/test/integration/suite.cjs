@@ -70,7 +70,7 @@ async function run() {
   assert.equal(page.status, 200);
   assert.match(await page.text(), /<div id="root">/);
   const model = await fetch(`http://127.0.0.1:${port}/api/model`, { headers: { 'x-zark-token': token } }).then((r) => r.json());
-  assert.equal(model.entities.length, 16);
+  assert.equal(model.entities.length, 18);
   log(`UI served, model has ${model.entities.length} entities`);
 
   // Same command on an entity file reuses the server and retargets the panel.

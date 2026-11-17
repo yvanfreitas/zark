@@ -5,6 +5,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 import {
+  claimFiles,
   createDoc,
   diffProjects,
   errorsOf,
@@ -16,6 +17,8 @@ import {
   loadProject,
   migrate,
   readTexts,
+  repoRootOf,
+  scanProject,
   toText,
   validate,
   warningsOf,
@@ -125,7 +128,9 @@ export const commands: Record<string, Command> = {
 
   async validate({ dir, format }) {
     const project = await requireProject(dir);
-    const problems = validate(project, await renderedProblems(project));
+    // Source claims read the filesystem, so they run here and in `zark scan`, never inside validate().
+    const claims = await claimFiles(repoRootOf(dir), project);
+    const problems = validate(project, [...(await renderedProblems(project)), ...claims.problems]);
     const errors = errorsOf(problems);
     if (format === 'json') console.log(JSON.stringify({ errors: errors.length, warnings: warningsOf(problems).length, problems }, null, 2));
     else {
@@ -227,6 +232,33 @@ export const commands: Record<string, Command> = {
     }
   },
 
+  async scan({ dir, check, args }) {
+    const project = await requireProject(dir);
+    const sourced = [...project.entities].filter(([, { entity }]) => entity.kind === 'component' && entity.source).map(([id]) => id);
+    // Duplicates scanProject's own check on purpose: this message lists the components with `source`.
+    for (const id of args) {
+      if (!sourced.includes(id) && !project.codeGraphs.has(id)) throw new Error(`Component "${id}" has no \`source\`. Components with source: ${sourced.join(', ') || '(none)'}`);
+    }
+    const { components, problems, warnings } = await scanProject(dir, { check, only: args.length ? args : undefined, project });
+    for (const p of problems) console.log(formatProblem(p));
+    for (const w of warnings) console.log(`warning: ${w}`);
+    if (!components.length) {
+      console.log('No component has a source. Add source: <path> to a component.');
+      return errorsOf(problems).length ? 1 : 0;
+    }
+    for (const c of components) {
+      const u = c.unresolved;
+      console.log(`${c.status} ${c.file}  modules ${c.modules}, pieces ${c.pieces}, edges ${c.edges}, unresolved ${u.calls} calls / ${u.external} external / ${u.unowned} unowned${c.parseErrors ? `, parse errors ${c.parseErrors}` : ''}`);
+    }
+    const errors = errorsOf(problems).length;
+    if (check) {
+      const stale = components.filter((c) => c.status === 'stale').length;
+      console.log(stale ? `${stale} code graph(s) out of date. Run "zark scan"` : 'Code graphs are up to date');
+      return stale || errors ? 1 : 0;
+    }
+    return errors ? 1 : 0;
+  },
+
   async diff({ dir, base, format }) {
     const project = await requireProject(dir);
     const ref = base || (await defaultBase(dir, project.config.git.baseBranch));
@@ -235,8 +267,15 @@ export const commands: Record<string, Command> = {
   },
 
   async pr({ dir, yes, title }) {
-    const project = await requireProject(dir);
-    const problems = validate(project, await renderedProblems(project));
+    const loaded = await requireProject(dir);
+    // Generated code graphs go into the same PR as the model; a no-op without any `source`.
+    const scanned = await scanProject(dir, { project: loaded });
+    for (const p of scanned.problems) console.log(formatProblem(p));
+    for (const w of scanned.warnings) console.log(`warning: ${w}`);
+    // Reload only when the scan wrote or deleted a code graph; otherwise the loaded project is current.
+    const project = scanned.components.some((c) => c.status === 'written' || c.status === 'deleted') ? await loadProject(dir) : loaded;
+    // Claim problems (E014/E015) block the PR like validate errors.
+    const problems = validate(project, [...(await renderedProblems(project)), ...scanned.problems]);
     const preview = await prPreview(dir, project, problems, { title });
     console.log(`Title: ${preview.title}`);
     console.log(`Branch: ${preview.branch} -> ${preview.base}`);

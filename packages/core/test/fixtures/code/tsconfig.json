@@ -1,0 +1,6 @@
+{
+  // Aliases only; the scanner never type-checks.
+  "compilerOptions": {
+    "paths": { "@mod/*": ["services/moderation/src/*"] },
+  },
+}

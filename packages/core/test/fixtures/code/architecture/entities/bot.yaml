@@ -1,0 +1,5 @@
+id: bot
+name: Bot
+kind: component
+parent: bot-service
+source: services/bot

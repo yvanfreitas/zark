@@ -102,6 +102,12 @@ export function fromStructurizr(ws: StructurizrWorkspace, ctx: ImportContext): I
     } catch {
       warn(`links:${el.id}`, `Invalid links in ${el.name}`);
     }
+    let source: Entity['source'];
+    try {
+      source = p['zark:source'] ? JSON.parse(p['zark:source']) : undefined;
+    } catch {
+      warn(`source:${el.id}`, `Invalid source in ${el.name}`);
+    }
     ops.push({
       op: 'entity.create',
       entity: {
@@ -118,6 +124,7 @@ export function fromStructurizr(ws: StructurizrWorkspace, ctx: ImportContext): I
         ...(tags.length ? { tags: tags.map((t) => catalog.ref('tags', t)) } : {}),
         ...(p['zark:owner'] ? { owner: catalog.ref('teams', p['zark:owner'], { id: p['zark:owner'] }) } : {}),
         ...(links?.length ? { links } : {}),
+        ...(source ? { source } : {}),
       },
     });
   }
@@ -240,6 +247,7 @@ export function toStructurizr(project: Project): StructurizrWorkspace {
       'zark:technologies': e.technologies?.join(','),
       'zark:owner': e.owner,
       'zark:links': e.links?.length ? JSON.stringify(e.links) : undefined,
+      'zark:source': e.source === undefined ? undefined : JSON.stringify(e.source),
       'zark:external': e.external && e.kind !== 'actor' && e.kind !== 'system' ? 'true' : undefined,
     }),
     relationships: rels(e.id),

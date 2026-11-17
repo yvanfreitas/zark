@@ -1,4 +1,9 @@
-# Example (spec section 15): copy it into the repository that versions architecture/.
+# Example (spec section 15): copy it into the repository that versions architecture/, with
+# @ewcodes/zark as a devDependency (`npm ci` installs it; a bare `npx zark` would fetch the
+# unrelated unscoped `zark` package).
+# Code graphs (`zark scan --check`) need their own workflow without a `paths` filter, because a
+# source-only change is what makes them stale: see "Code level (TypeScript)" in the README.
+# This repository does not run that one.
 name: architecture
 on:
   pull_request:
@@ -11,6 +16,7 @@ jobs:
         with: { fetch-depth: 0 }
       - uses: actions/setup-node@v4
         with: { node-version: 24 }
+      - run: npm ci
       - run: npx zark validate
       - run: npx zark fmt --check
       - run: npx zark render --check

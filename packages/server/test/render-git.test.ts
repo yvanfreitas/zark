@@ -155,7 +155,7 @@ describe('git integration', () => {
     expect(st.changed.map((c) => c.path)).toEqual(['entities/auth.yaml']);
 
     const head = await projectAtRef(dir, 'HEAD');
-    expect(head.entities.size).toBe(16);
+    expect(head.entities.size).toBe(18);
     expect(head.entities.get('auth')!.entity.caption).toBe('Accounts and tokens');
 
     const preview = await prPreview(dir, store.project, store.problems);

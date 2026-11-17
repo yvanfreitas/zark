@@ -4,6 +4,7 @@ import { useT } from '../i18n';
 import { rightView } from '../rightPanel';
 import { currentDrawing, useStore } from '../store';
 import { Inspector } from './Inspector';
+import { CodePanel } from '../code/CodePanel';
 import { InlineForm } from './LeftPanel';
 import { Button, Icon, inputClass, Svg } from './ui';
 
@@ -134,8 +135,9 @@ function ModelBrowser() {
 
 /** Right panel outside flow mode: the model list, and the inspector as its detail view. */
 export function ModelPanel() {
-  const view = useStore((s) => rightView(s.selection, s.drawingDetails, !!currentDrawing(s)));
+  const view = useStore((s) => rightView(s.selection, s.drawingDetails, !!currentDrawing(s), s.view === 'code'));
   const t = useT();
+  if (view === 'code') return <CodePanel />;
   if (view === 'list') return <ModelBrowser />;
   return (
     <>

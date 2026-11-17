@@ -12,7 +12,7 @@ const SIDES = [
 ] as const;
 
 /** One handle per side; with ConnectionMode.Loose each works as source and target. */
-function Handles({ interactive }: { interactive: boolean }) {
+export function Handles({ interactive }: { interactive: boolean }) {
   return (
     <>
       {SIDES.map(([id, pos]) => (
@@ -86,6 +86,22 @@ function Indicators({ data, id }: { data: EntityData; id: string }) {
           <svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true">
             <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="2" fill="none" />
             <path d="M10.5 10.5 14 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </button>
+      )}
+      {data.hasCode && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            useStore.getState().openCode(id);
+          }}
+          className="nodrag grid size-5 place-items-center rounded-full bg-[var(--surface)] text-[var(--muted)] ring-1 ring-[var(--border)] hover:text-[var(--accent)]"
+          title={t('node.openCode')}
+          aria-label={t('node.openCodeOf', { name: data.entity.name })}
+        >
+          <svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true">
+            <path d="M5.5 4 2 8l3.5 4M10.5 4 14 8l-3.5 4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
       )}

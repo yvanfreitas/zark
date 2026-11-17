@@ -74,6 +74,7 @@ const Side = z.enum(['top', 'right', 'bottom', 'left']);
 const Kind = z.enum(['actor', 'system', 'app', 'store', 'component']);
 const Status = z.enum(['live', 'future', 'deprecated', 'removed']);
 const dryRun = z.boolean().optional().describe('Validate without writing');
+const Source = z.union([z.string(), z.array(z.string())]).describe('Component code path(s), relative to the repo root');
 const fields = z.record(z.string(), z.unknown());
 const EdgeShape = {
   shape: z.enum(['straight', 'step', 'curved', 'auto']).optional(),
@@ -228,6 +229,13 @@ export function createMcpServer(service: ZarkService): McpServer {
     return json({ ...f.flow, file: f.file, numbered: numberSteps(f.flow.steps).map((n) => ({ number: n.number, ...n.step, branch: n.branch })) });
   });
 
+  tool('get_code_graph', 'Generated code-level graph (modules, pieces, edges) of a component with source', { component: z.string() }, ({ component }) => {
+    const graphs = p().codeGraphs;
+    const g = graphs.get(component);
+    if (!g) return json({ ok: false, error: `Component "${component}" has no code graph. Components with graphs: ${[...graphs.keys()].join(', ') || '(none; run zark scan)'}` });
+    return json(g.graph);
+  });
+
   tool('search', 'Entities, connections, drawings and flows matching the text', { query: z.string() }, ({ query }) => {
     const q = query.toLowerCase();
     const has = (...s: (string | undefined)[]) => s.some((x) => x?.toLowerCase().includes(q));
@@ -270,6 +278,7 @@ export function createMcpServer(service: ZarkService): McpServer {
     id: z.string(), name: z.string(), kind: Kind, parent: z.string().nullable().optional(), caption: z.string().optional(),
     icon: z.string().optional().describe('<set>:<name>, e.g. lucide:database or si:python; use search_icons'), description: z.string().optional(),
     external: z.boolean().optional(), status: Status.optional(), technologies: z.array(z.string()).optional(), tags: z.array(z.string()).optional(), owner: z.string().optional(),
+    source: Source.optional(),
     links: z.array(z.object({ label: z.string(), url: z.string() })).optional(),
     connections: z.array(ConnectionInput).optional(), dryRun,
   }, ({ dryRun: dry, ...entity }) => write([{ op: 'entity.create', entity: entity as any }], dry));

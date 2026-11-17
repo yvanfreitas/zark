@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://unpkg.com/zark/schema/drawing.json
+
+id: bot-orchestrator
+name: Bot orchestrator
+description: The two components inside the bot Lambda, each with a generated code graph.
+scope: bot-orchestrator
+
+nodes:
+  moderation-client: { x: 384, y: 0 }
+  reply-builder: { x: 0, y: 0 }
+
+edges:
+  reply-builder.moderate: { shape: straight }

@@ -11,7 +11,7 @@ import type { FileKind } from './project.js';
 type Shape =
   | keyof typeof KEY_ORDER
   | 'ids' | 'links' | 'connections' | 'nodeMap' | 'edgeMap' | 'points' | 'groups' | 'notes'
-  | 'steps' | 'flowItem' | 'catalogItems' | 'block' | 'leaf';
+  | 'steps' | 'flowItem' | 'catalogItems' | 'codeModules' | 'codePieces' | 'codeEdges' | 'block' | 'leaf';
 
 const CHILDREN: Partial<Record<Shape, Record<string, Shape>>> = {
   config: { render: 'block', git: 'block', rules: 'block', mcp: 'block', icons: 'block' },
@@ -23,13 +23,17 @@ const CHILDREN: Partial<Record<Shape, Record<string, Shape>>> = {
   group: { members: 'ids' },
   flow: { steps: 'steps' },
   step: {},
+  codeGraph: { modules: 'codeModules', edges: 'codeEdges', unresolved: 'codeUnresolved' },
+  codeModule: { pieces: 'codePieces' },
+  codePiece: { members: 'ids' },
 };
 const ITEMS: Partial<Record<Shape, Shape>> = {
   links: 'link', connections: 'connection', groups: 'group', notes: 'note', steps: 'flowItem', catalogItems: 'catalogItem',
+  codeModules: 'codeModule', codePieces: 'codePiece', codeEdges: 'codeEdge',
 };
 
-const KIND_SHAPE: Record<FileKind, Shape> = { config: 'config', catalog: 'catalog', entity: 'entity', drawing: 'drawing', flow: 'flow' };
-const SCHEMA_NAME: Record<FileKind, Parameters<typeof SCHEMA_URL>[0]> = { config: 'config', catalog: 'catalog', entity: 'entity', drawing: 'drawing', flow: 'flow' };
+const KIND_SHAPE: Record<FileKind, Shape> = { config: 'config', catalog: 'catalog', entity: 'entity', drawing: 'drawing', flow: 'flow', code: 'codeGraph' };
+const SCHEMA_NAME: Record<FileKind, Parameters<typeof SCHEMA_URL>[0]> = { config: 'config', catalog: 'catalog', entity: 'entity', drawing: 'drawing', flow: 'flow', code: 'code' };
 
 export const TO_STRING = { indent: 2, indentSeq: true, lineWidth: 0, minContentWidth: 0, flowCollectionPadding: true } as const;
 
@@ -65,7 +69,10 @@ export function shape(node: unknown, type: Shape): void {
     }
     const order = KEY_ORDER[type as string];
     if (order) orderKeys(node, order);
-    if (type === 'node') node.flow = true;
+    // Code graphs (spec section 4): one line per edge, per member-less piece and for `unresolved`;
+    // also keeps big generated files cheap to write and parse.
+    if (type === 'node' || type === 'codeEdge' || type === 'codeUnresolved') node.flow = true;
+    else if (type === 'codePiece') node.flow = !node.has('members');
     else if (type === 'edge') node.flow = !node.has('points');
     else node.flow = false;
     const children = CHILDREN[type] ?? {};

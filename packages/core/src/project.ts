@@ -5,17 +5,19 @@ import { LineCounter, isAlias, parseDocument, visit, type Document } from 'yaml'
 import type { z } from 'zod';
 import {
   Catalog,
+  CodeGraph,
   Config,
   Drawing,
   Entity,
   Flow,
+  type CodeGraph as CodeGraphT,
   type Connection,
   type FlowItem,
   type Step,
 } from './schema.js';
 import { PROBLEM_EN, type Params } from './messages.js';
 
-export type FileKind = 'config' | 'catalog' | 'entity' | 'drawing' | 'flow';
+export type FileKind = 'config' | 'catalog' | 'entity' | 'drawing' | 'flow' | 'code';
 
 export interface SourceFile {
   /** Posix path relative to the architecture dir, e.g. `entities/auth.yaml`. */
@@ -51,21 +53,23 @@ export interface Project {
   connections: Map<string, ResolvedConnection>;
   drawings: Map<string, { drawing: Drawing; file: string }>;
   flows: Map<string, { flow: Flow; file: string }>;
+  /** Generated code graphs, keyed by component id. */
+  codeGraphs: Map<string, { graph: CodeGraphT; file: string }>;
   /** Duplicate definitions found while indexing (E003). */
   duplicates: { kind: string; id: string; file: string }[];
   children: Map<string, string[]>;
   connectionsTo: Map<string, string[]>;
 }
 
-const DIRS: Record<string, FileKind> = { entities: 'entity', drawings: 'drawing', flows: 'flow' };
-const SCHEMAS: Record<FileKind, z.ZodType> = { config: Config, catalog: Catalog, entity: Entity, drawing: Drawing, flow: Flow };
+const DIRS: Record<string, FileKind> = { entities: 'entity', drawings: 'drawing', flows: 'flow', code: 'code' };
+const SCHEMAS: Record<FileKind, z.ZodType> = { config: Config, catalog: Catalog, entity: Entity, drawing: Drawing, flow: Flow, code: CodeGraph };
 
 export const hashText = (text: string) => createHash('sha256').update(text).digest('hex').slice(0, 16);
 
 export function fileKind(path: string): FileKind | undefined {
   if (path === 'zark.yaml') return 'config';
   if (path === 'catalog.yaml') return 'catalog';
-  const m = /^(entities|drawings|flows)\/[^/]+\.yaml$/.exec(path);
+  const m = /^(entities|drawings|flows|code)\/[^/]+\.yaml$/.exec(path);
   return m ? DIRS[m[1]] : undefined;
 }
 
@@ -162,6 +166,7 @@ export function buildProject(dir: string, texts: Map<string, string>): Project {
     connections: new Map(),
     drawings: new Map(),
     flows: new Map(),
+    codeGraphs: new Map(),
     duplicates: [],
     children: new Map(),
     connectionsTo: new Map(),
@@ -169,6 +174,12 @@ export function buildProject(dir: string, texts: Map<string, string>): Project {
 
   for (const file of files.values()) {
     if (!file.data) continue;
+    if (file.kind === 'code') {
+      const graph: CodeGraphT = file.data;
+      if (project.codeGraphs.has(graph.component)) project.duplicates.push({ kind: 'code', id: graph.component, file: file.path });
+      else project.codeGraphs.set(graph.component, { graph, file: file.path });
+      continue;
+    }
     const id: string = file.data.id;
     const target = file.kind === 'entity' ? project.entities : file.kind === 'drawing' ? project.drawings : file.kind === 'flow' ? project.flows : undefined;
     if (!target) continue;

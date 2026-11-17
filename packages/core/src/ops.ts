@@ -71,7 +71,7 @@ export interface ApplyResult {
   error?: string;
 }
 
-const ENTITY_FIELDS = ['name', 'kind', 'caption', 'icon', 'description', 'external', 'status', 'technologies', 'tags', 'owner', 'links'];
+const ENTITY_FIELDS = ['name', 'kind', 'caption', 'icon', 'description', 'external', 'status', 'technologies', 'tags', 'owner', 'links', 'source'];
 const CONNECTION_FIELDS = ['to', 'label', 'direction', 'description', 'via', 'technologies', 'status', 'tags'];
 const DRAWING_FIELDS = ['name', 'description', 'scope'];
 const FLOW_FIELDS = ['name', 'description', 'drawing', 'steps'];
