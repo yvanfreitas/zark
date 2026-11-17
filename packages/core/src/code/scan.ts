@@ -6,7 +6,7 @@ import { loadProject, type Project } from '../project.js';
 import type { CodeGraph } from '../schema.js';
 import type { Problem } from '../validate.js';
 import { createDoc, removeFile, toText, writeAtomic } from '../writer.js';
-import { extractModule, type ModuleFacts } from './extract.js';
+import { extractModule, loadParser, type ModuleFacts } from './extract.js';
 import { buildGraph } from './graph.js';
 import { loadAliases, resolveSpecifier } from './resolve.js';
 import { claimFiles, DEFAULT_EXCLUDE, listSourceFiles, repoRootOf, sourceEntries } from './sources.js';
@@ -48,6 +48,10 @@ function parseModule(path: string, text: string | undefined): ModuleFacts {
 export async function scanProject(dir: string, opts: { check?: boolean; only?: string[]; project?: Project } = {}): Promise<ScanResult> {
   dir = resolve(dir);
   const project = opts.project ?? (await loadProject(dir));
+  // Opt-in: without `source` (and no leftover graphs) a scan touches nothing, not even the parser.
+  const anySource = [...project.entities.values()].some(({ entity }) => entity.kind === 'component' && entity.source);
+  if (!anySource && !project.codeGraphs.size) return { components: [], problems: [], warnings: [] };
+  if (anySource) await loadParser();
   const repoRoot = repoRootOf(dir);
   const { owner, problems } = await claimFiles(repoRoot, project);
   const warnings: string[] = [];

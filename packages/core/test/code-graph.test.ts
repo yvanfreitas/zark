@@ -3,7 +3,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { buildGraph, formatText, loadProject, scanProject } from '../src/index.js';
-import { extractModule } from '../src/code/extract.js';
+import { extractModule, loadParser } from '../src/code/extract.js';
+
+await loadParser();
 
 const FIXTURE = join(import.meta.dirname, 'fixtures', 'code');
 const dirs: string[] = [];

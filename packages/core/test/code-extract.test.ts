@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { extractModule, type CallSite } from '../src/code/extract.js';
+import { extractModule, loadParser, type CallSite } from '../src/code/extract.js';
+
+await loadParser();
 
 const sitesOf = (text: string) => extractModule('src/a.ts', text).sites;
 const calls = (sites: CallSite[]) => sites.filter((s) => s.kind === 'calls');

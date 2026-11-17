@@ -2,7 +2,9 @@ import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { extractModule, type ModuleFacts } from '../src/code/extract.js';
+import { extractModule, loadParser, type ModuleFacts } from '../src/code/extract.js';
+
+await loadParser();
 import { loadAliases, resolveExport, resolveSpecifier, type Aliases } from '../src/code/resolve.js';
 
 const none: Aliases = { paths: [] };

@@ -49,7 +49,7 @@ The Chromium used to render PNGs is downloaded on the first render, not at insta
 | `zark validate [--format json]` | Lists problems. Exits with 1 when there are errors |
 | `zark fmt [--check]` | Rewrites files in canonical format, or only checks |
 | `zark render [--check] [id...]` | Renders PNGs into `architecture/rendered/`, or checks they are up to date |
-| `zark scan [--check] [component...]` | Generates `architecture/code/<component>.yaml` (C4 level 4) for components with `source`, or checks the files are up to date |
+| `zark scan [--check] [component...]` | (alpha) Generates `architecture/code/<component>.yaml` (C4 level 4) for components with `source`, or checks the files are up to date |
 | `zark diff [--base ref] [--format text\|markdown]` | Semantic diff against a git ref (default: `origin/<baseBranch>`) |
 | `zark pr [--yes] [--title t]` | Branch, render, commit of `architecture/`, push and `gh pr create`, with preview and confirmation |
 | `zark build --out dir` | Read-only static site (drawings and flow player) |
@@ -62,7 +62,9 @@ Every command accepts `--dir <folder>` (default: `architecture`).
 
 Git and PRs use the `git` and provider CLI already authenticated on the machine: `gh` on GitHub, `glab` on GitLab (where the PR becomes an MR). The provider comes from `git.provider: github | gitlab` in `zark.yaml`; without it, a remote whose host contains `gitlab` picks GitLab. Zark never asks for, reads or stores a token, and never runs `push --force`.
 
-## Code level (TypeScript)
+## Code level (TypeScript, alpha)
+
+> **Alpha.** Opt-in and off by default: nothing is scanned, parsed or generated until a component has `source`, so projects that do not use it pay nothing. The file format and the counts may still change between minor versions; regenerate with `zark scan` after upgrading.
 
 Set `source` on a component (a folder, a file, or a list of them, relative to the repository root) and `zark scan` writes `architecture/code/<component>.yaml`: its modules, the pieces in them (functions, classes, types) and the calls and imports between them. The files are generated, never edit them. `zark scan --check` exits with 1 when one is out of date, and `zark pr` runs `zark scan` first so the graphs land in the same PR.
 

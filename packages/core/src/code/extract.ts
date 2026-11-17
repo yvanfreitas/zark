@@ -1,7 +1,7 @@
 // Syntax-only facts about one module (spec sections 2 and 3): its exported pieces, imports,
 // re-exports and call sites with target hints. Pure: no filesystem, no import resolution.
 // A site whose target the syntax does not name gets `{ ref: 'unknown' }`, never a guess.
-import { parseSync } from 'oxc-parser';
+import type { parseSync as ParseSync } from 'oxc-parser';
 import type { CodePiece } from '../schema.js';
 
 export type ImportFact = { local: string; imported: string /* name, 'default' or '*' */; from: string; typeOnly: boolean };
@@ -40,7 +40,14 @@ const CLASSES = new Set(['ClassDeclaration', 'ClassExpression']);
 const TYPE_KEYS = new Set(['typeAnnotation', 'returnType', 'typeParameters', 'typeArguments', 'superTypeArguments']);
 const UNKNOWN: TargetHint = { ref: 'unknown' };
 
+// The native parser loads on the first scan, so projects without `source` never load it.
+let parseSync: typeof ParseSync | undefined;
+export async function loadParser(): Promise<void> {
+  parseSync ??= (await import('oxc-parser')).parseSync;
+}
+
 export function extractModule(path: string, text: string): ModuleFacts {
+  if (!parseSync) throw new Error('extractModule: call loadParser() first');
   const { program, errors } = parseSync(path, text.replace(/\r\n?/g, '\n'), { sourceType: 'module' });
   const body: N[] = program.body;
   const facts: ModuleFacts = { path, pieces: [], imports: [], reexports: [], sites: [], locals: new Map(), parseErrors: errors.length };
