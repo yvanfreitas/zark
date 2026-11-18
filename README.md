@@ -132,6 +132,24 @@ No `vsce` needed: `pnpm --filter zark-vscode build` produces `dist/extension.cjs
 
 `.github/workflows/architecture.yml` is the example for the repository that versions `architecture/` (with `@ewcodes/zark` as a devDependency, installed by `npm ci`): it runs `validate`, `fmt --check`, `render --check` and posts the semantic diff in the job summary. The `scan --check` gate is the separate workflow shown under [Code level](#code-level-typescript), since it must run without a `paths` filter.
 
+### Architecture diff as a pull request comment
+
+`.github/workflows/architecture-comment.yml` keeps one comment on each pull request that touches the architecture, rewritten on every push:
+
+- the semantic diff (`zark diff --format markdown`) against the merge base;
+- a **Before | After** table for every drawing whose PNG in `rendered/` changed (a new drawing shows only the new picture, a removed one only the old).
+
+The image URLs are pinned to commit SHAs, so a comment never changes under the reader. Nothing is rendered in the workflow: it shows the committed PNGs, which `render --check` keeps current, so commit `zark render` output together with the model change.
+
+This repository runs it on `examples/ai-chat/architecture`. To use it in the repository that versions `architecture/`, copy the file and change four things:
+
+1. `paths` to `["architecture/**"]` and `DIR` to `architecture`;
+2. the `pnpm/action-setup` step and `cache: pnpm`: remove them;
+3. `pnpm install --frozen-lockfile` to `npm ci`;
+4. `./node_modules/.bin/tsx packages/cli/src/main.ts diff` to `npx zark diff`.
+
+It needs `pull-requests: write` (already in the file) and skips pull requests from forks, whose token is read-only. In a private repository the pinned image URLs only load for readers signed in with access to it.
+
 To keep the code graphs current instead of failing the build, run `npx zark scan` in a job and open a PR with the result:
 
 ```yaml
