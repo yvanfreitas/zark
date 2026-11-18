@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://unpkg.com/zark/schema/entity.json
 
 id: history
-name: Conversation history
+name: Chat history
 kind: store
 parent: platform
 caption: Conversations and messages
