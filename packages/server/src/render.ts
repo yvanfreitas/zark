@@ -18,31 +18,51 @@ export interface RenderOutput {
   skipped: boolean;
 }
 
+async function launchChromium(): Promise<Browser> {
+  const { chromium } = await import('playwright-core');
+  try {
+    return await chromium.launch();
+  } catch (err) {
+    if (!/Executable doesn't exist|executable.*not found|install/i.test(String(err))) throw err;
+    process.stderr.write('Downloading Playwright Chromium (first time only)...\n');
+    const cli = join(require.resolve('playwright-core/package.json'), '..', 'cli.js');
+    await exec(process.execPath, [cli, 'install', 'chromium'], { windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
+    return chromium.launch();
+  }
+}
+
+/** One lazily launched Chromium, shareable by many renderers. */
+export class SharedBrowser {
+  private browser?: Promise<Browser>;
+
+  constructor(private launch: () => Promise<Browser> = launchChromium) {}
+
+  get(): Promise<Browser> {
+    this.browser ??= this.launch();
+    return this.browser;
+  }
+
+  async close() {
+    const browser = this.browser;
+    this.browser = undefined;
+    if (browser) await (await browser).close().catch(() => undefined);
+  }
+}
+
 /**
  * Screenshots the UI's panel-less render route in headless Chromium.
  * The browser is downloaded on first use, not at install time.
+ * Without a `shared` browser the renderer owns a private one and closes it.
  */
 export class Renderer {
-  private browser?: Promise<Browser>;
+  private browser: SharedBrowser;
 
-  constructor(private baseUrl: () => string, private token: string) {}
-
-  private async launch(): Promise<Browser> {
-    const { chromium } = await import('playwright-core');
-    try {
-      return await chromium.launch();
-    } catch (err) {
-      if (!/Executable doesn't exist|executable.*not found|install/i.test(String(err))) throw err;
-      process.stderr.write('Downloading Playwright Chromium (first time only)...\n');
-      const cli = join(require.resolve('playwright-core/package.json'), '..', 'cli.js');
-      await exec(process.execPath, [cli, 'install', 'chromium'], { windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
-      return chromium.launch();
-    }
+  constructor(private baseUrl: () => string, private token: string, private shared?: SharedBrowser) {
+    this.browser = shared ?? new SharedBrowser();
   }
 
   private getBrowser() {
-    this.browser ??= this.launch();
-    return this.browser;
+    return this.browser.get();
   }
 
   /** Renders `target` to PNG bytes with the input hash embedded. */
@@ -80,8 +100,7 @@ export class Renderer {
   }
 
   async close() {
-    if (this.browser) await (await this.browser).close().catch(() => undefined);
-    this.browser = undefined;
+    if (!this.shared) await this.browser.close();
   }
 }
 
