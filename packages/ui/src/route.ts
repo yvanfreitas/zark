@@ -8,3 +8,8 @@ export function renderRoute(pathname: string): { kind: 'drawing' | 'flow'; id: s
   const m = /^(?:\/r\/[^/]+)?\/render\/(drawing|flow)\/([^/]+)\/?$/.exec(pathname);
   return m ? { kind: m[1] as 'drawing' | 'flow', id: decodeURIComponent(m[2]) } : undefined;
 }
+
+/** Browser URL for a server-returned root-relative render file URL (`/api/render/file?path=...`). */
+export function renderFileUrl(prefix: string, url: string, token: string): string {
+  return `${prefix}${url}&token=${encodeURIComponent(token)}`;
+}

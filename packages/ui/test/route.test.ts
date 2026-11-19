@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renderRoute, repoPrefix } from '../src/route';
+import { renderFileUrl, renderRoute, repoPrefix } from '../src/route';
 
 describe('repoPrefix', () => {
   it('reads the /r/<repo> prefix', () => {
@@ -29,5 +29,12 @@ describe('renderRoute', () => {
   it('ignores non-render paths', () => {
     expect(renderRoute('/r/a/')).toBeUndefined();
     expect(renderRoute('/')).toBeUndefined();
+  });
+});
+
+describe('renderFileUrl', () => {
+  it('prefixes the server URL and appends the token', () => {
+    expect(renderFileUrl('/r/a', '/api/render/file?path=x.png', 't k')).toBe('/r/a/api/render/file?path=x.png&token=t%20k');
+    expect(renderFileUrl('', '/api/render/file?path=x.png', 't')).toBe('/api/render/file?path=x.png&token=t');
   });
 });
