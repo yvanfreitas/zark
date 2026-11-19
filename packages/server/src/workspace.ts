@@ -88,7 +88,7 @@ export async function startWorkspace(opts: WorkspaceOptions): Promise<RunningWor
   for (const repo of await discoverWorkspace(opts.root)) {
     const live = await findRunning(repo.dir);
     if (live) {
-      listed.push({ repo, running: { url: `http://127.0.0.1:${live.port}/?token=${live.token}` } });
+      listed.push({ repo, running: { url: `http://127.0.0.1:${live.port}${live.base}/?token=${live.token}` } });
       continue;
     }
     let store: ProjectStore;

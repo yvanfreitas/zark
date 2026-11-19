@@ -1,4 +1,5 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { PassThrough } from 'node:stream';
 import { cp, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -6,8 +7,8 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { ProjectStore, ZarkService } from '@zark/server';
-import { createMcpServer } from '../src/index.js';
+import { ProjectStore, ZarkService, startWorkspace } from '@zark/server';
+import { createMcpServer, mcpHttpHandler, runStdio } from '../src/index.js';
 
 const EXAMPLE = fileURLToPath(new URL('../../../examples/ai-chat/architecture', import.meta.url));
 
@@ -143,4 +144,35 @@ describe('zark MCP server', () => {
     const { prompts } = await client.listPrompts();
     expect(prompts.map((p) => p.name)).toEqual(expect.arrayContaining(['documentar-repositorio', 'revisar-modelo']));
   });
+});
+
+describe('zark mcp delegation to a workspace server', () => {
+  it('lists tools through the repo prefix', async () => {
+    const wsRoot = await mkdtemp(join(tmpdir(), 'zark-mcp-ws-'));
+    await cp(EXAMPLE, join(wsRoot, 'a', 'architecture'), { recursive: true });
+    const ws = await startWorkspace({ root: wsRoot, port: 0, advertise: true, mcp: mcpHttpHandler });
+    const stdin = new PassThrough();
+    const stdout = new PassThrough();
+    try {
+      void runStdio(join(wsRoot, 'a', 'architecture'), { stdin, stdout });
+      const lines: string[] = [];
+      let buf = '';
+      stdout.on('data', (d) => {
+        buf += d;
+        const parts = buf.split('\n');
+        buf = parts.pop()!;
+        lines.push(...parts.filter(Boolean));
+      });
+      // No initialized notification: it would open an SSE stream that keeps ws.stop() waiting.
+      const send = (m: object) => stdin.write(JSON.stringify(m) + '\n');
+      send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 't', version: '1' } } });
+      send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
+      await vi.waitFor(() => expect(lines.some((l) => JSON.parse(l).id === 2)).toBe(true), { timeout: 5000 });
+      const list = JSON.parse(lines.find((l) => JSON.parse(l).id === 2)!);
+      expect(list.result.tools.map((t: any) => t.name)).toContain('get_overview');
+    } finally {
+      await ws.stop();
+      await rm(wsRoot, { recursive: true, force: true });
+    }
+  }, 60_000);
 });
