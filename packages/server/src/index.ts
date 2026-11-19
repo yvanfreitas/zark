@@ -12,6 +12,7 @@ export * from './render-hash.js';
 export * from './render.js';
 export * from './service.js';
 export * from './store.js';
+export * from './workspace.js';
 
 export interface StartOptions {
   dir: string;
