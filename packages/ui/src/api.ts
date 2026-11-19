@@ -1,6 +1,6 @@
 import { tr } from './i18n';
 import { renderRoute, repoPrefix } from './route';
-import type { Model, Problem } from './types';
+import type { Model, Problem, WorkspaceEntry } from './types';
 
 /** `/r/<repo>` under the workspace server, '' for a single repo and `zark build`. */
 export const prefix = repoPrefix(location.pathname);
@@ -70,6 +70,21 @@ export const getModel = async (): Promise<Model> => {
   if (!res.ok) throw new Error(tr('api.sessionMissing'));
   return res.json();
 };
+
+/**
+ * Repos of a workspace server, or undefined for a single-repo server and `zark build`.
+ * A single-repo server answers this path with index.html (SPA catch-all), so JSON is required.
+ */
+export async function getWorkspace(): Promise<WorkspaceEntry[] | undefined> {
+  if (readOnly) return undefined;
+  try {
+    const res = await fetch('/api/workspace', { headers: { 'x-zark-token': token } });
+    if (!res.ok || !res.headers.get('content-type')?.includes('application/json')) return undefined;
+    return ((await res.json()) as { repos: WorkspaceEntry[] }).repos;
+  } catch {
+    return undefined;
+  }
+}
 
 export function subscribe(handlers: Record<string, (data: any) => void>, onState: (connected: boolean) => void) {
   let source: EventSource | undefined;

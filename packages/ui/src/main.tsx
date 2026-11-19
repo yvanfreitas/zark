@@ -1,4 +1,4 @@
-import { StrictMode, useEffect } from 'react';
+import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ReactFlowProvider } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -11,6 +11,9 @@ import { Canvas } from './canvas/Canvas';
 import { useStore } from './store';
 import { tr } from './i18n';
 import { renderRoute } from './route';
+import { getWorkspace, prefix } from './api';
+import { WorkspaceHome } from './panels/Workspace';
+import type { WorkspaceEntry } from './types';
 
 /**
  * Panel-less route the renderer screenshots: /render/drawing/<id> or
@@ -53,7 +56,18 @@ function RenderView({ kind, id }: { kind: 'drawing' | 'flow'; id: string }) {
   );
 }
 
+/** At `/` a workspace server shows its repo list; everything else is the single-repo app. */
+function Root() {
+  const atRoot = prefix === '' && location.pathname === '/';
+  const [repos, setRepos] = useState<WorkspaceEntry[] | undefined | null>(atRoot ? null : undefined);
+  useEffect(() => {
+    if (atRoot) void getWorkspace().then(setRepos);
+  }, [atRoot]);
+  if (repos === null) return null;
+  return repos ? <WorkspaceHome repos={repos} /> : <App />;
+}
+
 const match = renderRoute(location.pathname);
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>{match ? <RenderView kind={match.kind} id={match.id} /> : <App />}</StrictMode>,
+  <StrictMode>{match ? <RenderView kind={match.kind} id={match.id} /> : <Root />}</StrictMode>,
 );

@@ -35,3 +35,15 @@ export interface Conn {
   conn: Connection;
   file: string;
 }
+
+/** One repo of a workspace server (`GET /api/workspace`). */
+export interface WorkspaceEntry {
+  key: string;
+  prefix: string;
+  name: string;
+  dir: string;
+  drawings: number;
+  errors: number;
+  warnings: number;
+  running?: { url: string };
+}

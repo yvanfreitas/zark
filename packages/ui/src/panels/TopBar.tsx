@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { api, readOnly } from '../api';
+import { api, prefix, readOnly } from '../api';
 import { currentDrawing, useStore } from '../store';
 import { setLang, tr, useT, type Lang } from '../i18n';
 import { Button, Icon, IconButton, Svg } from './ui';
 import { mod } from '../actions';
+import { RepoSwitcher } from './Workspace';
 
 export interface GitStatus {
   isRepo: boolean;
@@ -108,6 +109,7 @@ export function TopBar({ git }: { git?: GitStatus }) {
         </svg>
         <span className="max-w-[160px] truncate text-[14px] font-semibold text-[var(--fg)]">{model.config.name}</span>
       </div>
+      {prefix !== '' && <RepoSwitcher />}
       <div className="h-5 w-px bg-[var(--border)]" />
       <ViewSwitch />
       <Breadcrumb />
