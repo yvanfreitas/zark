@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { request } from 'node:http';
@@ -95,6 +95,7 @@ describe('startWorkspace', () => {
     const aBefore = await readFile(aUser, 'utf8');
     const otherBefore = await readFile(otherUser, 'utf8');
     let status = 0;
+    const aEvents = eventsDuring(`${base}/r/a/api/events?token=${ws.token}`, () => new Promise((r) => setTimeout(r, 300)), 1500);
     const events = await eventsDuring(
       `${base}/r/my%20repo/api/events?token=${ws.token}`,
       async () => {
@@ -113,6 +114,16 @@ describe('startWorkspace', () => {
     expect(await readFile(aUser, 'utf8')).toContain('caption: Only in a');
     expect(await readFile(otherUser, 'utf8')).toBe(otherBefore);
     expect(events).not.toContain('model.changed');
+    // Positive control: the addressed repo's own stream does see the change.
+    expect(await aEvents).toContain('model.changed');
+  });
+
+  it('answers 404 JSON for an unmounted repo api route', async () => {
+    const res = await get('/r/nope/api/model');
+    expect(res.status).toBe(404);
+    expect(res.headers.get('content-type')).toContain('application/json');
+    expect(await res.json()).toEqual({ error: 'Unknown repo: nope' });
+    expect((await fetch(`${base}/r/nope/api/model`)).status).toBe(401);
   });
 
   it('guards prefixed routes', async () => {
@@ -185,4 +196,43 @@ describe('startWorkspace default port', () => {
       await rm(root, { recursive: true, force: true });
     }
   });
+});
+
+describe('startWorkspace failure isolation', () => {
+  it('survives a repo whose server.json cannot be written', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'zark-wsfail-'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    let ws: RunningWorkspace | undefined;
+    try {
+      await copyRepo(root, 'a');
+      await copyRepo(root, 'b');
+      await writeFile(join(root, 'b', '.zark'), 'not a directory');
+      ws = await startWorkspace({ root, port: 0, advertise: true });
+      expect(existsSync(join(root, 'a', '.zark', 'server.json'))).toBe(true);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining(join(root, 'b')));
+      const headers = { 'x-zark-token': ws.token };
+      for (const r of ['a', 'b']) expect((await fetch(`http://127.0.0.1:${ws.port}/r/${r}/api/model`, { headers })).status).toBe(200);
+    } finally {
+      await ws?.stop();
+      warn.mockRestore();
+      await rm(root, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it('stop still closes the server when a service close rejects', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'zark-wsstop-'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      await copyRepo(root, 'a');
+      await copyRepo(root, 'b');
+      const ws = await startWorkspace({ root, port: 0 });
+      ws.services.get('a')!.close = () => Promise.reject(new Error('boom'));
+      await ws.stop();
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('boom'));
+      await expect(fetch(`http://127.0.0.1:${ws.port}/api/workspace`)).rejects.toThrow();
+    } finally {
+      warn.mockRestore();
+      await rm(root, { recursive: true, force: true });
+    }
+  }, 60_000);
 });

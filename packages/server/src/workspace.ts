@@ -123,10 +123,14 @@ export async function startWorkspace(opts: WorkspaceOptions): Promise<RunningWor
       };
     });
   app.get('/api/workspace', (c) => c.json({ repos: entries() }));
+  // A repo that is not mounted here (stale bookmark, or served by its own `zark dev`) must not fall to the SPA.
+  app.all('/r/:repo/api/*', (c) => c.json({ error: `Unknown repo: ${c.req.param('repo')}` }, 404));
   serveUi(app, opts.uiDir);
 
+  /** Closes every service even if one fails, then the shared browser; logs rejected closes. */
   const closeAll = async () => {
-    for (const service of services.values()) await service.close();
+    const results = await Promise.allSettled([...services.values()].map((s) => s.close()));
+    for (const r of results) if (r.status === 'rejected') console.warn(`Closing a repo failed: ${String(r.reason)}`);
     await browser.close();
   };
   let started: Started;
@@ -136,7 +140,7 @@ export async function startWorkspace(opts: WorkspaceOptions): Promise<RunningWor
       throw err;
     });
   } catch (err) {
-    await closeAll();
+    await closeAll().catch(() => undefined);
     throw err;
   }
   port = started.port;
@@ -146,8 +150,12 @@ export async function startWorkspace(opts: WorkspaceOptions): Promise<RunningWor
     for (const { repo } of listed) {
       if (!services.has(repo.key)) continue;
       const file = serverFile(repo.dir);
-      await writeAtomic(file, JSON.stringify({ port, token, pid: process.pid, base: repo.prefix }) + '\n');
-      advertised.push(file);
+      try {
+        await writeAtomic(file, JSON.stringify({ port, token, pid: process.pid, base: repo.prefix }) + '\n');
+        advertised.push(file);
+      } catch (err) {
+        console.warn(`Not advertising ${repo.root}: ${(err as Error).message}`);
+      }
     }
   }
 
@@ -160,8 +168,11 @@ export async function startWorkspace(opts: WorkspaceOptions): Promise<RunningWor
     services,
     stop: async () => {
       for (const file of advertised) await rm(file, { force: true });
-      await closeAll();
-      await started.close();
+      try {
+        await closeAll();
+      } finally {
+        await started.close();
+      }
     },
   };
 }

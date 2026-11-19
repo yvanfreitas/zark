@@ -49,4 +49,13 @@ describe('SharedBrowser', () => {
     await shared.close();
     expect(close).toHaveBeenCalledTimes(1);
   });
+
+  it('does not cache a rejected launch', async () => {
+    const browser = { close: vi.fn() } as any;
+    const launch = vi.fn().mockRejectedValueOnce(new Error('no chromium')).mockResolvedValueOnce(browser);
+    const shared = new SharedBrowser(launch);
+    await expect(shared.get()).rejects.toThrow('no chromium');
+    await expect(shared.get()).resolves.toBe(browser);
+    expect(launch).toHaveBeenCalledTimes(2);
+  });
 });

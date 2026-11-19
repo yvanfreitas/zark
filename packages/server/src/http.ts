@@ -62,7 +62,7 @@ export function guard(app: Hono, port: () => number, token: string) {
     if (origin && !allowed.map((h) => `http://${h}`).includes(origin)) return c.text('Origin not allowed', 403);
     await next();
   });
-  for (const path of ['/api/*', '/mcp', '/mcp/*']) {
+  for (const path of ['/api/*', '/r/*/api/*', '/mcp', '/mcp/*']) {
     app.use(path, async (c, next) => {
       const sent = c.req.header('x-zark-token') ?? c.req.query('token') ?? c.req.header('authorization')?.replace(/^Bearer /, '');
       if (sent !== token) return c.json({ error: 'Missing or invalid session token' }, 401);

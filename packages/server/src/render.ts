@@ -38,7 +38,10 @@ export class SharedBrowser {
   constructor(private launch: () => Promise<Browser> = launchChromium) {}
 
   get(): Promise<Browser> {
-    this.browser ??= this.launch();
+    this.browser ??= this.launch().catch((err) => {
+      this.browser = undefined;
+      throw err;
+    });
     return this.browser;
   }
 
