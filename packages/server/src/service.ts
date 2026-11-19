@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { diffProjects, type Change } from '@zark/core';
 import { createPr, defaultBase, discard, projectAtRef, prPreview, status } from './git.js';
 import { readHash, renderHash, renderStatus, type RenderStatus, type RenderTarget } from './render-hash.js';
-import { cacheDir, Renderer, renderedDir, type RenderOutput } from './render.js';
+import { cacheDir, Renderer, renderedDir, type RenderOutput, type SharedBrowser } from './render.js';
 import { ProjectStore } from './store.js';
 
 /**
@@ -15,8 +15,8 @@ export class ZarkService {
   private alwaysTimer?: NodeJS.Timeout;
   private statusTimer?: NodeJS.Timeout;
 
-  constructor(readonly store: ProjectStore, baseUrl: () => string, readonly token: string) {
-    this.renderer = new Renderer(baseUrl, token);
+  constructor(readonly store: ProjectStore, baseUrl: () => string, readonly token: string, opts: { browser?: SharedBrowser } = {}) {
+    this.renderer = new Renderer(baseUrl, token, opts.browser);
   }
 
   get dir() {

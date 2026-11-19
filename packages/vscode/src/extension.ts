@@ -8,6 +8,7 @@ import { drawingUrl, findArchitectureDir, fragmentFor, webviewHtml, type ModelSu
 interface ServerInfo {
   port: number;
   token: string;
+  base?: string;
 }
 
 /** `zark dev` processes this extension started, by architecture dir. */
@@ -18,7 +19,7 @@ const serverFile = (archDir: string) => join(dirname(archDir), '.zark', 'server.
 
 async function healthy(info: ServerInfo): Promise<boolean> {
   try {
-    const res = await fetch(`http://127.0.0.1:${info.port}/api/health`, { headers: { 'x-zark-token': info.token } });
+    const res = await fetch(`http://127.0.0.1:${info.port}${info.base ?? ''}/api/health`, { headers: { 'x-zark-token': info.token } });
     return res.ok;
   } catch {
     return false;
@@ -75,7 +76,7 @@ async function ensureServer(archDir: string, log: vscode.OutputChannel): Promise
 
 async function modelSummary(info: ServerInfo): Promise<ModelSummary | undefined> {
   try {
-    const res = await fetch(`http://127.0.0.1:${info.port}/api/model`, { headers: { 'x-zark-token': info.token } });
+    const res = await fetch(`http://127.0.0.1:${info.port}${info.base ?? ''}/api/model`, { headers: { 'x-zark-token': info.token } });
     return res.ok ? ((await res.json()) as ModelSummary) : undefined;
   } catch {
     return undefined;
@@ -110,7 +111,7 @@ export function activate(context: vscode.ExtensionContext): ZarkApi {
           () => ensureServer(archDir, log),
         );
         const fragment = fragmentFor(archDir, file, await modelSummary(info));
-        const url = drawingUrl(info.port, info.token, fragment);
+        const url = drawingUrl(info.port, info.token, fragment, info.base);
         let panel = panels.get(archDir);
         if (!panel) {
           panel = vscode.window.createWebviewPanel('zark.drawing', panelTitle(fragment), { viewColumn: vscode.ViewColumn.Beside, preserveFocus: true }, { enableScripts: true, retainContextWhenHidden: true });

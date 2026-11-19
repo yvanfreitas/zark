@@ -12,6 +12,7 @@ export * from './render-hash.js';
 export * from './render.js';
 export * from './service.js';
 export * from './store.js';
+export * from './workspace.js';
 
 export interface StartOptions {
   dir: string;
@@ -32,7 +33,8 @@ export interface Running extends Started {
   stop: () => Promise<void>;
 }
 
-const serverFile = (dir: string) => join(dir, '..', '.zark', 'server.json');
+/** Where a running server advertises `{ port, token, pid, base? }` for this architecture folder. */
+export const serverFile = (dir: string) => join(dir, '..', '.zark', 'server.json');
 
 export async function startServer(opts: StartOptions): Promise<Running> {
   const store = await new ProjectStore(opts.dir).load();
@@ -58,12 +60,13 @@ export async function startServer(opts: StartOptions): Promise<Running> {
   };
 }
 
-/** Finds a running `zark dev` for this folder, if any. */
-export async function findRunning(dir: string): Promise<{ port: number; token: string } | undefined> {
+/** Finds a running `zark dev` (or workspace) for this folder, if any. `base` is the URL prefix, `''` for a single repo. */
+export async function findRunning(dir: string): Promise<{ port: number; token: string; base: string } | undefined> {
   const info = await readFile(serverFile(dir), 'utf8').then(JSON.parse).catch(() => undefined);
   if (!info) return undefined;
-  const ok = await fetch(`http://127.0.0.1:${info.port}/api/health`, { headers: { 'x-zark-token': info.token } })
+  const base: string = info.base ?? '';
+  const ok = await fetch(`http://127.0.0.1:${info.port}${base}/api/health`, { headers: { 'x-zark-token': info.token } })
     .then((r) => r.ok)
     .catch(() => false);
-  return ok ? info : undefined;
+  return ok ? { port: info.port, token: info.token, base } : undefined;
 }

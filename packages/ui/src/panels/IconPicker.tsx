@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, token } from '../api';
+import { api, prefix, token } from '../api';
 import { useStore } from '../store';
 import type { Entity } from '../types';
 import { useT } from '../i18n';
@@ -16,7 +16,7 @@ interface IconSet {
   count: number;
 }
 
-const svgUrl = (id: string) => `/api/icons/svg/${encodeURIComponent(id)}?token=${encodeURIComponent(token)}`;
+const svgUrl = (id: string) => `${prefix}/api/icons/svg/${encodeURIComponent(id)}?token=${encodeURIComponent(token)}`;
 
 /** Icon of an entity: current one, suggestions from its settings, and a picker for everything else. */
 export function IconField({ entity, onChange }: { entity: Entity; onChange: (icon: string | undefined) => void }) {

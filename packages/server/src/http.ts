@@ -22,6 +22,8 @@ export interface AppOptions {
   /** Accepted Host/Origin port; filled in once the server listens. */
   port: () => number;
   readOnly?: boolean;
+  /** Serve the UI catch-all (default true). A workspace mounts sub-apps without it and serves the UI once at the root. */
+  serveUi?: boolean;
 }
 
 const MIME: Record<string, string> = {
@@ -50,29 +52,48 @@ function expectFrom(c: Context, primary?: string): Record<string, string> | unde
   return out;
 }
 
-export function createApp(opts: AppOptions) {
-  const { service } = opts;
-  const store = service.store;
-  const app = new Hono();
-
-  // --- security: local origin only, session token on every API call ---
+/** Local origin only, and the session token on every API and MCP call. */
+export function guard(app: Hono, port: () => number, token: string) {
   app.use('*', async (c, next) => {
-    const port = opts.port();
-    const allowed = [`127.0.0.1:${port}`, `localhost:${port}`];
+    const allowed = [`127.0.0.1:${port()}`, `localhost:${port()}`];
     const host = c.req.header('host');
     if (!host || !allowed.includes(host)) return c.text('Host not allowed', 403);
     const origin = c.req.header('origin');
     if (origin && !allowed.map((h) => `http://${h}`).includes(origin)) return c.text('Origin not allowed', 403);
     await next();
   });
-  const guarded = ['/api/*', '/mcp', '/mcp/*'];
-  for (const path of guarded) {
+  for (const path of ['/api/*', '/r/*/api/*', '/mcp', '/mcp/*']) {
     app.use(path, async (c, next) => {
-      const token = c.req.header('x-zark-token') ?? c.req.query('token') ?? c.req.header('authorization')?.replace(/^Bearer /, '');
-      if (token !== service.token) return c.json({ error: 'Missing or invalid session token' }, 401);
+      const sent = c.req.header('x-zark-token') ?? c.req.query('token') ?? c.req.header('authorization')?.replace(/^Bearer /, '');
+      if (sent !== token) return c.json({ error: 'Missing or invalid session token' }, 401);
       await next();
     });
   }
+}
+
+/** UI (SPA) catch-all for every GET not matched before it. Static files need no token; the API does. */
+export function serveUi(app: Hono, uiDir?: string) {
+  app.get('*', async (c) => {
+    if (!uiDir || !existsSync(uiDir)) return c.text('UI not found. Run "pnpm --filter @zark/ui build".', 404);
+    const rel = normalize(decodeURIComponent(new URL(c.req.url).pathname)).replace(/^[\\/]+/, '');
+    const file = join(uiDir, rel);
+    if (rel && file.startsWith(uiDir) && existsSync(file) && extname(file)) {
+      const cache = rel.startsWith('assets') ? 'public, max-age=31536000, immutable' : 'no-cache';
+      return c.body(new Uint8Array(await readFile(file)), 200, { 'content-type': MIME[extname(file)] ?? 'application/octet-stream', 'cache-control': cache });
+    }
+    // The UI is built with relative asset paths (for `zark build`); deep routes
+    // like /render/drawing/x need them anchored at the server root.
+    const html = await readFile(join(uiDir, 'index.html'), 'utf8');
+    return c.html(html.replace('<head>', '<head><base href="/">'));
+  });
+}
+
+export function createApp(opts: AppOptions) {
+  const { service } = opts;
+  const store = service.store;
+  const app = new Hono();
+
+  guard(app, opts.port, service.token);
 
   const reply = (c: Context, result: ApplyResult) => {
     if (result.conflict) return c.json({ ok: false, error: result.error, conflict: result.conflict, model: store.snapshot() }, 409);
@@ -286,20 +307,7 @@ export function createApp(opts: AppOptions) {
     app.all('/mcp', handle);
   }
 
-  // UI (SPA). Static files need no token; the API does.
-  app.get('*', async (c) => {
-    if (!opts.uiDir || !existsSync(opts.uiDir)) return c.text('UI not found. Run "pnpm --filter @zark/ui build".', 404);
-    const rel = normalize(decodeURIComponent(new URL(c.req.url).pathname)).replace(/^[\\/]+/, '');
-    const file = join(opts.uiDir, rel);
-    if (rel && file.startsWith(opts.uiDir) && existsSync(file) && extname(file)) {
-      const cache = rel.startsWith('assets') ? 'public, max-age=31536000, immutable' : 'no-cache';
-      return c.body(new Uint8Array(await readFile(file)), 200, { 'content-type': MIME[extname(file)] ?? 'application/octet-stream', 'cache-control': cache });
-    }
-    // The UI is built with relative asset paths (for `zark build`); deep routes
-    // like /render/drawing/x need them anchored at the server root.
-    const html = await readFile(join(opts.uiDir, 'index.html'), 'utf8');
-    return c.html(html.replace('<head>', '<head><base href="/">'));
-  });
+  if (opts.serveUi !== false) serveUi(app, opts.uiDir);
 
   return app;
 }

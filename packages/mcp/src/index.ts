@@ -1,3 +1,4 @@
+import type { Readable, Writable } from 'node:stream';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -26,12 +27,12 @@ export function mcpHttpHandler(service: ZarkService): McpHttpHandler {
  * bridged to its /mcp endpoint so the UI shows the agent's writes live.
  * Otherwise an in-process service works on the files directly.
  */
-export async function runStdio(dir: string, opts: { uiDir?: string } = {}): Promise<void> {
+export async function runStdio(dir: string, opts: { uiDir?: string; stdin?: Readable; stdout?: Writable } = {}): Promise<void> {
   const running = await findRunning(dir);
-  const stdio = new StdioServerTransport();
+  const stdio = new StdioServerTransport(opts.stdin, opts.stdout);
 
   if (running) {
-    const http = new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${running.port}/mcp`), {
+    const http = new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${running.port}${running.base}/mcp`), {
       requestInit: { headers: { 'x-zark-token': running.token } },
     });
     stdio.onmessage = (msg) => void http.send(msg).catch((err) => process.stderr.write(`zark mcp: ${err.message}\n`));

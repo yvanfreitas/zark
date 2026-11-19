@@ -45,6 +45,7 @@ The Chromium used to render PNGs is downloaded on the first render, not at insta
 | --- | --- |
 | `zark init` | Creates `architecture/`, adds `.zark/` to `.gitignore` and forces LF on the YAML files via `.gitattributes` |
 | `zark dev [--port 4317] [--no-open]` | Local server, editable UI and MCP over HTTP at `/mcp` |
+| `zark dev --workspace [folder]` | One server for many repos: every direct subfolder with `architecture/zark.yaml`. See [Workspace](#workspace-many-repos) |
 | `zark mcp` | MCP over stdio. Delegates to a `zark dev` running on the same folder, if any |
 | `zark validate [--format json]` | Lists problems. Exits with 1 when there are errors |
 | `zark fmt [--check]` | Rewrites files in canonical format, or only checks |
@@ -61,6 +62,20 @@ The Chromium used to render PNGs is downloaded on the first render, not at insta
 Every command accepts `--dir <folder>` (default: `architecture`).
 
 Git and PRs use the `git` and provider CLI already authenticated on the machine: `gh` on GitHub, `glab` on GitLab (where the PR becomes an MR). The provider comes from `git.provider: github | gitlab` in `zark.yaml`; without it, a remote whose host contains `gitlab` picks GitLab. Zark never asks for, reads or stores a token, and never runs `push --force`.
+
+## Workspace (many repos)
+
+`zark dev --workspace [folder]` serves several repos from one server and one browser tab. The folder defaults to the current directory.
+
+Zark searches every folder under the given one, up to 8 levels deep. Each folder that has `architecture/zark.yaml` becomes a repo, and the search continues inside it, so nested repos are found too. It skips folders starting with `.`, `node_modules`, `architecture/` folders and symlinks, and the folder itself is never a repo. If none is found, it stops with an error.
+
+Each repo is keyed by its path relative to the folder (for example `clients/acme`) and lives under it: the UI at `/r/<key>/` and MCP at `/r/<key>/mcp`, with the `/` in the key written as `%2F` (`/r/clients%2Facme/`). The root page lists them and lets you switch. One token covers all of them, and it is printed when the server starts.
+
+Repos stay separate. Each keeps its own git history, PRs and CI, and an edit in one only changes files in that repo.
+
+If a repo is already served by its own `zark dev`, the workspace links to that server instead of loading it again.
+
+New clones are picked up when you restart the workspace. `--workspace` cannot be combined with `--dir`.
 
 ## Code level (TypeScript, alpha)
 

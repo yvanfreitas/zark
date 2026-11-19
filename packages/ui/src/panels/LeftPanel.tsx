@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { numberSteps } from '@core/flow-text';
 import { buildDrawingTree, type DrawingTreeNode } from '../drawingTree';
+import { prefix } from '../api';
 import { freeId } from '../model';
 import { tr, useT } from '../i18n';
 import { currentDrawing, useStore } from '../store';
 import type { Drawing, Flow, WithFile } from '../types';
+import { ancestorsOf, buildRepoTree, type RepoTreeNode } from '../workspaceTree';
+import { useWorkspace } from './Workspace';
 import { Button, Icon, IconButton, inputClass, Svg } from './ui';
 
 export function InlineForm({ placeholder, onSubmit, onCancel, extra }: { placeholder: string; onSubmit: (v: string) => void; onCancel: () => void; extra?: ReactNode }) {
@@ -266,12 +269,81 @@ function DrawingsTree() {
   );
 }
 
+const ROW_LINK = 'min-w-0 flex-1 truncate py-1.5 pl-1 pr-2 text-left text-[13px]';
+
+/** Workspace mode: repo folders and repos; the open repo carries the full drawing tree. */
+function WorkspaceTree({ nodes, openKey }: { nodes: RepoTreeNode[]; openKey?: string }) {
+  const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set(openKey ? [...ancestorsOf(openKey), openKey] : []));
+  const t = useT();
+  const toggle = (path: string) =>
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(path)) next.add(path);
+      return next;
+    });
+
+  const row = (n: RepoTreeNode, depth: number): ReactNode => {
+    const repo = n.repo;
+    const isOpenRepo = repo?.prefix === prefix;
+    const expanded = open.has(n.path);
+    const hasChildren = n.children.length > 0 || (!!repo && !repo.running && (isOpenRepo || repo.roots.length > 0));
+    return (
+      <li key={n.path}>
+        <div className={`${ROW} ${isOpenRepo ? 'bg-[var(--accent-soft)]' : 'hover:bg-[var(--hover)]'}`} style={{ paddingLeft: depth * INDENT }}>
+          {hasChildren ? <Chevron open={expanded} label={t(expanded ? 'left.collapse' : 'left.expand', { name: n.label })} onToggle={() => toggle(n.path)} /> : <span className="size-5 shrink-0" />}
+          {repo ? (
+            <a href={repo.running?.url ?? `${repo.prefix}/`} className={`${ROW_LINK} ${isOpenRepo ? 'font-semibold text-[var(--accent)]' : 'text-[var(--fg)]'}`} title={repo.key}>
+              {n.label}
+            </a>
+          ) : (
+            <button type="button" onClick={() => toggle(n.path)} className={`${ROW_LINK} font-semibold text-[var(--fg-soft)]`}>
+              {n.label}
+            </button>
+          )}
+        </div>
+        {expanded && (
+          <ul>
+            {repo && isOpenRepo && (
+              <li style={{ paddingLeft: (depth + 1) * INDENT }}>
+                <DrawingsTree />
+              </li>
+            )}
+            {repo &&
+              !isOpenRepo &&
+              repo.roots.map((r) => (
+                <li key={r.id}>
+                  <div className={`${ROW} hover:bg-[var(--hover)]`} style={{ paddingLeft: (depth + 1) * INDENT }}>
+                    <span className="size-5 shrink-0" />
+                    <a href={`${repo.prefix}/#drawing=${encodeURIComponent(r.id)}`} className={`${ROW_LINK} text-[var(--fg)]`}>
+                      {r.name}
+                    </a>
+                  </div>
+                </li>
+              ))}
+            {n.children.map((c) => row(c, depth + 1))}
+          </ul>
+        )}
+      </li>
+    );
+  };
+
+  return <ul>{nodes.map((n) => row(n, 0))}</ul>;
+}
+
+function Sidebar() {
+  const workspace = useWorkspace();
+  const nodes = useMemo(() => (workspace ? buildRepoTree(workspace.repos) : undefined), [workspace]);
+  if (prefix === '' || !workspace || !nodes) return <DrawingsTree />;
+  const openKey = workspace.repos.find((r) => r.prefix === prefix)?.key;
+  return <WorkspaceTree nodes={nodes} openKey={openKey} />;
+}
+
 export function LeftPanel() {
   const t = useT();
   return (
     <aside className="flex w-[280px] shrink-0 flex-col border-r border-[var(--border)] bg-[var(--panel)]" aria-label={t('left.panel')}>
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4 pt-2">
-        <DrawingsTree />
+        <Sidebar />
       </div>
     </aside>
   );

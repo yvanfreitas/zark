@@ -1,5 +1,9 @@
 import { tr } from './i18n';
-import type { Model, Problem } from './types';
+import { renderRoute, repoPrefix } from './route';
+import type { Model, Problem, Workspace } from './types';
+
+/** `/r/<repo>` under the workspace server, '' for a single repo and `zark build`. */
+export const prefix = repoPrefix(location.pathname);
 
 /** Session token: passed once in the URL by the CLI, kept for the tab. */
 function readToken(): string {
@@ -11,7 +15,7 @@ function readToken(): string {
     } catch {
       /* storage may be blocked; the URL still works */
     }
-    if (!url.pathname.startsWith('/render/')) {
+    if (!renderRoute(url.pathname)) {
       url.searchParams.delete('token');
       history.replaceState(null, '', url);
     }
@@ -45,7 +49,7 @@ export class ApiError extends Error {
 }
 
 export async function api<T = any>(method: string, path: string, body?: unknown, headers: Record<string, string> = {}): Promise<T> {
-  const res = await fetch(path, {
+  const res = await fetch(prefix + path, {
     method,
     headers: { 'x-zark-token': token, ...(body !== undefined ? { 'content-type': 'application/json' } : {}), ...headers },
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -58,7 +62,7 @@ export async function api<T = any>(method: string, path: string, body?: unknown,
 }
 
 /** `zark build` output: no server, no token; the snapshot sits next to index.html. */
-export const readOnly = !token && !location.pathname.startsWith('/render/');
+export const readOnly = !token && !renderRoute(location.pathname);
 
 export const getModel = async (): Promise<Model> => {
   if (!readOnly) return api<Model>('GET', '/api/model');
@@ -67,11 +71,26 @@ export const getModel = async (): Promise<Model> => {
   return res.json();
 };
 
+/**
+ * Repos of a workspace server, or undefined for a single-repo server and `zark build`.
+ * A single-repo server answers this path with index.html (SPA catch-all), so JSON is required.
+ */
+export async function getWorkspace(): Promise<Workspace | undefined> {
+  if (readOnly) return undefined;
+  try {
+    const res = await fetch('/api/workspace', { headers: { 'x-zark-token': token } });
+    if (!res.ok || !res.headers.get('content-type')?.includes('application/json')) return undefined;
+    return (await res.json()) as Workspace;
+  } catch {
+    return undefined;
+  }
+}
+
 export function subscribe(handlers: Record<string, (data: any) => void>, onState: (connected: boolean) => void) {
   let source: EventSource | undefined;
   let retry: number | undefined;
   const open = () => {
-    source = new EventSource(`/api/events?token=${encodeURIComponent(token)}`);
+    source = new EventSource(`${prefix}/api/events?token=${encodeURIComponent(token)}`);
     source.addEventListener('hello', () => onState(true));
     for (const [event, fn] of Object.entries(handlers)) source.addEventListener(event, (e) => fn(JSON.parse((e as MessageEvent).data)));
     source.onerror = () => {

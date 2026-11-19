@@ -37,3 +37,10 @@ describe('VS Code extension: file -> drawing URL', () => {
     expect(html).not.toContain('script-src');
   });
 });
+
+describe('drawingUrl base', () => {
+  it('inserts the workspace base before the query', () => {
+    expect(drawingUrl(9, 't', '#d=x', '/r/a')).toBe('http://127.0.0.1:9/r/a/?token=t#d=x');
+    expect(drawingUrl(9, 't', '#d=x')).toBe('http://127.0.0.1:9/?token=t#d=x');
+  });
+});

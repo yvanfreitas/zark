@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { alternativeBlocks, flowToMermaid } from '@core/flow-text';
-import { api, token } from '../api';
+import { api, prefix, token } from '../api';
+import { renderFileUrl } from '../route';
 import { flowView } from '../flow';
 import { useStore } from '../store';
 import { problemText, tr, useT } from '../i18n';
@@ -71,7 +72,7 @@ export function FlowPanel() {
     s.toast(tr('flow.renderingPng'));
     try {
       const r = await api('POST', '/api/render', { flow: flow.id, step: step?.id });
-      if (r.ok) window.open(`${r.url}&token=${encodeURIComponent(token)}`, '_blank');
+      if (r.ok) window.open(renderFileUrl(prefix, r.url, token), '_blank');
       else s.toast(r.error, 'error');
     } catch (e) {
       s.toast((e as Error).message, 'error');
@@ -79,7 +80,7 @@ export function FlowPanel() {
   };
   const copyLink = () => {
     const step = frames[frame]?.[0];
-    const url = `${location.origin}/#flow=${flow.id}${step ? `&step=${step.id}` : ''}`;
+    const url = `${location.origin}${prefix}/#flow=${flow.id}${step ? `&step=${step.id}` : ''}`;
     void navigator.clipboard?.writeText(url).then(() => useStore.getState().toast(tr('flow.linkCopied')));
   };
 

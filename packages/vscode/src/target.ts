@@ -35,8 +35,8 @@ export function fragmentFor(archDir: string, file: string, model?: ModelSummary)
 }
 
 /** Only the loopback server; the token travels in the query, as `zark dev` prints it. */
-export function drawingUrl(port: number, token: string, fragment: string): string {
-  return `http://127.0.0.1:${port}/?token=${encodeURIComponent(token)}${fragment}`;
+export function drawingUrl(port: number, token: string, fragment: string, base = ''): string {
+  return `http://127.0.0.1:${port}${base}/?token=${encodeURIComponent(token)}${fragment}`;
 }
 
 /** Webview page: a full-size iframe; CSP allows only the local Zark server. */
