@@ -31,10 +31,12 @@ import {
   type Change,
   type Project,
 } from '@zark/core';
-import { defaultBase, ProjectStore, prPreview, projectAtRef, renderedProblems, startServer } from '@zark/server';
+import { defaultBase, ProjectStore, prPreview, projectAtRef, renderedProblems, startServer, startWorkspace } from '@zark/server';
 
 export interface Ctx {
   dir: string;
+  dirGiven?: boolean;
+  workspace?: boolean;
   args: string[];
   format?: string;
   check?: boolean;
@@ -65,6 +67,18 @@ function requireUi(): string {
   const ui = findUiDir();
   if (!ui) throw new Error('UI not found. Run "pnpm --filter @zark/ui build" (or "pnpm build") first.');
   return ui;
+}
+
+function waitForSignal(stopServer: () => Promise<void>): Promise<void> {
+  return new Promise<void>((done) => {
+    const stop = () => {
+      process.off('SIGINT', stop);
+      process.off('SIGTERM', stop);
+      void stopServer().finally(done);
+    };
+    process.on('SIGINT', stop);
+    process.on('SIGTERM', stop);
+  });
 }
 
 function openBrowser(url: string) {
@@ -183,27 +197,39 @@ export const commands: Record<string, Command> = {
     console.log(`Schemas written to ${out}`);
   },
 
-  async dev({ dir, port, host, 'no-open': noOpen }) {
-    await requireProject(dir);
+  async dev({ dir, dirGiven, workspace, args, port, host, 'no-open': noOpen }) {
+    if (workspace && dirGiven) {
+      console.error('--workspace and --dir cannot be used together');
+      return 2;
+    }
+    if (!workspace) await requireProject(dir);
     const uiDir = findUiDir();
     if (!uiDir) console.warn('Warning: UI not found. Run "pnpm --filter @zark/ui build". The API and MCP still work.');
     if (host && host !== '127.0.0.1' && host !== 'localhost') console.warn(`Warning: listening on ${host}. The server writes files and opens PRs; expose it only on a trusted network.`);
     const { mcpHttpHandler } = await import('@zark/mcp');
+    if (workspace) {
+      const root = resolve(args[0] ?? '.');
+      if (!existsSync(root)) throw new Error(`Folder not found: ${root}`);
+      const ws = await startWorkspace({ root, port: port ? Number(port) : undefined, host, uiDir, watch: true, advertise: true, mcp: mcpHttpHandler });
+      const wsUrl = `${ws.url}/?token=${ws.token}`;
+      console.log(`Zark workspace running at ${wsUrl}`);
+      for (const r of ws.repos) {
+        console.log(r.running ? `  ${r.key}  running elsewhere: ${r.running.url}` : `  ${r.key}  ${ws.url}${r.prefix}/   MCP ${ws.url}${r.prefix}/mcp`);
+      }
+      console.log(`MCP header: "Authorization: Bearer ${ws.token}"`);
+      console.log('New repos are picked up on restart.');
+      console.log('Ctrl+C to stop.');
+      if (!noOpen) openBrowser(wsUrl);
+      await waitForSignal(ws.stop);
+      return;
+    }
     const running = await startServer({ dir, port: port ? Number(port) : 4317, host, uiDir, watch: true, advertise: true, mcp: mcpHttpHandler });
     const url = `${running.url}/?token=${running.token}`;
     console.log(`Zark running at ${url}`);
     console.log(`MCP over HTTP: ${running.url}/mcp (header "Authorization: Bearer ${running.token}")`);
     console.log('Ctrl+C to stop.');
     if (!noOpen) openBrowser(url);
-    await new Promise<void>((done) => {
-      const stop = () => {
-        process.off('SIGINT', stop);
-        process.off('SIGTERM', stop);
-        void running.stop().finally(done);
-      };
-      process.on('SIGINT', stop);
-      process.on('SIGTERM', stop);
-    });
+    await waitForSignal(running.stop);
   },
 
   async mcp({ dir }) {

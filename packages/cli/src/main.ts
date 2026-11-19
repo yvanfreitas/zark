@@ -8,6 +8,7 @@ const USAGE = `zark <command> [options]
 Commands:
   init                         Creates architecture/ with zark.yaml, catalog.yaml and an empty drawing
   dev [--port 4317] [--no-open] Starts the server, UI and MCP over HTTP
+  dev --workspace [folder]     Serves every repo with architecture/ under folder
   mcp                          MCP over stdio
   validate [--format json]     Lists problems. Exits with 1 when there are errors
   fmt [--check]                Rewrites files in canonical format, or only checks
@@ -28,7 +29,8 @@ async function main() {
   const { values, positionals } = parseArgs({
     allowPositionals: true,
     options: {
-      dir: { type: 'string', default: 'architecture' },
+      dir: { type: 'string' },
+      workspace: { type: 'boolean' },
       format: { type: 'string' },
       check: { type: 'boolean' },
       write: { type: 'boolean' },
@@ -52,7 +54,7 @@ async function main() {
     console.error(`Unknown command: ${name}\n\n${USAGE}`);
     return 2;
   }
-  return command({ ...values, dir: resolve(values.dir!), args });
+  return command({ ...values, dir: resolve(values.dir ?? 'architecture'), dirGiven: values.dir !== undefined, args });
 }
 
 main().then(
