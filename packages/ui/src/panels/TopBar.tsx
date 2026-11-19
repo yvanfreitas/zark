@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { api, prefix, readOnly } from '../api';
+import { api, readOnly } from '../api';
 import { currentDrawing, useStore } from '../store';
 import { setLang, tr, useT, type Lang } from '../i18n';
 import { Button, Icon, IconButton, Svg } from './ui';
 import { mod } from '../actions';
-import { RepoSwitcher } from './Workspace';
+import { useWorkspace } from './Workspace';
 
 export interface GitStatus {
   isRepo: boolean;
@@ -96,6 +96,7 @@ export function TopBar({ git }: { git?: GitStatus }) {
   const theme = useStore((s) => s.theme);
   const set = useStore((s) => s.set);
   const t = useT();
+  const workspace = useWorkspace();
   const errors = model.problems.filter((p) => p.severity === 'error').length;
   const warnings = model.problems.length - errors;
   const changed = git?.changed.length ?? 0;
@@ -107,9 +108,8 @@ export function TopBar({ git }: { git?: GitStatus }) {
           <rect x="3" y="8" width="12" height="16" rx="3" fill="var(--accent)" />
           <rect x="19" y="8" width="10" height="16" rx="3" fill="var(--accent)" opacity="0.55" />
         </svg>
-        <span className="max-w-[160px] truncate text-[14px] font-semibold text-[var(--fg)]">{model.config.name}</span>
+        <span className="max-w-[160px] truncate text-[14px] font-semibold text-[var(--fg)]">{workspace?.name ?? model.config.name}</span>
       </div>
-      {prefix !== '' && <RepoSwitcher />}
       <div className="h-5 w-px bg-[var(--border)]" />
       <ViewSwitch />
       <Breadcrumb />

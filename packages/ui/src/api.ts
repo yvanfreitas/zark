@@ -1,6 +1,6 @@
 import { tr } from './i18n';
 import { renderRoute, repoPrefix } from './route';
-import type { Model, Problem, WorkspaceEntry } from './types';
+import type { Model, Problem, Workspace } from './types';
 
 /** `/r/<repo>` under the workspace server, '' for a single repo and `zark build`. */
 export const prefix = repoPrefix(location.pathname);
@@ -75,12 +75,12 @@ export const getModel = async (): Promise<Model> => {
  * Repos of a workspace server, or undefined for a single-repo server and `zark build`.
  * A single-repo server answers this path with index.html (SPA catch-all), so JSON is required.
  */
-export async function getWorkspace(): Promise<WorkspaceEntry[] | undefined> {
+export async function getWorkspace(): Promise<Workspace | undefined> {
   if (readOnly) return undefined;
   try {
     const res = await fetch('/api/workspace', { headers: { 'x-zark-token': token } });
     if (!res.ok || !res.headers.get('content-type')?.includes('application/json')) return undefined;
-    return ((await res.json()) as { repos: WorkspaceEntry[] }).repos;
+    return (await res.json()) as Workspace;
   } catch {
     return undefined;
   }

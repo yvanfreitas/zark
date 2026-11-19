@@ -1,9 +1,9 @@
-// Workspace mode in the browser: repo list at /, switcher in the top bar, and
+// Workspace mode in the browser: repo list at /, sidebar repo tree, and
 // rendering stays inside the repo the page is on. Skipped when the UI is not built.
 import { existsSync } from 'node:fs';
 import { cp, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Browser } from 'playwright-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -29,7 +29,7 @@ describe.skipIf(!existsSync(join(UI, 'index.html')))('UI workspace mode', () => 
     await rm(root, { recursive: true, force: true });
   });
 
-  it('lists the repos, opens one, switches repos and renders only into the current one', async () => {
+  it('lists the repos, opens one, switches repos via the sidebar and renders only into the current one', async () => {
     const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
     await page.goto(`${ws.url}/?token=${ws.token}`);
     await page.getByRole('link', { name: /^a\b/ }).waitFor();
@@ -37,9 +37,18 @@ describe.skipIf(!existsSync(join(UI, 'index.html')))('UI workspace mode', () => 
     await page.getByRole('button', { name: 'New drawing' }).waitFor();
     expect(new URL(page.url()).pathname).toBe('/r/b/');
 
-    await page.getByRole('combobox', { name: 'Switch repo' }).selectOption({ label: 'a' });
+    // The sidebar tree replaces the switcher: the top bar shows the workspace folder name.
+    const aside = page.getByRole('complementary', { name: 'Left panel' });
+    await page.getByRole('combobox', { name: 'Switch repo' }).waitFor({ state: 'detached' });
+    await page.getByText(basename(root), { exact: true }).first().waitFor();
+    await aside.getByRole('button', { name: 'Expand a', exact: true }).click();
+    await aside.getByRole('link', { name: 'Context', exact: true }).waitFor();
+    await aside.getByRole('link', { name: 'Context', exact: true }).click();
     await page.getByRole('button', { name: 'New drawing' }).waitFor();
-    expect(new URL(page.url()).pathname).toBe('/r/a/');
+    const url = new URL(page.url());
+    expect(url.pathname).toBe('/r/a/');
+    expect(url.hash).toContain('#drawing=');
+    await page.locator('.react-flow__node').first().waitFor();
     expect(page.url()).not.toContain('token');
 
     const png = (name: string) => join(root, name, 'architecture', 'rendered', 'context.png');

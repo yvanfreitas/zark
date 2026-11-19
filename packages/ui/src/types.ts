@@ -45,5 +45,12 @@ export interface WorkspaceEntry {
   drawings: number;
   errors: number;
   warnings: number;
+  roots: { id: string; name: string }[];
   running?: { url: string };
+}
+
+/** `GET /api/workspace`: the workspace folder name and its repos. */
+export interface Workspace {
+  name: string;
+  repos: WorkspaceEntry[];
 }
