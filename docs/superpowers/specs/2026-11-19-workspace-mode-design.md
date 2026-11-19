@@ -108,3 +108,25 @@ A repo whose project fails to load is skipped with a warning naming the folder a
 - Exact component layout of the repo list page and the switcher, following the existing UI style.
 - How the shared Chromium is passed into `Renderer` (constructor option or module-level singleton).
 - Whether `/api/workspace` counts come from cached store problems or are recomputed on request.
+
+## Amendment 2026-11-19: sidebar tree and recursive discovery
+
+Requested by the user after validating on a real folder of 48 repos.
+
+**What changed and why.** The first version kept discovery to direct children and a repo dropdown in the top bar. The user wants the workspace to read as one tree: every Zark doc under the folder, at any depth, laid out by folder hierarchy in the sidebar, with the workspace folder's name as the title. The non-goal "recursive discovery" no longer holds.
+
+**Discovery.**
+- Walk every descendant folder of the root and collect each folder `F` that has `F/architecture/zark.yaml`. Keep walking inside `F` too (a monorepo may hold nested docs), but never descend into `architecture/` folders.
+- Skip folders whose name starts with `.` and folders named `node_modules`. Stop at depth 8. Unreadable folders are skipped silently. Symlinked folders are not followed.
+- The repo key is the path relative to the root with `/` separators (`clients/acme/api`). The prefix is `/r/${encodeURIComponent(key)}` (the `/` becomes `%2F`), so the URL stays a single segment and the UI's `repoPrefix` regex is unchanged. Sorted by key.
+- The root folder itself is not a repo, even if it has `architecture/`.
+
+**`GET /api/workspace`.** Returns `{ name, repos }`, where `name` is the root folder's base name. Each entry gains `roots: { id, name }[]`: the drawings with no scope (the first level of that repo's tree), in model order. A `running` entry has `roots: []`.
+
+**Sidebar (workspace mode only, `prefix !== ''`).**
+- The title in the top bar shows the workspace `name` instead of the project name. The repo dropdown is removed.
+- The left panel shows a tree built from the repo keys: intermediate folders are collapsible group nodes (no link), and repos are nodes labelled by their last path segment.
+- The open repo is expanded and shows its full drawing tree, editable as today, nested under its repo node.
+- Other repos start collapsed. Expanding one lists its `roots`; clicking a root opens `/r/<prefix>/#drawing=<id>`, and clicking the repo name opens `/r/<prefix>/`. Both are full page loads. A `running` repo links to `running.url`.
+- The ancestor folders of the open repo start expanded. No persisted expand state.
+- Single-repo mode and the `/` repo list page are unchanged.
