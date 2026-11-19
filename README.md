@@ -67,9 +67,9 @@ Git and PRs use the `git` and provider CLI already authenticated on the machine:
 
 `zark dev --workspace [folder]` serves several repos from one server and one browser tab. The folder defaults to the current directory.
 
-Zark looks at the direct children of the folder. Each one that has `architecture/zark.yaml` becomes a repo; nothing deeper is searched. If none is found, it stops with an error.
+Zark searches every folder under the given one, up to 8 levels deep. Each folder that has `architecture/zark.yaml` becomes a repo, and the search continues inside it, so nested repos are found too. It skips folders starting with `.`, `node_modules`, `architecture/` folders and symlinks, and the folder itself is never a repo. If none is found, it stops with an error.
 
-Each repo lives under its folder name: the UI at `/r/<folder>/` and MCP at `/r/<folder>/mcp`. The root page lists them and lets you switch. One token covers all of them, and it is printed when the server starts.
+Each repo is keyed by its path relative to the folder (for example `clients/acme`) and lives under it: the UI at `/r/<key>/` and MCP at `/r/<key>/mcp`, with the `/` in the key written as `%2F` (`/r/clients%2Facme/`). The root page lists them and lets you switch. One token covers all of them, and it is printed when the server starts.
 
 Repos stay separate. Each keeps its own git history, PRs and CI, and an edit in one only changes files in that repo.
 

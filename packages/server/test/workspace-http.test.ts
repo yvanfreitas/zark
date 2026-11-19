@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs';
 import { request } from 'node:http';
 import { createServer, type Server } from 'node:net';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { findRunning, startServer, startWorkspace, type Running, type RunningWorkspace } from '../src/index.js';
 
@@ -63,7 +63,7 @@ describe('startWorkspace', () => {
 
   beforeAll(async () => {
     root = await mkdtemp(join(tmpdir(), 'zark-wshttp-'));
-    for (const name of ['a', 'my repo', 'bad']) await copyRepo(root, name);
+    for (const name of ['a', 'my repo', 'bad', 'clients/acme']) await copyRepo(root, name);
     const user = join(root, 'bad', 'architecture', 'entities', 'user.yaml');
     await writeFile(user, (await readFile(user, 'utf8')).replace('to: papo-app', 'to: nada'));
     ws = await startWorkspace({ root, port: 0, watch: true, advertise: true });
@@ -80,13 +80,41 @@ describe('startWorkspace', () => {
   it('lists the repos', async () => {
     const res = await get('/api/workspace');
     expect(res.status).toBe(200);
-    const { repos } = await res.json();
-    expect(repos.map((r: any) => r.key)).toEqual(['a', 'bad', 'my repo']);
+    const { name, repos } = await res.json();
+    expect(name).toBe(basename(root));
+    expect(repos.map((r: any) => r.key)).toEqual(['a', 'bad', 'clients/acme', 'my repo']);
     const byKey = Object.fromEntries(repos.map((r: any) => [r.key, r]));
     expect(byKey.bad.errors).toBeGreaterThan(0);
     expect(byKey.a.errors).toBe(0);
     expect(byKey['my repo'].prefix).toBe('/r/my%20repo');
     expect(byKey.a.drawings).toBeGreaterThan(0);
+    expect(byKey['clients/acme'].prefix).toBe('/r/clients%2Facme');
+    // roots: only unscoped drawings, in model order.
+    const model = await (await get('/r/a/api/model')).json();
+    const unscoped = model.drawings.filter((d: any) => !d.scope).map((d: any) => ({ id: d.id, name: d.name }));
+    expect(unscoped.length).toBeGreaterThan(0);
+    expect(unscoped.length).toBeLessThan(model.drawings.length);
+    expect(byKey.a.roots).toEqual(unscoped);
+  });
+
+  it('serves a nested repo key through its encoded prefix', async () => {
+    const user = join(root, 'clients', 'acme', 'architecture', 'entities', 'user.yaml');
+    const aUser = join(root, 'a', 'architecture', 'entities', 'user.yaml');
+    const aBefore = await readFile(aUser, 'utf8');
+    expect((await get('/r/clients%2Facme/api/model')).status).toBe(200);
+    expect((await fetch(`${base}/r/clients%2Facme/api/model`)).status).toBe(401);
+    const res = await fetch(`${base}/r/clients%2Facme/api/entities/user`, {
+      method: 'PATCH',
+      headers: { 'x-zark-token': ws.token, 'content-type': 'application/json' },
+      body: JSON.stringify({ set: { caption: 'Only in acme' } }),
+    });
+    expect(res.status).toBe(200);
+    expect(await readFile(user, 'utf8')).toContain('caption: Only in acme');
+    expect(await readFile(aUser, 'utf8')).toBe(aBefore);
+    // An unmounted nested key still answers the JSON 404, not the SPA.
+    const miss = await get('/r/clients%2Fnope/api/model');
+    expect(miss.status).toBe(404);
+    expect(await miss.json()).toEqual({ error: 'Unknown repo: clients/nope' });
   });
 
   it('edits only the addressed repo', async () => {

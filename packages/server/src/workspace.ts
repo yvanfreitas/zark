@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { readdir, rm } from 'node:fs/promises';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { Hono } from 'hono';
 import { writeAtomic } from '@zark/core';
 import { createApp, guard, listen, newToken, serveUi, type McpHttpHandler, type Started } from './http.js';
@@ -18,21 +18,36 @@ export interface WorkspaceRepo {
   dir: string;
 }
 
-/** Finds direct child folders of `root` that contain `architecture/zark.yaml`, sorted by name. */
+const MAX_DEPTH = 8;
+
+/**
+ * Finds every folder under `root` (not `root` itself) that contains `architecture/zark.yaml`, at depth
+ * <= 8, keyed by its `/`-joined relative path and sorted by key. Keeps walking inside a repo, but skips
+ * dot folders, `node_modules`, `architecture/`, symlinks and unreadable folders.
+ */
 export async function discoverWorkspace(root: string): Promise<WorkspaceRepo[]> {
-  const entries = await readdir(root, { withFileTypes: true });
-  const repos = entries
-    .filter((e) => e.isDirectory() && existsSync(join(root, e.name, 'architecture', 'zark.yaml')))
-    .map((e) => e.name)
-    .sort((a, b) => a.localeCompare(b))
-    .map((name) => ({
-      key: name,
-      prefix: `/r/${encodeURIComponent(name)}`,
-      root: join(root, name),
-      dir: join(root, name, 'architecture'),
-    }));
+  const repos: WorkspaceRepo[] = [];
+  const walk = async (dir: string, segments: string[]): Promise<void> => {
+    let entries;
+    try {
+      entries = await readdir(dir, { withFileTypes: true });
+    } catch {
+      return; // unreadable folder
+    }
+    for (const e of entries) {
+      if (!e.isDirectory() || e.name.startsWith('.') || e.name === 'node_modules' || e.name === 'architecture') continue;
+      const path = join(dir, e.name);
+      const parts = [...segments, e.name];
+      if (existsSync(join(path, 'architecture', 'zark.yaml'))) {
+        const key = parts.join('/');
+        repos.push({ key, prefix: `/r/${encodeURIComponent(key)}`, root: path, dir: join(path, 'architecture') });
+      }
+      if (parts.length < MAX_DEPTH) await walk(path, parts);
+    }
+  };
+  await walk(root, []);
   if (repos.length === 0) throw new Error(`No repos with architecture/zark.yaml under ${root}`);
-  return repos;
+  return repos.sort((a, b) => a.key.localeCompare(b.key));
 }
 
 export interface WorkspaceOptions {
@@ -55,6 +70,8 @@ export interface WorkspaceEntry {
   drawings: number;
   errors: number;
   warnings: number;
+  /** Drawings with no scope (the first level of the repo's tree), in model order. */
+  roots: { id: string; name: string }[];
   /** Set when the repo already has its own live server; the workspace does not load it. */
   running?: { url: string };
 }
@@ -112,7 +129,7 @@ export async function startWorkspace(opts: WorkspaceOptions): Promise<RunningWor
       const service = services.get(repo.key);
       const base = { key: repo.key, prefix: repo.prefix, dir: repo.dir };
       // A repo served elsewhere is not loaded here, so it has no counts.
-      if (!service) return { ...base, name: repo.key, drawings: 0, errors: 0, warnings: 0, running };
+      if (!service) return { ...base, name: repo.key, drawings: 0, errors: 0, warnings: 0, roots: [], running };
       const problems = service.store.problems;
       return {
         ...base,
@@ -120,9 +137,10 @@ export async function startWorkspace(opts: WorkspaceOptions): Promise<RunningWor
         drawings: service.project.drawings.size,
         errors: problems.filter((p) => p.severity === 'error').length,
         warnings: problems.filter((p) => p.severity === 'warning').length,
+        roots: [...service.project.drawings.values()].filter(({ drawing }) => !drawing.scope).map(({ drawing }) => ({ id: drawing.id, name: drawing.name })),
       };
     });
-  app.get('/api/workspace', (c) => c.json({ repos: entries() }));
+  app.get('/api/workspace', (c) => c.json({ name: basename(opts.root), repos: entries() }));
   // A repo that is not mounted here (stale bookmark, or served by its own `zark dev`) must not fall to the SPA.
   app.all('/r/:repo/api/*', (c) => c.json({ error: `Unknown repo: ${c.req.param('repo')}` }, 404));
   serveUi(app, opts.uiDir);
