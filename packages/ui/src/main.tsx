@@ -10,6 +10,7 @@ import { App } from './App';
 import { Canvas } from './canvas/Canvas';
 import { useStore } from './store';
 import { tr } from './i18n';
+import { renderRoute } from './route';
 
 /**
  * Panel-less route the renderer screenshots: /render/drawing/<id> or
@@ -52,7 +53,7 @@ function RenderView({ kind, id }: { kind: 'drawing' | 'flow'; id: string }) {
   );
 }
 
-const match = /^\/render\/(drawing|flow)\/([^/]+)\/?$/.exec(location.pathname);
+const match = renderRoute(location.pathname);
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>{match ? <RenderView kind={match[1] as 'drawing' | 'flow'} id={decodeURIComponent(match[2])} /> : <App />}</StrictMode>,
+  <StrictMode>{match ? <RenderView kind={match.kind} id={match.id} /> : <App />}</StrictMode>,
 );
